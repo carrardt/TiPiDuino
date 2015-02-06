@@ -1,6 +1,6 @@
 #include "Arduino.h"
 
-#define DIO_DEBUG 1
+// #define DIO_DEBUG 1
 
 class DIOSwitch
 {
@@ -81,7 +81,11 @@ public:
   void startTimings() { }
   unsigned long readPulse(int p, int lvl) { return pulseIn(p,lvl); }
 public:
-  void printTimings() {}
+  void printTimings() 
+  {
+	for(int i=0;i<10;i++) { digitalWrite( ledPin, i&1 ); delay(100); }
+	digitalWrite( ledPin, LOW );
+  }
 #endif
 
 };
