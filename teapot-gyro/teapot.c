@@ -23,6 +23,8 @@ int input_fd = 0;
 GLdouble rot[16];
 #define EPSILON 0.0001
 
+GLUquadric* cylinderQuadric = 0;
+
 #define VIEWING_DISTANCE_MIN  3.0
 #define TEXTURE_ID_CUBE 1
 enum {
@@ -100,6 +102,8 @@ void RenderObjects(void)
   glTranslatef(2, 0, 0);
   glRotatef(g_fTeapotAngle2, 1, 1, 0);
 */
+  glRotatef(90, 1, 0, 0);
+  glRotatef(90, 0, 0, 1);
   glMultMatrixd( rot );
 
   glMaterialfv(GL_FRONT, GL_DIFFUSE, colorBronzeDiff);
@@ -184,6 +188,8 @@ void MouseMotion(int x, int y)
 }
 
 #define READ_BUF_SIZE 1024
+#define START_CHAR 'Q'
+#define END_CHAR '\n'
 void AnimateScene(void)
 {
     static int nc = 0;
@@ -204,8 +210,8 @@ void AnimateScene(void)
     int QPos = -1;
     while( p >= 0 && ( QPos==-1 || elPos==-1 ) )
     {
-	if( buf[p]=='\n' && elPos==-1 ) elPos = p;
-	if( buf[p]=='Q' && QPos==-1 ) QPos = p;
+	if( buf[p]==END_CHAR && elPos==-1 ) elPos = p;
+	if( buf[p]==START_CHAR && QPos==-1 ) QPos = p;
 	-- p;
     }
 
@@ -229,20 +235,21 @@ void AnimateScene(void)
 	return;
     }
 
-    if(buf[0]!='Q')
+    if( buf[0] != START_CHAR )
     {
 	printf("bad character '%c' at buffer start\n", buf[0]);
 	return;
     }
+    buf[nc-1] = '\0';
 
     int quat[4] = {0,0,0,0};
-    sscanf(buf,"Q%d:%d:%d:%d\n",quat+0,quat+1,quat+2,quat+3);
+    sscanf(buf+1,"%d:%d:%d:%d",quat+0,quat+1,quat+2,quat+3);
 
     //read( quat_fd, quat, 8 );
     double qw = quat[0] / 16384.0;
     double qx = quat[1] / 16384.0;
-    double qz = quat[2] / 16384.0;
-    double qy = quat[3] / 16384.0;
+    double qy = quat[2] / 16384.0;
+    double qz = quat[3] / 16384.0;
 
 #define M(i,j) rot[4*i+j]
     double sqw = qw*qw;

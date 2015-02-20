@@ -1,6 +1,6 @@
 #include "Arduino.h"
 
-// #define DIO_DEBUG 1
+#define DIO_DEBUG 1
 
 class DIOSwitch
 {
