@@ -12,6 +12,7 @@ byte DIOSwitch::waitForSignalStart()
     startTimings();
     t = readPulse(receivePin, PULSE_LVL);
   }
+  this->rl1 = t;
 
   // latch 2
   int interLatchPulses = 0;
@@ -21,6 +22,7 @@ byte DIOSwitch::waitForSignalStart()
     ++ interLatchPulses;
   }
   -- interLatchPulses;
+  this->rl2 = t;
 
   return (abs(t-LATCH2_LEN)<=PULSE_LEN_ERR) && (interLatchPulses<=MAX_ILP) ;
 }
@@ -49,6 +51,7 @@ byte DIOSwitch::decodeSignal(int nbits, byte* output)
     byte y = getSignalBit();
 
     if( x==BAD_BIT || y==BAD_BIT || x==y ) { 
+      this->errno |= 0x01;
       return false; 
     }
     if( bcount == 0 ) { 
@@ -69,6 +72,7 @@ byte DIOSwitch::decodeSignal(int nbits, byte* output)
 
 byte DIOSwitch::readSwitchCommand(unsigned long* sender, byte* state)
 {
+  this->errno = 0;
   if( waitForSignalStart() )
   {
     byte message[MESSAGE_BYTES];
@@ -79,7 +83,9 @@ byte DIOSwitch::readSwitchCommand(unsigned long* sender, byte* state)
 	this->printTimings();
       	return true;
     }
+    else { this->errno |= 0x10; }
   }
+  else { this->errno |= 0x20; }
   return false;
 }
 

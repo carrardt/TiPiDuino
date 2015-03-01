@@ -1,6 +1,6 @@
 #include "Arduino.h"
 
-#define DIO_DEBUG 1
+// #define DIO_DEBUG 1
 
 class DIOSwitch
 {
@@ -17,7 +17,7 @@ public:
     BIT1_PRE 	  = 420, 
     BIT1_LEN 	  = 1200, 
     MAX_ILP 	  = 0, 
-    PULSE_LEN_ERR = 30, 
+    PULSE_LEN_ERR = 50, 
     BAD_BIT 	  = 0xFF,
     MESSAGE_BITS  = 32, 
     MESSAGE_BYTES = 4,
@@ -39,6 +39,9 @@ public:
   void sendBitPair(byte b);
   void sendSignal(int nbits, const byte* input);
   void sendSwitchCommand(unsigned long sender, byte state);
+
+  uint8_t errno;
+  unsigned long rl1,rl2;
 
 protected:
   byte receivePin, emitPin, ledPin;
