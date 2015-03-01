@@ -1,8 +1,3 @@
-#!/system/bin/sh
-
-SUDO="/system/xbin/su -c"
-
 FILE=$1
-
-$SUDO $DUDE -p m328p -c arduino -P /dev/ttyACM0 -D -V -U flash:w:$FILE:i
+$AVR_DUDE -p m328p -c arduino -P /dev/ttyACM0 -D -V -U flash:w:$FILE:i
 

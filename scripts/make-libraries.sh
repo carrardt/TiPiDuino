@@ -5,6 +5,11 @@ VARIANT=standard
 
 IGNORE_LIBRARIES="Esplora WiFi"
 
+BASEDIR="$FAKECHROOT_BASE/usr/local"
+ARDUINO_LIBRARIES=$BASEDIR/arduino/libraries
+ARDUINO_CORE=$BASEDIR/arduino/cores/arduino
+ARDUINO_VARIANT=$BASEDIR/arduino/variants/$VARIANT
+
 CP="busybox cp"
 RM="busybox rm"
 MV="busybox mv"
@@ -16,22 +21,11 @@ XARGS="busybox xargs"
 GREP="busybox grep"
 WC="busybox wc"
 
-BASEDIR=`$DIRNAME $0`
-if [ "x$BASEDIR" = "x." ]
-then
-	BASEDIR=`pwd`
-fi
-ARDUINO_LIBRARIES=$BASEDIR/libraries
-ARDUINO_CORE=$BASEDIR/arduino/cores/arduino
-ARDUINO_VARIANT=$BASEDIR/arduino/variants/$VARIANT
-ADDONLIB_DIR=$BASEDIR/arduino_libs
-CORELIB_DIR=$BASEDIR/arduino_core
+ADDONLIB_DIR=$ARDUINOLIBS
+CORELIB_DIR=$ARDUINOCORE
 
-echo "BASEDIR=$BASEDIR"
-
-source $BASEDIR/init-sdk.sh
-CC="$AVR_GCC"
-CXX="$AVR_GXX"
+CC="$AVR_CC"
+CXX="$AVR_CXX"
 AR="$AVR_AR"
 
 echo "* Core sources: $ARDUINO_CORE"

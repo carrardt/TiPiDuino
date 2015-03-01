@@ -3,7 +3,7 @@
 INPUT=$1
 echo "#include <Arduino.h>" > $INPUT.cpp
 cat $INPUT >> $INPUT.cpp
-$AVR_GXX -xc++ -I$ARDUINOCORE -I$ARDUINOLIBS -c $INPUT.cpp -o $INPUT.o
+$AVR_CXX -xc++ -I$ARDUINOCORE -I$ARDUINOLIBS -c $INPUT.cpp -o $INPUT.o
 rm $INPUT.cpp
 $AVR_LD -o $INPUT.elf $INPUT.o $ARDUINOLIBS/*.a $ARDUINOCORE/libcore.a
 rm $INPUT.o
