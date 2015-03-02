@@ -20,6 +20,7 @@ BASENAME="busybox basename"
 XARGS="busybox xargs"
 GREP="busybox grep"
 WC="busybox wc"
+LS="busybox ls"
 
 ADDONLIB_DIR=$ARDUINOLIBS
 CORELIB_DIR=$ARDUINOCORE
@@ -35,6 +36,8 @@ echo "* Libraries build: $ADDONLIB_DIR"
 echo "* CC: $CC"
 echo "* CXX: $CXX"
 echo "* AR: $AR"
+
+set -x
 
 echo "Delete previous version ..."
 $RM -fr $ADDONLIB_DIR $CORELIB_DIR
@@ -52,7 +55,7 @@ cd ..
 
 echo "Copy additional libraries header files ..."
 $MKDIR $ADDONLIB_DIR/utility
-for ALIB in `ls $ARDUINO_LIBRARIES`
+for ALIB in `$LS $ARDUINO_LIBRARIES`
 do
 	ADIR=$ARDUINO_LIBRARIES/$ALIB
 	if [ -d $ADIR ]
@@ -67,7 +70,7 @@ do
 done
 
 echo "Compile additional libraries ..."
-for ALIB in `ls $ARDUINO_LIBRARIES`
+for ALIB in `$LS $ARDUINO_LIBRARIES`
 do
 	SKEEP_LIB=`echo $IGNORE_LIBRARIES | $GREP $ALIB | $WC -l`
 	ADIR=$ARDUINO_LIBRARIES/$ALIB
