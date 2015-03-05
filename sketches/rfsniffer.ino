@@ -100,14 +100,18 @@ static void s_loop()
 }
 
 #ifdef USE_EXTERNAL_MAIN
+
 void setup() { s_setup(); }
 void loop() { s_loop(); }
+
 #else
-int main()
+
+void main(void) __attribute__((noreturn));
+void main(void)
 {
 	s_setup();
 	for(;;) s_loop();
-	return 0;
 }
+
 #endif
 
