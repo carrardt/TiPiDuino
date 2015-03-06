@@ -26,8 +26,8 @@ HARDWARE=$(shell cat $(WIRING_SRC_DIR)/framework/hardware/$(FAMILY)/boards.txt |
 # Compile options
 MCU_FLAGS=-mmcu=$(MCU)
 COMMON_FLAGS=$(MCU_FLAGS) -DF_CPU=$(F_CPU)
-C_FLAGS=-O2 -Os -std=gnu11 $(COMMON_FLAGS)
-CXX_FLAGS=-O2 -Os -std=c++11 $(COMMON_FLAGS)
+C_FLAGS=-O3 -Os -std=gnu11 $(COMMON_FLAGS)
+CXX_FLAGS=-O3 -Os -std=c++1y $(COMMON_FLAGS)
 LD_FLAGS=-Os $(MCU_FLAGS)
 
 # Wiring core and additional libraries
@@ -59,10 +59,11 @@ USER_LIBRARIES_OBJS=$(subst $(SKETCHES),$(BUILD_DIR),$(patsubst %.c,%.user.o,$(U
 USER_LIBRARIES_OBJS_DIRS=$(sort $(dir $(USER_LIBRARIES_OBJS)))
 
 wiring: $(WIRING_LIB)
+#exemples: $(WIRING_EXEMPLES)
 user: $(USER_LIB)
 
-%.elf: %.user.o $(WIRING_LIB)
-	$(CXX) $(LD_FLAGS) $< -L$(BUILD_DIR) -l$(WIRING_LIBNAME) -o $@
+%.elf: $(BUILD_DIR)/%.user.o $(USER_LIB) $(WIRING_LIB)
+	$(CXX) $(LD_FLAGS) $< -L$(BUILD_DIR) -l$(USER_LIBNAME) -l$(WIRING_LIBNAME) -o $@
 
 $(USER_LIB): $(USER_LIBRARIES_OBJS)
 	$(AR) rcs $@ $?
@@ -86,9 +87,15 @@ $(BUILD_DIR)/%.wiring.o: $(WIRING_SRC_DIR)/%.c
 $(BUILD_DIR)/%.wiring.o: $(WIRING_SRC_DIR)/%.cpp
 	$(CXX) $(CXX_FLAGS) $(WIRING_INC_FLAGS) -c $< -o $@
 
+#$(BUILD_DIR)/%.wiring.o: $(WIRING_SRC_DIR)/%.pde
+#	$(CXX) $(CXX_FLAGS) -xc++ $(WIRING_INC_FLAGS) -c $< -o $@
+
 $(BUILD_DIR)/%.user.o: $(SKETCHES)/%.c
 	$(CC) $(C_FLAGS) $(USER_LIBRARIES_INC_FLAGS) $(WIRING_INC_FLAGS) -c $< -o $@
 
 $(BUILD_DIR)/%.user.o: $(SKETCHES)/%.cpp
 	$(CXX) $(CXX_FLAGS) $(USER_LIBRARIES_INC_FLAGS) $(WIRING_INC_FLAGS) -c $< -o $@
+
+$(BUILD_DIR)/%.user.o: $(SKETCHES)/%.ino
+	$(CXX) $(CXX_FLAGS) -xc++ $(USER_LIBRARIES_INC_FLAGS) $(WIRING_INC_FLAGS) -c $< -o $@
 
