@@ -2,6 +2,7 @@
 #define _Template_LiquidCrystal_h
 
 #include <inttypes.h>
+#include <Wiring.h>
 
 template<uint8_t p0, uint8_t... p>
 struct PinSetHelper;

@@ -1,6 +1,7 @@
-#include "LCD.h"
+#include <Wiring.h>
+#include <LCD.h>
 
-//#define USE_EXTERNAL_MAIN 1
+#define USE_EXTERNAL_MAIN 1
 
 #define MAX_PULSES 512
 #define MIN_PULSE_LEN 150
@@ -106,8 +107,8 @@ void loop() { s_loop(); }
 
 #else
 
-void main(void) __attribute__((noreturn));
-void main(void)
+int main(void) __attribute__((noreturn));
+int main(void)
 {
 	s_setup();
 	for(;;) s_loop();

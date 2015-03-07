@@ -8,13 +8,19 @@ WIRING_SRC_DIR=/media/picuntu/linuxdata/Wiring
 SKETCHES=/media/picuntu/linuxdata/TiPiDuino/sketches
 
 # default board model
-FAMILY=Atmel
-BOARD=atm328p16MHz
+FAMILY=Arduino
+BOARD=ArduinoUno
 
 # cross compiler
 CC=avr-gcc
 CXX=avr-g++
 AR=avr-ar
+STRIP=avr-strip
+OBJCOPY=avr-objcopy
+
+# flash tool
+AVRDUDE=avrdude
+SERIALPORT=/dev/ttyACM0
 
 # Deduced properties from board database
 BOARDSDB=$(WIRING_SRC_DIR)/framework/hardware/$(FAMILY)/boards.txt
@@ -22,6 +28,8 @@ MCU=$(shell cat $(BOARDSDB) | grep "$(BOARD)\.build\.mcu"|cut -d'=' -f2)
 CORE=$(shell cat $(WIRING_SRC_DIR)/framework/hardware/$(FAMILY)/boards.txt | grep "$(BOARD)\.build\.core"|cut -d'=' -f2)
 F_CPU=$(shell cat $(WIRING_SRC_DIR)/framework/hardware/$(FAMILY)/boards.txt | grep "$(BOARD)\.build\.f_cpu"|cut -d'=' -f2)
 HARDWARE=$(shell cat $(WIRING_SRC_DIR)/framework/hardware/$(FAMILY)/boards.txt | grep "$(BOARD)\.build\.hardware"|cut -d'=' -f2)
+PROTOCOL=$(shell cat $(WIRING_SRC_DIR)/framework/hardware/$(FAMILY)/boards.txt | grep "$(BOARD)\.upload\.protocol"|cut -d'=' -f2)
+PART=$(shell $AVRDUDE -c $PROTOCOL 2>&1|grep -i atmega328p|tr -d ' '|cut -d'=' -f1)
 
 # Compile options
 MCU_FLAGS=-mmcu=$(MCU)
@@ -29,6 +37,8 @@ COMMON_FLAGS=$(MCU_FLAGS) -DF_CPU=$(F_CPU)
 C_FLAGS=-O3 -Os -std=gnu11 $(COMMON_FLAGS)
 CXX_FLAGS=-O3 -Os -std=c++1y $(COMMON_FLAGS)
 LD_FLAGS=-Os $(MCU_FLAGS)
+STRIP_FLAGS=-s -x -X
+OBJCOPY_ELF2HEX_FLAGS=-O ihex -R .eeprom
 
 # Wiring core and additional libraries
 WIRING_LIBNAME=Wiring-$(FAMILY)-$(BOARD)
@@ -59,11 +69,18 @@ USER_LIBRARIES_OBJS=$(subst $(SKETCHES),$(BUILD_DIR),$(patsubst %.c,%.user.o,$(U
 USER_LIBRARIES_OBJS_DIRS=$(sort $(dir $(USER_LIBRARIES_OBJS)))
 
 wiring: $(WIRING_LIB)
-#exemples: $(WIRING_EXEMPLES)
 user: $(USER_LIB)
+#exemples: $(WIRING_EXEMPLES)
 
-%.elf: $(BUILD_DIR)/%.user.o $(USER_LIB) $(WIRING_LIB)
+%.flash: %.hex
+	$(AVRDUDE) -c $(PROTOCOL) -p $(MCU) -P $(SERIALPORT) -D -V -U flash:w:$<:i 
+
+%.hex: $(BUILD_DIR)/%.user.elf
+	$(OBJCOPY) $(OBJCOPY_ELF2HEX_FLAGS) $< $@
+
+$(BUILD_DIR)/%.user.elf: $(BUILD_DIR)/%.user.o $(USER_LIB) $(WIRING_LIB)
 	$(CXX) $(LD_FLAGS) $< -L$(BUILD_DIR) -l$(USER_LIBNAME) -l$(WIRING_LIBNAME) -o $@
+	$(STRIP) $(STRIP_FLAGS) $@
 
 $(USER_LIB): $(USER_LIBRARIES_OBJS)
 	$(AR) rcs $@ $?
@@ -97,5 +114,8 @@ $(BUILD_DIR)/%.user.o: $(SKETCHES)/%.cpp
 	$(CXX) $(CXX_FLAGS) $(USER_LIBRARIES_INC_FLAGS) $(WIRING_INC_FLAGS) -c $< -o $@
 
 $(BUILD_DIR)/%.user.o: $(SKETCHES)/%.ino
+	$(CXX) $(CXX_FLAGS) -xc++ $(USER_LIBRARIES_INC_FLAGS) $(WIRING_INC_FLAGS) -c $< -o $@
+
+$(BUILD_DIR)/%.user.o: $(SKETCHES)/%.pde
 	$(CXX) $(CXX_FLAGS) -xc++ $(USER_LIBRARIES_INC_FLAGS) $(WIRING_INC_FLAGS) -c $< -o $@
 
