@@ -4,6 +4,9 @@ BUILD_DIR=obj
 # where to find Wiring sources
 WIRING_SRC_DIR=/media/picuntu/linuxdata/Wiring
 
+# ETL template library for avr
+ETL_ROOT=/media/picuntu/linuxdata/ETL
+
 # where to find personal sketches
 SKETCHES=/media/picuntu/linuxdata/TiPiDuino/sketches
 
@@ -68,6 +71,9 @@ USER_LIBRARIES_INC_FLAGS=$(addprefix -I,$(USER_LIBRARIES_INC_DIRS))
 USER_LIBRARIES_OBJS=$(subst $(SKETCHES),$(BUILD_DIR),$(patsubst %.c,%.user.o,$(USER_LIBRARIES_SRC_C)) $(patsubst %.cpp,%.user.o,$(USER_LIBRARIES_SRC_CPP)))
 USER_LIBRARIES_OBJS_DIRS=$(sort $(dir $(USER_LIBRARIES_OBJS)))
 
+# Ambroise Leclerc's libstdc++ for AVRs
+ETL_CXX_FLAGS=-I$(ETL_ROOT)/include -I$(ETL_ROOT)/libstd/include
+
 wiring: $(WIRING_LIB)
 user: $(USER_LIB)
 #exemples: $(WIRING_EXEMPLES)
@@ -80,7 +86,7 @@ user: $(USER_LIB)
 
 $(BUILD_DIR)/%.user.elf: $(BUILD_DIR)/%.user.o $(USER_LIB) $(WIRING_LIB)
 	$(CXX) $(LD_FLAGS) $< -L$(BUILD_DIR) -l$(USER_LIBNAME) -l$(WIRING_LIBNAME) -o $@
-	$(STRIP) $(STRIP_FLAGS) $@
+	#$(STRIP) $(STRIP_FLAGS) $@
 
 $(USER_LIB): $(USER_LIBRARIES_OBJS)
 	$(AR) rcs $@ $?
@@ -111,10 +117,10 @@ $(BUILD_DIR)/%.user.o: $(SKETCHES)/%.c
 	$(CC) $(C_FLAGS) $(USER_LIBRARIES_INC_FLAGS) $(WIRING_INC_FLAGS) -c $< -o $@
 
 $(BUILD_DIR)/%.user.o: $(SKETCHES)/%.cpp
-	$(CXX) $(CXX_FLAGS) $(USER_LIBRARIES_INC_FLAGS) $(WIRING_INC_FLAGS) -c $< -o $@
+	$(CXX) $(CXX_FLAGS) $(USER_LIBRARIES_INC_FLAGS) $(WIRING_INC_FLAGS) $(ETL_CXX_FLAGS) -c $< -o $@
 
 $(BUILD_DIR)/%.user.o: $(SKETCHES)/%.ino
-	$(CXX) $(CXX_FLAGS) -xc++ $(USER_LIBRARIES_INC_FLAGS) $(WIRING_INC_FLAGS) -c $< -o $@
+	$(CXX) $(CXX_FLAGS) -xc++ $(USER_LIBRARIES_INC_FLAGS) $(WIRING_INC_FLAGS) $(ETL_CXX_FLAGS) -c $< -o $@
 
 $(BUILD_DIR)/%.user.o: $(SKETCHES)/%.pde
 	$(CXX) $(CXX_FLAGS) -xc++ $(USER_LIBRARIES_INC_FLAGS) $(WIRING_INC_FLAGS) -c $< -o $@
