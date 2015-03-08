@@ -86,7 +86,7 @@ user: $(USER_LIB)
 
 $(BUILD_DIR)/%.user.elf: $(BUILD_DIR)/%.user.o $(USER_LIB) $(WIRING_LIB)
 	$(CXX) $(LD_FLAGS) $< -L$(BUILD_DIR) -l$(USER_LIBNAME) -l$(WIRING_LIBNAME) -o $@
-	#$(STRIP) $(STRIP_FLAGS) $@
+	$(STRIP) $(STRIP_FLAGS) $@
 
 $(USER_LIB): $(USER_LIBRARIES_OBJS)
 	$(AR) rcs $@ $?

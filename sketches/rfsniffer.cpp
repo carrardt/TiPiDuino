@@ -1,14 +1,16 @@
 #include <Wiring.h>
 #include <LCD.h>
+#include "AvrTL.h"
 
-#define USE_EXTERNAL_MAIN 1
+//#define USE_EXTERNAL_MAIN 1
 
 #define MAX_PULSES 512
 #define MIN_PULSE_LEN 150
-#define MAX_PULSE_LEN 32000
+#define MAX_PULSE_LEN 30000
 #define MIN_LATCH_LEN 1000
-#define MIN_MESSAGE_PULSES 32
-#define PULSE_ERR_RATIO 6
+#define MIN_PROLOG_LATCHES 2
+#define MIN_MESSAGE_PULSES 64
+#define PULSE_ERR_RATIO 5
 #define MAX_SYMBOLS 16
 
 #define RECEIVE_PIN 8
@@ -16,27 +18,20 @@
 
 LCD< 7,6, PinSet<5,4,3,2> > lcd;
 
-static void s_setup()
-{	
-  pinMode(RECEIVE_PIN, INPUT);
-  pinMode(LED_PIN, OUTPUT);
-  lcd.begin();
-  lcd.print("DIO sniffer");
-}
+using namespace avrtl;
+constexpr auto led = pin(LED_PIN);
+constexpr auto rx = pin(RECEIVE_PIN);
 
 static int recordSignal(uint16_t buf[])
 {
-  unsigned long t;
-  int retry = 10;
+  int n=0;
+  for(;n<MIN_PROLOG_LATCHES;++n)
+  {
+	  buf[n] = rx.PulseIn(LOW,MAX_PULSE_LEN);
+	  if( buf[n]<MIN_LATCH_LEN || buf[n]>=MAX_PULSE_LEN ) return n;
+  }
   do {
-  	-- retry;
-  	if( retry == 0 ) return 0;
-  	t = pulseIn(RECEIVE_PIN,LOW,MAX_PULSE_LEN);
-  } while(t<MIN_LATCH_LEN || t>=MAX_PULSE_LEN );
-  buf[0]=t;
-  int n=1;
-  do {
-  	buf[n++]=pulseIn(RECEIVE_PIN,LOW,MAX_PULSE_LEN);
+  	buf[n++] = rx.PulseIn(LOW,MAX_PULSE_LEN);
   }
   while( buf[n-1]>MIN_PULSE_LEN && buf[n-1]<=MAX_PULSE_LEN && n<MAX_PULSES);
   return n;
@@ -78,41 +73,36 @@ static int classifySymbols(const uint16_t buf[], int n, uint16_t symbols[], uint
   return nsymbols;
 }
 
-static uint16_t symbols[MAX_SYMBOLS];
-static uint8_t symcount[MAX_SYMBOLS];
-
-static void s_loop()
-{
-  uint16_t buf[MAX_PULSES];
-  int n = recordSignal( buf );
-  if( n >= MIN_MESSAGE_PULSES )
-  {
-  	int nsymbols = classifySymbols(buf,n,symbols,symcount);
-  	lcd.clear();
-  	lcd.setCursor(0,0);
-  	lcd << n << ' ' << nsymbols << ' ';
-  	lcd << symbols[0] << 'x' << symcount[0];
-  	lcd.setCursor(0,1);
-  	lcd << symbols[1] << 'x' << symcount[1] << ' ';
-  	lcd << symbols[2] << 'x' << symcount[2] << ' ';
-  	lcd << symbols[3] << 'x' << symcount[3];
-  	for(int j=0;j<20;j++) { digitalWrite(LED_PIN,j&1); delay(100); }
-  }
-}
-
-#ifdef USE_EXTERNAL_MAIN
-
-void setup() { s_setup(); }
-void loop() { s_loop(); }
-
-#else
-
 int main(void) __attribute__((noreturn));
 int main(void)
 {
-	s_setup();
-	for(;;) s_loop();
-}
+	boardInit();
 
-#endif
+	rx.SetInput();
+	led.SetOutput();
+
+	lcd.begin();
+	lcd.print("DIO sniffer");
+	
+	for(;;)
+	{
+	  uint16_t buf[MAX_PULSES];
+	  int n = recordSignal( buf );
+	  if( n >= MIN_MESSAGE_PULSES )
+	  {
+		uint16_t symbols[MAX_SYMBOLS];
+		uint8_t symcount[MAX_SYMBOLS];
+		int nsymbols = classifySymbols(buf,n,symbols,symcount);
+		lcd.clear();
+		lcd.setCursor(0,0);
+		lcd << n << ' ' << nsymbols << ' ';
+		lcd << symbols[0] << 'x' << symcount[0];
+		lcd.setCursor(0,1);
+		lcd << symbols[1] << 'x' << symcount[1] << ' ';
+		lcd << symbols[2] << 'x' << symcount[2] << ' ';
+		lcd << symbols[3] << 'x' << symcount[3];
+		for(int j=0;j<50;j++) { led = j&1; DelayMicroseconds(10000); }
+	  }
+	}
+}
 

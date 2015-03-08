@@ -25,10 +25,32 @@
 #define __AvrTL_H
 
 #include <Wiring.h>
+#include <BoardDefs.h>
 #include <stdint.h>
 
 namespace avrtl
 {
+	static void DelayMicroseconds(uint32_t timeout)
+	{
+		timeout /= TIMER0PRESCALEFACTOR / (F_CPU / 1000000UL);
+		uint8_t oldSREG = SREG;
+		cli();
+		
+		uint32_t m=0;
+		uint8_t t=TCNT0, t0=t;
+		
+#define UPDATE_CLOCK_COUNTER() do{ uint8_t t2=TCNT0; if(t2<t) ++m; t=t2; }while(0)
+#define CLOCK_ELAPSED() ((m*256+t)-t0)
+
+		UPDATE_CLOCK_COUNTER();
+		while( CLOCK_ELAPSED() < timeout ) { UPDATE_CLOCK_COUNTER(); }
+		
+#undef UPDATE_CLOCK_COUNTER
+#undef CLOCK_ELAPSED
+
+		SREG = oldSREG;
+	}
+
 
 template<
 	typename PIp = uint8_t volatile*,
@@ -64,6 +86,36 @@ struct AvrPin
     operator bool() const { return Get(); }
     
     const AvrPin& operator = (bool b) const { Set(b); return *this; }
+
+	uint32_t PulseIn(bool lvl, uint32_t timeout) const
+	{
+		timeout /= TIMER0PRESCALEFACTOR / (F_CPU / 1000000UL);
+		
+		uint8_t oldSREG = SREG;
+		cli();
+		
+		uint32_t m=0;
+		uint8_t t=TCNT0, t0=t;
+		
+#define UPDATE_CLOCK_COUNTER() do{ uint8_t t2=TCNT0; if(t2<t) ++m; t=t2; }while(0)
+#define CLOCK_ELAPSED() ((m*256+t)-t0)
+
+		UPDATE_CLOCK_COUNTER();
+		uint32_t ts = CLOCK_ELAPSED();
+		while( ts<timeout && Get()!=lvl ) { UPDATE_CLOCK_COUNTER(); ts=CLOCK_ELAPSED(); }
+		if( ts >= timeout ) { SREG=oldSREG; return 0; }
+		
+		UPDATE_CLOCK_COUNTER();
+		uint32_t te = CLOCK_ELAPSED();
+		while( te<timeout && Get()==lvl ) { UPDATE_CLOCK_COUNTER(); te=CLOCK_ELAPSED(); }
+		
+		SREG=oldSREG;
+		if( te >= timeout ) return 0;
+		return (te-ts) * ( TIMER0PRESCALEFACTOR / (F_CPU / 1000000UL) );
+
+#undef UPDATE_CLOCK_COUNTER
+#undef CLOCK_ELAPSED
+	}
 
 private:
 	const PIp pin_addr;
