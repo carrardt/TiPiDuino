@@ -239,6 +239,7 @@ public:
 		: m_writeMode(true)
 		, m_displayControlFlags(0)
 		, m_displayModeFlags(0)
+		, m_bufSize(0)
 	{
 	}
 
@@ -370,16 +371,43 @@ public:
 		DataPins::write(value);
 	}
 
-	static void write(uint8_t value)
+	void write(uint8_t value)
 	{
-		digitalWrite(DataPins::rs_pin,HIGH);
-		DataPins::write(value);
+		if( value == '\n' )
+		{
+			if(lineMode==LCD_1LINE)
+			{
+				clear();
+				setCursor(0,0);
+				m_bufSize = 0;
+			}
+			else
+			{
+				setCursor(0,0);
+				for(int i=0;i<m_bufSize;i++) sendByte(m_buffer[i]);
+				for(int i=m_bufSize;i<cols;i++) sendByte(' ');
+				setCursor(0,1);
+				for(int i=0;i<cols;i++) sendByte(' ');
+				setCursor(0,1);
+				m_bufSize = 0;
+			}
+		}
+		else
+		{
+			if( m_bufSize < cols )
+			{
+				m_buffer[ m_bufSize++ ] = value;
+			}
+			sendByte(value);
+		}
 	}
 
 private:
 	bool m_writeMode;
 	uint8_t m_displayControlFlags;
 	uint8_t m_displayModeFlags;
+	uint8_t m_bufSize;
+	uint8_t m_buffer[cols];
 
 	static void init(uint8_t displayFlags)
 	{
@@ -391,6 +419,12 @@ private:
 	{
 		RWPin::setWritable();
 		DataPins::setWritable();
+	}
+	
+	static void sendByte(uint8_t value)
+	{
+		digitalWrite(DataPins::rs_pin,HIGH);
+		DataPins::write(value);
 	}
 };
 
