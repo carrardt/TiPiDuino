@@ -2,12 +2,10 @@
 #include <LCD.h>
 #include "AvrTL.h"
 
-//#define USE_EXTERNAL_MAIN 1
-
 #define MAX_PULSES 512
 #define MIN_PULSE_LEN 150
 #define MAX_PULSE_LEN 30000
-#define MIN_LATCH_LEN 1000
+#define MIN_LATCH_LEN 2000
 #define MIN_PROLOG_LATCHES 2
 #define MIN_MESSAGE_PULSES 64
 #define PULSE_ERR_RATIO 5
@@ -73,6 +71,29 @@ static int classifySymbols(const uint16_t buf[], int n, uint16_t symbols[], uint
   return nsymbols;
 }
 
+static bool learnSignal(uint16_t *symbols, int& nsymbols, int &nLatches)
+{
+	  uint16_t buf[MAX_PULSES];
+	  int n = recordSignal( buf );
+	  if( n >= MIN_MESSAGE_PULSES )
+	  {
+		uint8_t symcount[MAX_SYMBOLS];
+		nsymbols = classifySymbols(buf,n,symbols,symcount);
+		nLatches=0;
+		while( nLatches<nsymbols && symbols[nLatches]>=MIN_LATCH_LEN ) ++nLatches;
+		if( (nLatches+2) <= nsymbols ) // at least 2 non-latch symbols are necessary to code a message
+		{
+			lcd << '\n';
+			lcd << n << ' ' << nsymbols << ' ' << nLatches << '\n';
+			lcd << symbols[nLatches]<<'x'<<symcount[nLatches]<<' '<<symbols[nLatches+1]<<'x'<<symcount[nLatches+1];
+			for(int j=0;j<50;j++) { led = j&1; DelayMicroseconds(10000); }
+			return true;
+		}
+		else { return false; }
+	  }
+	  else { return false; }
+}
+
 int main(void) __attribute__((noreturn));
 int main(void)
 {
@@ -82,27 +103,23 @@ int main(void)
 	led.SetOutput();
 
 	lcd.begin();
-	lcd.print("DIO sniffer");
+	lcd << "DIO sniffer\n" ;
+	lcd << "Step 1: learn";
 	
+	uint8_t stage = 0;
 	for(;;)
 	{
-	  uint16_t buf[MAX_PULSES];
-	  int n = recordSignal( buf );
-	  if( n >= MIN_MESSAGE_PULSES )
-	  {
-		uint16_t symbols[MAX_SYMBOLS];
-		uint8_t symcount[MAX_SYMBOLS];
-		int nsymbols = classifySymbols(buf,n,symbols,symcount);
-		lcd.clear();
-		lcd.setCursor(0,0);
-		lcd << n << ' ' << nsymbols << ' ';
-		lcd << symbols[0] << 'x' << symcount[0];
-		lcd.setCursor(0,1);
-		lcd << symbols[1] << 'x' << symcount[1] << ' ';
-		lcd << symbols[2] << 'x' << symcount[2] << ' ';
-		lcd << symbols[3] << 'x' << symcount[3];
-		for(int j=0;j<50;j++) { led = j&1; DelayMicroseconds(10000); }
-	  }
+		if( stage == 0 )
+		{
+			uint16_t symbols[MAX_SYMBOLS];
+			int nSymbols=0, nLatches=0;
+			if( learnSignal(symbols,nSymbols,nLatches) )
+			{
+				DelayMicroseconds(10000000UL);
+				lcd << "\nStep2: detect";
+				++stage;
+			}
+		}
 	}
 }
 
