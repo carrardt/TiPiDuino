@@ -2,9 +2,27 @@
 #include <LCD.h>
 #include "AvrTL.h"
 
+/*
+ * TODO: 
+ * Improve learn stage robustness:
+ * 		lower initial latch detection strictness (length and count),
+ * 		detect bit coding symbols through entropy,
+ * 		then deduce latch symbols
+ * 
+ * Stage 1:
+ * 		decode message,
+ * 		check for repeted sends
+ * 		verify encoding algorithm (manchester, etc.)
+ * 
+ */
+
+/*
+ * TODO: improve pulse length encoding, using TIMER0PRESCALER value
+ */
+
 #define MAX_PULSES 512
-#define MIN_PULSE_LEN 150
-#define MAX_PULSE_LEN 30000
+#define MIN_PULSE_LEN 150	// under this threshold noise is too important
+#define MAX_PULSE_LEN 30000 // mainly due to 16-bits encoding
 #define MIN_LATCH_LEN 2000
 #define MIN_PROLOG_LATCHES 2
 #define MIN_MESSAGE_PULSES 64
@@ -52,17 +70,17 @@ static int classifySymbols(const uint16_t buf[], int n, uint16_t symbols[], uint
     {
       if( buf[i] != 0 ) 
       {
-      	long relerr = sym / PULSE_ERR_RATIO;
-  	if( abs(sym-buf[i]) <= relerr )
-  	{
-  	  symAvg += buf[i];
-  	  ++ symcount[nsymbols-1];
-  	}
-  	else if( buf[i] < sym )
-  	{
-  	  if( nextSym == -1 ) { nextSym = i; }
-  	  else if( buf[i] > buf[nextSym] ) { nextSym = i; }
-  	}
+		long relerr = sym / PULSE_ERR_RATIO;
+		if( abs(sym-buf[i]) <= relerr )
+		{
+		  symAvg += buf[i];
+		  ++ symcount[nsymbols-1];
+		}
+		else if( buf[i] < sym )
+		{
+		  if( nextSym == -1 ) { nextSym = i; }
+		  else if( buf[i] > buf[nextSym] ) { nextSym = i; }
+		}
       }
     }
     symbols[nsymbols-1] = symAvg / symcount[nsymbols-1];
