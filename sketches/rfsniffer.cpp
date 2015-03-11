@@ -20,14 +20,15 @@
  * TODO: improve pulse length encoding, using TIMER0PRESCALER value
  */
 
-#define MAX_PULSES 512
-#define MIN_PULSE_LEN 150	// under this threshold noise is too important
-#define MAX_PULSE_LEN 30000 // mainly due to 16-bits encoding
-#define MIN_LATCH_LEN 2000
-#define MIN_PROLOG_LATCHES 2
-#define MIN_MESSAGE_PULSES 64
-#define PULSE_ERR_RATIO 5
-#define MAX_SYMBOLS 16
+#define PULSE_LVL 			LOW
+#define MAX_PULSES 			512
+#define MIN_PULSE_LEN 		150	// under this threshold noise is too important
+#define MAX_PULSE_LEN 		30000 // mainly due to 16-bits encoding
+#define MIN_LATCH_LEN 		2000
+#define MIN_PROLOG_LATCHES 	1
+#define MIN_MESSAGE_PULSES 	64
+#define PULSE_ERR_RATIO 	5
+#define MAX_SYMBOLS 		16	// !! MUST VERIFY ( MAX_SYMBOLS < MIN_PULSE_LEN ) !!
 
 #define RECEIVE_PIN 8
 #define LED_PIN 13
@@ -38,21 +39,31 @@ using namespace avrtl;
 constexpr auto led = pin(LED_PIN);
 constexpr auto rx = pin(RECEIVE_PIN);
 
+// Possibly detected encodings
+enum MessageEncoding
+{
+	CODING_BINARY = 0,
+	CODING_MANCHESTER = 1,
+	CODING_UNKNOWN = -1
+};
+
+// record a raw signal (succession of digital pulses)
 static int recordSignal(uint16_t buf[])
 {
   int n=0;
   for(;n<MIN_PROLOG_LATCHES;++n)
   {
-	  buf[n] = rx.PulseIn(LOW,MAX_PULSE_LEN);
+	  buf[n] = rx.PulseIn(PULSE_LVL,MAX_PULSE_LEN);
 	  if( buf[n]<MIN_LATCH_LEN || buf[n]>=MAX_PULSE_LEN ) return n;
   }
   do {
-  	buf[n++] = rx.PulseIn(LOW,MAX_PULSE_LEN);
+  	buf[n++] = rx.PulseIn(PULSE_LVL,MAX_PULSE_LEN);
   }
   while( buf[n-1]>MIN_PULSE_LEN && buf[n-1]<=MAX_PULSE_LEN && n<MAX_PULSES);
   return n;
 }
 
+// build a classification of pulse lengthes in a signal record
 static int classifySymbols(const uint16_t buf[], int n, uint16_t symbols[], uint8_t symcount[])
 {
   int nsymbols = 0;
@@ -62,11 +73,11 @@ static int classifySymbols(const uint16_t buf[], int n, uint16_t symbols[], uint
   {
     long sym = buf[nextSym];
     long symAvg = sym;
-    symbols[nsymbols] = sym;
-    symcount[nsymbols] = 1;
+    symbols[nsymbols] = sym; // a symbol class is represented by the highest value of its class
+    symcount[nsymbols] = 0;
     ++ nsymbols;
     nextSym = -1;
-    for(int i=nsymbols;i<n;i++)
+    for(int i=0;i<n;i++)
     {
       if( buf[i] != 0 ) 
       {
@@ -89,22 +100,23 @@ static int classifySymbols(const uint16_t buf[], int n, uint16_t symbols[], uint
   return nsymbols;
 }
 
-static bool learnSignal(uint16_t *symbols, int& nsymbols, int &nLatches)
+static bool learnSignal(
+	uint16_t *symbols, uint8_t * symcount,
+	int& nPulses, int& nsymbols, int &nLatches,
+	int& coding)
 {
 	  uint16_t buf[MAX_PULSES];
-	  int n = recordSignal( buf );
-	  if( n >= MIN_MESSAGE_PULSES )
+	  nPulses = recordSignal( buf );
+	  if( nPulses >= MIN_MESSAGE_PULSES )
 	  {
-		uint8_t symcount[MAX_SYMBOLS];
-		nsymbols = classifySymbols(buf,n,symbols,symcount);
+		nsymbols = classifySymbols(buf,nPulses,symbols,symcount);
 		nLatches=0;
 		while( nLatches<nsymbols && symbols[nLatches]>=MIN_LATCH_LEN ) ++nLatches;
 		if( (nLatches+2) <= nsymbols ) // at least 2 non-latch symbols are necessary to code a message
 		{
-			lcd << '\n';
-			lcd << n << ' ' << nsymbols << ' ' << nLatches << '\n';
-			lcd << symbols[nLatches]<<'x'<<symcount[nLatches]<<' '<<symbols[nLatches+1]<<'x'<<symcount[nLatches+1];
-			for(int j=0;j<50;j++) { led = j&1; DelayMicroseconds(10000); }
+			int nCodingSymbols = nsymbols - nLatches;
+			if( nCodingSymbols > 2 ) coding = CODING_UNKNOWN;
+			else coding = CODING_BINARY;
 			return true;
 		}
 		else { return false; }
@@ -122,6 +134,13 @@ int main(void)
 
 	lcd.begin();
 	lcd << "DIO sniffer\n" ;
+	
+	if( MAX_SYMBOLS >= MIN_PULSE_LEN )
+	{
+		lcd << "Error - 1";
+		for(;;) { }
+	}
+		
 	lcd << "Step 1: learn";
 	
 	uint8_t stage = 0;
@@ -130,9 +149,14 @@ int main(void)
 		if( stage == 0 )
 		{
 			uint16_t symbols[MAX_SYMBOLS];
-			int nSymbols=0, nLatches=0;
-			if( learnSignal(symbols,nSymbols,nLatches) )
+			uint8_t symcount[MAX_SYMBOLS];
+			int nSymbols=0, nLatches=0, nPulses=0,coding=-1;
+			if( learnSignal(symbols,symcount,nPulses,nSymbols,nLatches,coding) )
 			{
+				lcd << '\n';
+				lcd << nPulses << ' ' << nSymbols << ' ' << nLatches << ' ' << ((coding==CODING_BINARY)?'B':'?') << '\n';
+				lcd << symbols[nLatches]<<'x'<<symcount[nLatches]<<' '<<symbols[nLatches+1]<<'x'<<symcount[nLatches+1];
+				for(int j=0;j<50;j++) { led = j&1; DelayMicroseconds(10000); }
 				DelayMicroseconds(10000000UL);
 				lcd << "\nStep2: detect";
 				++stage;
