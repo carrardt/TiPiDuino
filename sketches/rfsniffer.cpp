@@ -6,13 +6,13 @@
  * TODO: 
  * Improve learn stage robustness:
  * 		lower initial latch detection strictness (length and count),
- * 		detect bit coding symbols through entropy,
- * 		then deduce latch symbols
+ * 		detect bit coding symbols --through entropy-- by discriminating latches => Ok
+ * 		then deduce latch symbols => Ok
  * 
  * Stage 1:
  * 		decode message,
- * 		check for repeted sends
- * 		verify encoding algorithm (manchester, etc.)
+ * 		check for repeated sends ==> Ok
+ * 		verify encoding algorithm (manchester, etc.) ==> Ok
  * 
  */
 
@@ -23,12 +23,15 @@
 #define PULSE_LVL 			LOW
 #define MAX_PULSES 			512
 #define MIN_PULSE_LEN 		150	// under this threshold noise is too important
-#define MAX_PULSE_LEN 		30000 // mainly due to 16-bits encoding
+#define MAX_PULSE_LEN 		30000 // mainly due to 16-bits limitation
 #define MIN_LATCH_LEN 		2000
 #define MIN_PROLOG_LATCHES 	1
 #define MIN_MESSAGE_PULSES 	64
-#define PULSE_ERR_RATIO 	5
-#define MAX_SYMBOLS 		16	// !! MUST VERIFY ( MAX_SYMBOLS < MIN_PULSE_LEN ) !!
+#define PULSE_ERR_RATIO 	5   // 4(25%) would speedup execution ...
+#define MAX_SYMBOLS 		8	// !! MUST VERIFY ( MAX_SYMBOLS < MIN_PULSE_LEN ) !!
+#define MAX_LATCH_SEQ_LEN	8
+#define MAX_MESSAGE_BITS	128
+#define MAX_MESSAGE_BYTES	(MAX_MESSAGE_BITS/8)
 
 #define RECEIVE_PIN 8
 #define LED_PIN 13
@@ -53,6 +56,7 @@ struct SignalProperties
 	uint16_t symbols[MAX_SYMBOLS];
 	uint16_t nPulses;
 	uint16_t messageBits;
+	uint8_t latchSeq[MAX_LATCH_SEQ_LEN];
 	uint8_t nSymbols;
 	uint8_t nLatches;
 	uint8_t latchSeqLen;
@@ -70,7 +74,7 @@ struct SignalProperties
 		, matchingRepeats(false) {}
 };
 
-// record a raw signal (succession of digital pulse length values)
+// record a raw signal (succession of digital pulse lengthes)
 static int recordSignal(uint16_t * buf)
 {
   int n=0;
@@ -84,6 +88,36 @@ static int recordSignal(uint16_t * buf)
   }
   while( buf[n-1]>MIN_PULSE_LEN && buf[n-1]<=MAX_PULSE_LEN && n<MAX_PULSES);
   return n;
+}
+
+static int readBinaryMessage(const SignalProperties& sp, uint8_t* buf)
+{
+	const uint16_t b0 = sp.symbols[sp.nSymbols-1];
+	const uint16_t b1 = sp.symbols[sp.nSymbols-2];
+	const uint16_t b0_tol = b0 / PULSE_ERR_RATIO;
+	const uint16_t b1_tol = b1 / PULSE_ERR_RATIO;
+
+	for(uint8_t i=0;i<sp.latchSeqLen;i++)
+	{
+		long p = rx.PulseIn(PULSE_LVL,MAX_PULSE_LEN);
+		uint16_t l = sp.symbols[sp.latchSeq[i]];
+		uint16_t relerr = l / PULSE_ERR_RATIO;
+		if( abs(p-l) > relerr ) return 0;
+	}
+	
+	uint8_t byte=0;
+	for(uint16_t j=0;j<sp.messageBits;j++)
+	{
+		if(j%8==0) buf[byte]=0;
+		long p = rx.PulseIn(PULSE_LVL,MAX_PULSE_LEN);
+		uint8_t b = 0;
+		if( abs(p-b1) <= b1_tol ) b = 1;
+		else if( abs(p-b0) > b0_tol ) return j;
+		buf[byte] <<= 1;
+		buf[byte] |= b;
+		if( (j%8)==7 ) { ++byte;  }
+	}
+	return sp.messageBits;
 }
 
 // build a classification of pulse lengthes in a signal record
@@ -110,7 +144,7 @@ static int classifySymbols(uint16_t * buf, int n, uint16_t * symbols, uint8_t * 
 		  ++ symcount[nsymbols];
 		  buf[i] = nsymbols;
 		}
-		else // sample not in current cass, find the highest one
+		else // sample not in current class, find the highest one
 		{
 		  if( buf[i] > nextSym ) { nextSym = buf[i]; }
 		}
@@ -123,7 +157,7 @@ static int classifySymbols(uint16_t * buf, int n, uint16_t * symbols, uint8_t * 
   return nsymbols;
 }
 
-static bool learnSignal( SignalProperties& sp )
+static bool analyseSignal( SignalProperties& sp )
 {
 	  uint16_t buf[MAX_PULSES];
 	  sp.nPulses = recordSignal( buf );
@@ -138,9 +172,16 @@ static bool learnSignal( SignalProperties& sp )
 		{
 			int nCodingSymbols = sp.nSymbols - sp.nLatches;
 			
-			// detect starting latch sequence
+			// FIXME:
+			// weakness: assumes that message starts with a correct full latch sequence
+
+			// detect start latch sequence
 			sp.latchSeqLen = 0;
-			while( buf[sp.latchSeqLen]<sp.nLatches ) ++sp.latchSeqLen;
+			while( sp.latchSeqLen<MAX_LATCH_SEQ_LEN && buf[sp.latchSeqLen]<sp.nLatches )
+			{ 
+				sp.latchSeq[sp.latchSeqLen] = buf[sp.latchSeqLen];
+				++sp.latchSeqLen;
+			}
 			
 			// detect repeated message
 			sp.nMessageRepeats = 1;
@@ -229,7 +270,7 @@ int main(void)
 	led.SetOutput();
 
 	lcd.begin();
-	lcd << "DIO sniffer\n" ;
+	lcd << "RF sniffer" ;
 	
 	if( MAX_SYMBOLS >= MIN_PULSE_LEN )
 	{
@@ -237,20 +278,50 @@ int main(void)
 		for(;;) { }
 	}
 		
-	lcd << "Step 1: learn";
+	lcd << "\nStep 1: learn";
 	
-	for(;;)
+	bool hasProtocol = false; // TODO: read from EEPROM
+	while( ! hasProtocol )
 	{
 		SignalProperties sp;
-		if( learnSignal(sp) )
+		if( analyseSignal(sp) )
 		{
 			lcd << '\n';
-			lcd << sp.latchSeqLen <<' '<< codingChar[sp.coding] << sp.messageBits << " x" << sp.nMessageRepeats << (sp.matchingRepeats?'+':'-') << '\n';
+			lcd << sp.nSymbols <<' '<< sp.latchSeqLen <<' '<< codingChar[sp.coding] << sp.messageBits << " x" << sp.nMessageRepeats << (sp.matchingRepeats?'+':'-') << '\n';
 			lcd << sp.symbols[sp.nLatches]<<' '<<sp.symbols[sp.nLatches+1];
 			for(int j=0;j<50;j++) { led = j&1; DelayMicroseconds(10000); }
 			DelayMicroseconds(10000000UL);
-			lcd << "\nStep2: detect";
+			lcd << "\nStep2: read";
+			if( sp.coding == CODING_MANCHESTER ) sp.messageBits *= 2;
+			if( sp.messageBits > MAX_MESSAGE_BITS ) sp.messageBits = MAX_MESSAGE_BITS;
+			int nbytes = (sp.messageBits+7) / 8;
+			uint8_t signal1[nbytes];
+			int br;
+			do { br = readBinaryMessage(sp,signal1); } while( br==0 );
+			if( br == sp.messageBits )
+			{
+				int tries=0;
+				uint8_t signal2[nbytes];
+				do
+				{
+					// don't loose time printing "step 3 if repeated signal can be catched right after the first one"
+					br = readBinaryMessage(sp,signal2);
+					++tries;
+					if( tries > 1000 ) lcd << "\nStep3: verify";
+				} while( br==0 );
+				for(int i=0;i<nbytes;i++) if(signal1[i]!=signal2[i]) br=0;
+				if( br == sp.messageBits )
+				{
+					lcd << "\nWriting protocol";
+					lcd << "\nto EEPROM ...";
+					for(int j=0;j<500;j++) { led = j&1; DelayMicroseconds(100000); }
+					hasProtocol = true;
+				}
+			}
 		}
 	}
+	lcd << "\n * RF sniffer *" ;
+	lcd << "\n ***  ready ***" ;
+	for(;;) {}
 }
 
