@@ -2,7 +2,9 @@
 #define _Template_LiquidCrystal_h
 
 #include <inttypes.h>
-#include <Wiring.h>
+#include "AvrTL.h"
+
+//#include <Wiring.h>
 
 template<uint8_t p0, uint8_t... p>
 struct PinSetHelper;
@@ -10,28 +12,37 @@ struct PinSetHelper;
 template<uint8_t p0>
 struct PinSetHelper<p0>
 {
-	static void setmode(int m)
+	static void SetOutput()
 	{
-		pinMode(p0,m);
+		avrtl::pin(p0).SetOutput();
+	}
+	static void SetInput()
+	{ 
+		avrtl::pin(p0).SetInput();
 	}
 	static void writeBits(unsigned int x) 
 	{
-		digitalWrite( p0, x & 0x01 );
+		avrtl::pin(p0).Set( x & 0x01 );
 	}
 };
 
-template<uint8_t p0, uint8_t... p>
+template<uint8_t p0, uint8_t... _tail>
 struct PinSetHelper
 {
-	static void setmode(int m)
+	static void SetOutput()
 	{
-		pinMode(p0,m);
-		PinSetHelper<p...>::setmode(m);
+		avrtl::pin(p0).SetOutput();
+		PinSetHelper<_tail...>::SetOutput();
+	}
+	static void setInput()
+	{
+		avrtl::pin(p0).SetInput();
+		PinSetHelper<_tail...>::SetInput();
 	}
 	static void writeBits(unsigned int x) 
 	{
-		digitalWrite( p0, x & 0x01 );
-		PinSetHelper<p...>::writeBits( x >> 1);
+		avrtl::pin(p0).Set( x & 0x01 );
+		PinSetHelper<_tail...>::writeBits( x >> 1);
 	}
 };
 
@@ -41,7 +52,8 @@ class PinSet
 public:
 	static constexpr unsigned int count = sizeof...(p);
 	static void writeBits(unsigned int x) { PinSetHelper<p...>::writeBits(x); }
-	static void setmode(int m) { PinSetHelper<p...>::setmode(m); }
+	static void SetOutput() { PinSetHelper<p...>::SetOutput(); }
+	static void SetInput() { PinSetHelper<p...>::SetInput(); }
 };
 
 // commands
@@ -107,10 +119,9 @@ template<int _rw=-1>
 class LCDRW
 {
 public:
-	static constexpr uint8_t rw_pin = _rw;
-	static void init() { pinMode(rw_pin,OUTPUT); }
-	static void setWritable() { digitalWrite(rw_pin,LOW); }
-	static void setReadable() { digitalWrite(rw_pin,HIGH); }
+	static void init() { avrtl::pin(_rw).SetOutput(); }
+	static void setWritable() { avrtl::pin(_rw) = 0 ; }
+	static void setReadable() { avrtl::pin(_rw)= 1 ; }
 };
 template<>
 class LCDRW<-1>
@@ -126,38 +137,39 @@ template<uint8_t _rs, uint8_t _en, class _pins>
 class LCDDataPinsBase
 {
 public:
-	static constexpr uint8_t rs_pin = _rs; 
-	static constexpr uint8_t en_pin = _en;
 	using pins = _pins;
 	static constexpr unsigned int pinCount = pins::count;
-	
+
+	static void selectDataMode() { avrtl::pin(_rs) = 1; }
+	static void selectCommandMode() { avrtl::pin(_rs) = 0; }
+
 	static void setWritable()
 	{
-		pins::setmode(OUTPUT);
+		pins::SetOutput();
 	}
 	
 	static void setReadable()
 	{
-		pins::setmode(INPUT);
+		pins::SetInput();
 	}
 	
 	static void initCommon()
 	{
-		pinMode(rs_pin,OUTPUT);
-		pinMode(en_pin,OUTPUT);
-		digitalWrite(rs_pin,LOW);
-		digitalWrite(en_pin,LOW);
+		avrtl::pin(_rs).SetOutput();
+		avrtl::pin(_en).SetOutput();
+		avrtl::pin(_rs) = 0;
+		avrtl::pin(_en) = 0;
 		setWritable();
 	}
 	
 	static void pulseEnable()
 	{
-  	  digitalWrite(en_pin, LOW);
-  	  delayMicroseconds(1);    
-  	  digitalWrite(en_pin, HIGH);
-  	  delayMicroseconds(1);    // enable pulse must be >450ns
-  	  digitalWrite(en_pin, LOW);
-  	  delayMicroseconds(100);   // commands need > 37us to settle
+  	  avrtl::pin(_en).Set(0);
+  	  avrtl::DelayMicroseconds(1);    
+  	  avrtl::pin(_en).Set(1);
+  	  avrtl::DelayMicroseconds(1);    // enable pulse must be >450ns
+  	  avrtl::pin(_en).Set(0);
+  	  avrtl::DelayMicroseconds(100);   // commands need > 37us to settle
 	}
 }; 
 
@@ -178,9 +190,9 @@ public:
 	{
 		Super::initCommon();
 		write(LCD_FUNCTIONSET | displayFunction);
-    		delayMicroseconds(4500);  // wait more than 4.1ms
+    	avrtl::DelayMicroseconds(4500);  // wait more than 4.1ms
 		write(LCD_FUNCTIONSET | displayFunction);
-    		delayMicroseconds(150);
+    	avrtl::DelayMicroseconds(150);
 		write(LCD_FUNCTIONSET | displayFunction);
 	}
 
@@ -198,17 +210,18 @@ class LCDDataPins<_rs,_en,_pins,4> : public LCDDataPinsBase<_rs,_en,_pins>
 public:
 	using Super = LCDDataPinsBase<_rs,_en,_pins>;
 	using data_pins = typename Super::pins; 
+	
 	static constexpr uint8_t data_mode = LCD_4BITMODE;
 
 	static void init(uint8_t displayMode)
 	{
 		Super::initCommon();
 		write4bits(0x03);
-		delayMicroseconds(4500);
+		avrtl::DelayMicroseconds(4500);
 		write4bits(0x03);
-		delayMicroseconds(4500);
+		avrtl::DelayMicroseconds(4500);
 		write4bits(0x03);
-		delayMicroseconds(150);
+		avrtl::DelayMicroseconds(150);
 		write4bits(0x02);
 	}
 	static void write4bits(uint8_t value)
@@ -265,20 +278,25 @@ public:
 		write( c );
 	}
 	
-	void print(unsigned long x) { print((long)x); }
-	void print(unsigned int x) { print((long)x); }
-	void print(int x) { print((long)x); }
-	void print(long x)
+	void print(unsigned long x, bool hex=false) { print((long)x,hex); }
+	void print(unsigned int x, bool hex=false) { print((long)x,hex); }
+	void print(int x, bool hex=false) { print((long)x,hex); }
+	void print(long x, bool hex=false)
 	{
-		char digits[12];
+		char digits[16];
 		int n = 0;
+		int div = hex ? 16 : 10;
 		if( x < 0 ) { write('-'); x=-x; }
 		do
 		{
-			digits[n++] = x % 10;
-			x /= 10;
+			digits[n++] = x % div;
+			x /= div;
 		} while( x > 0 );
-		for(int i=0;i<n;i++) { write('0'+digits[n-i-1]); }
+		for(int i=0;i<n;i++)
+		{
+			int dg = digits[n-i-1];
+			write( (dg<10) ? ('0'+dg) : ('A'+(dg-10)) );
+		}
 	}
 
 	template<class T>
@@ -291,13 +309,13 @@ public:
 	static void clear()
 	{
 	  command(LCD_CLEARDISPLAY);  // clear display, set cursor position to zero
-	  delayMicroseconds(2000);  // this command takes a long time!
+	  avrtl::DelayMicroseconds(2000);  // this command takes a long time!
 	}
 	
 	static void home()
 	{
 	  command(LCD_RETURNHOME);  // set cursor position to zero
-	  delayMicroseconds(2000);  // this command takes a long time!
+	  avrtl::DelayMicroseconds(2000);  // this command takes a long time!
 	}
 	
 	static void setCursor(uint8_t col, uint8_t row)
@@ -367,7 +385,7 @@ public:
 
 	static void command(uint8_t value)
 	{
-		digitalWrite(DataPins::rs_pin,LOW);
+		DataPins::selectCommandMode();
 		DataPins::write(value);
 	}
 
@@ -423,7 +441,7 @@ private:
 	
 	static void sendByte(uint8_t value)
 	{
-		digitalWrite(DataPins::rs_pin,HIGH);
+		DataPins::selectDataMode();
 		DataPins::write(value);
 	}
 };

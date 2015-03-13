@@ -38,7 +38,7 @@ public:
   void sendBit1()   { sendPulse(BIT1_PRE,BIT1_LEN); }
   void sendBitPair(byte b);
   void sendSignal(int nbits, const byte* input);
-  void sendSwitchCommand(unsigned long sender, byte state);
+  void sendDWord(uint32_t code);
 
   uint8_t errno;
   unsigned long rl1,rl2;

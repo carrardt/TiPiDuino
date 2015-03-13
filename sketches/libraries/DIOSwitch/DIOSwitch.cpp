@@ -118,21 +118,13 @@ void DIOSwitch::sendSignal(int nbits, const byte* input)
 	}
 }
 
-void DIOSwitch::sendSwitchCommand(unsigned long sender, byte state)
+void DIOSwitch::sendDWord(uint32_t code)
 {
-	byte message[4] ;
-	message[0] = ( sender >> 3 ) & 0xFF;
-	message[1] = ( sender << 5 ) & 0xFF ;
-	message[1] |= state ? (1<<4) : 0 ;
-	message[2] = 0;
-	message[3] = 0;
-/*	Serial.print(message[0],HEX);
-	Serial.print(",");
-	Serial.print(message[1],HEX);
-	Serial.print(",");
-	Serial.print(message[2],HEX);
-	Serial.print(",");
-	Serial.println(message[3],HEX); */
+	uint8_t message[4];
+	message[0] = (code>>24) & 0xFF ;
+	message[1] = (code>>24) & 0xFF ;
+	message[2] = (code>>24) & 0xFF ;
+	message[3] = (code>>24) & 0xFF ;
 	for(int i=0;i<REPEAT_COMMAND;i++)
 	{
 		sendSignal( 32, message );

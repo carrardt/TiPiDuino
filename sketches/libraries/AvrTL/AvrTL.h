@@ -24,9 +24,12 @@
 #ifndef __AvrTL_H
 #define __AvrTL_H
 
-#include <Wiring.h>
-#include <BoardDefs.h>
 #include <stdint.h>
+#include <avr/io.h>
+#include <avr/interrupt.h>
+
+#include <Wiring.h> // only for NOT_A_PORT define
+#include <BoardDefs.h> // for pin mapping
 
 namespace avrtl
 {
@@ -85,7 +88,7 @@ struct AvrPin
 
     operator bool() const { return Get(); }
     
-    const AvrPin& operator = (bool b) const { Set(b); return *this; }
+    bool operator = (bool b) const { Set(b); return b; }
 
 	uint32_t PulseIn(bool lvl, uint32_t timeout) const
 	{
@@ -124,13 +127,13 @@ private:
 	const uint8_t pin_bit;
 };
 
-#define AUTO_RET(x...) -> decltype((x)) { return (x); }
+#define AVRTL_AUTO_RET(x...) -> decltype((x)) { return (x); }
 
 template<typename PinT, typename PortT, typename DdrT>
-constexpr auto pin(PinT* pi, PortT* po, DdrT* dd, uint8_t b) AUTO_RET( AvrPin<decltype(pi),decltype(po),decltype(dd)>(pi,po,dd,b) )
+constexpr auto pin(PinT* pi, PortT* po, DdrT* dd, uint8_t b) AVRTL_AUTO_RET( AvrPin<decltype(pi),decltype(po),decltype(dd)>(pi,po,dd,b) )
 
 constexpr auto pin(int pinId)
-	AUTO_RET(
+	AVRTL_AUTO_RET(
 		pin( portInputRegister(digitalPinToPort(pinId))
 		   , portOutputRegister(digitalPinToPort(pinId))
 		   , portModeRegister(digitalPinToPort(pinId))

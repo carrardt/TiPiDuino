@@ -19,13 +19,12 @@ void setup()
   // Serial.println("state ?");
 }
 
-unsigned long sender = 420;
-byte state = 0;
+static uint32_t code = 0x3B32EC80;
 
 void loop()
 {
-  mySwitch.sendSwitchCommand(sender, state );
-  state = 1 - state;
+  mySwitch.sendDWord( code );
+  code ^= 0x10;
   delay(5000);
 }
 

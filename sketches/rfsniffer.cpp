@@ -1,5 +1,7 @@
-#include <Wiring.h>
+//#include <Wiring.h>
+
 #include <LCD.h>
+#include <avr/eeprom.h>
 #include "AvrTL.h"
 
 /*
@@ -36,6 +38,9 @@
 #define RECEIVE_PIN 8
 #define LED_PIN 13
 
+#define EEPROM_BASE_ADDR ((void*)0x0004)
+#define EEPROM_MAGIC_NUMBER (0x26101979UL)
+
 LCD< 7,6, PinSet<5,4,3,2> > lcd;
 
 using namespace avrtl;
@@ -53,6 +58,8 @@ static constexpr char codingChar[] = {'?','B','M'};
 
 struct SignalProperties
 {
+	uint32_t magic;
+	/* uint16_t symbolgaps[MAX_SYMBOLS]; */ // unused
 	uint16_t symbols[MAX_SYMBOLS];
 	uint16_t nPulses;
 	uint16_t messageBits;
@@ -64,14 +71,41 @@ struct SignalProperties
 	uint8_t coding;
 	bool matchingRepeats;
 	inline SignalProperties()
-		: nPulses(0)
-		, messageBits(0)
-		, nSymbols(0)
-		, nLatches(0)
-		, latchSeqLen(0)
-		, nMessageRepeats(0)
-		, coding(CODING_UNKNOWN)
-		, matchingRepeats(false) {}
+	{
+		init();
+	}
+
+	inline void init()
+	{
+		magic = 0xFFFFFFFF ;
+		nPulses = 0;
+		messageBits = 0;
+		nSymbols = 0;
+		nLatches = 0;
+		latchSeqLen = 0;
+		nMessageRepeats = 0;
+		coding = CODING_UNKNOWN;
+		matchingRepeats = false;
+	}
+
+	inline void toEEPROM()
+	{
+		setValid(true);
+		eeprom_write_block( (void*)this, EEPROM_BASE_ADDR, sizeof(SignalProperties) );
+	}
+
+	inline void fromEEPROM()
+	{
+		eeprom_read_block( (void*)this, EEPROM_BASE_ADDR, sizeof(SignalProperties) );
+		if( ! isValid() )
+		{
+			init();
+		}
+	}
+
+	inline void setValid(bool v) { magic = v ? EEPROM_MAGIC_NUMBER : 0xFFFFFFFF; }
+	inline bool isValid() { return magic == EEPROM_MAGIC_NUMBER; }
+
 };
 
 // record a raw signal (succession of digital pulse lengthes)
@@ -118,6 +152,31 @@ static int readBinaryMessage(const SignalProperties& sp, uint8_t* buf)
 		if( (j%8)==7 ) { ++byte;  }
 	}
 	return sp.messageBits;
+}
+
+static bool decodeManchester(uint8_t* buf, int nbits)
+{
+	int j=0, k=0;
+	uint8_t byte=0;
+	uint8_t x[2];
+	for(int i=0;i<nbits;i++)
+	{
+		int bpos = i%8;
+		x[i%2] = ( buf[i/8] >> (7-bpos) ) & 1;
+		if( i%2 == 1 )
+		{
+			if( x[0]==x[1] ) return false;
+			byte = (byte << 1) | x[0];
+			++k;
+			if( k==8 )
+			{
+				buf[j++] = byte;
+				k=0;
+			}
+		}
+	}
+	if( k!=0 ) buf[j++] = byte;
+	return true;
 }
 
 // build a classification of pulse lengthes in a signal record
@@ -248,7 +307,6 @@ static bool analyseSignal( SignalProperties& sp )
 					}
 					if( manchester )
 					{
-						sp.messageBits /= 2;
 						sp.coding = CODING_MANCHESTER;
 					}
 				}
@@ -259,6 +317,15 @@ static bool analyseSignal( SignalProperties& sp )
 		else { return false; }
 	  }
 	  else { return false; }
+}
+
+static void blink()
+{
+	for(int j=0;j<50;j++)
+	{
+		led.Set(j&1);
+		DelayMicroseconds(100000);
+	}
 }
 
 int main(void) __attribute__((noreturn));
@@ -280,19 +347,19 @@ int main(void)
 		
 	lcd << "\nStep 1: learn";
 	
-	bool hasProtocol = false; // TODO: read from EEPROM
-	while( ! hasProtocol )
+	SignalProperties sp;
+	sp.fromEEPROM();
+	while( ! sp.isValid() )
 	{
-		SignalProperties sp;
 		if( analyseSignal(sp) )
 		{
+			int mesgBits = sp.messageBits;
+			if( sp.coding == CODING_MANCHESTER ) mesgBits /= 2;
 			lcd << '\n';
-			lcd << sp.nSymbols <<' '<< sp.latchSeqLen <<' '<< codingChar[sp.coding] << sp.messageBits << " x" << sp.nMessageRepeats << (sp.matchingRepeats?'+':'-') << '\n';
+			lcd << sp.nSymbols <<' '<< sp.latchSeqLen <<' '<< codingChar[sp.coding] << mesgBits << " x" << sp.nMessageRepeats << (sp.matchingRepeats?'+':'-') << '\n';
 			lcd << sp.symbols[sp.nLatches]<<' '<<sp.symbols[sp.nLatches+1];
-			for(int j=0;j<50;j++) { led = j&1; DelayMicroseconds(10000); }
-			DelayMicroseconds(10000000UL);
+			blink();
 			lcd << "\nStep2: read";
-			if( sp.coding == CODING_MANCHESTER ) sp.messageBits *= 2;
 			if( sp.messageBits > MAX_MESSAGE_BITS ) sp.messageBits = MAX_MESSAGE_BITS;
 			int nbytes = (sp.messageBits+7) / 8;
 			uint8_t signal1[nbytes];
@@ -314,14 +381,45 @@ int main(void)
 				{
 					lcd << "\nWriting protocol";
 					lcd << "\nto EEPROM ...";
-					for(int j=0;j<500;j++) { led = j&1; DelayMicroseconds(100000); }
-					hasProtocol = true;
+					sp.toEEPROM();
+					blink();
 				}
 			}
 		}
 	}
-	lcd << "\n * RF sniffer *" ;
-	lcd << "\n ***  ready ***" ;
-	for(;;) {}
+	lcd << "\n** RF sniffer **" ;
+	lcd << "\n**** ready *****" ;
+	for(;;)
+	{
+		int nbytes = (sp.messageBits+7) / 8;
+		uint8_t buf[nbytes+1];
+		if( readBinaryMessage(sp,buf) != 0 )
+		{
+			bool mesgValid = true;
+			if( sp.coding == CODING_MANCHESTER )
+			{
+				mesgValid = decodeManchester(buf,sp.messageBits);
+				nbytes = ( (sp.messageBits/2) + 7 ) / 8;
+			}
+			if( mesgValid )
+			{
+				lcd << "\n" ;
+				for(int i=0;i<nbytes;i++)
+				{
+					uint8_t x = buf[i];
+					bool half=false;
+					do {
+						uint8_t a = ( x & 0xF0 ) >> 4;
+						char dg = a;
+						if( a < 10 ) dg += '0';
+						else { dg += 'A'-10; }
+						lcd << dg;
+						x <<= 4;
+						half = !half;
+					} while(half);
+				}
+			}
+		}
+	}
 }
 
