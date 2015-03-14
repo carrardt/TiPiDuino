@@ -47,7 +47,7 @@ namespace avrtl
 
 		UPDATE_CLOCK_COUNTER();
 		while( CLOCK_ELAPSED() < timeout ) { UPDATE_CLOCK_COUNTER(); }
-		
+
 #undef UPDATE_CLOCK_COUNTER
 #undef CLOCK_ELAPSED
 
@@ -55,42 +55,33 @@ namespace avrtl
 	}
 
 
-template<
-	typename PIp = uint8_t volatile*,
-	typename POp = uint8_t volatile*,
-	typename DDp = uint8_t volatile* >
+template< int _pinId >
 struct AvrPin
 {
-	constexpr AvrPin(PIp pi, POp po, DDp dd, uint8_t b)
-		: pin_addr(pi)
-		, port_addr(po)
-		, ddr_addr(dd)
-		, pin_bit(b) {}
-	//Pin(PORTAddrT pa, DDRAddrT da, uint8_t b) : port_addr(pa), ddr_addr(da), pin_bit(b) {}
+#define pin_addr (portInputRegister(digitalPinToPort(_pinId)))
+#define port_addr (portOutputRegister(digitalPinToPort(_pinId)))
+#define ddr_addr (portModeRegister(digitalPinToPort(_pinId)))
+#define pin_bit (digitalPinToBit(_pinId))
+	
+	static uint8_t SetMask()  { return 1<<pin_bit; }
+	static uint8_t ClearMask()  { return ~SetMask(); }
 
-	uint8_t SetMask() const { return 1<<pin_bit; }
-	uint8_t ClearMask() const { return ~SetMask(); }
-
-    void SetOutput() const { *ddr_addr |= SetMask(); }
+    static void SetOutput()  { *ddr_addr |= SetMask(); }
     
-    void SetInput() const { *ddr_addr &= ClearMask(); }
+    static void SetInput()  { *ddr_addr &= ClearMask(); }
 
-    void Set(bool b) const
+    static void Set(bool b) 
     {
 		if(b) { *port_addr |= SetMask(); }
 		else { *port_addr &= ClearMask(); }
 	}
 	
-    bool Get() const
+    static bool Get() 
     { 
 		return ( (*pin_addr) >> pin_bit ) & 1;
 	}
 
-    operator bool() const { return Get(); }
-    
-    bool operator = (bool b) const { Set(b); return b; }
-
-	uint32_t PulseIn(bool lvl, uint32_t timeout) const
+	static uint32_t PulseIn(bool lvl, uint32_t timeout) 
 	{
 		timeout /= TIMER0PRESCALEFACTOR / (F_CPU / 1000000UL);
 		
@@ -120,25 +111,15 @@ struct AvrPin
 #undef CLOCK_ELAPSED
 	}
 
-private:
-	const PIp pin_addr;
-	const POp port_addr;
-	const DDp ddr_addr;
-	const uint8_t pin_bit;
+    operator bool() const { return Get(); }
+    bool operator = (bool b) const { Set(b); return b; }
+
+#undef pin_addr
+#undef port_addr
+#undef ddr_addr
+#undef pin_bit
 };
 
-#define AVRTL_AUTO_RET(x...) -> decltype((x)) { return (x); }
-
-template<typename PinT, typename PortT, typename DdrT>
-constexpr auto pin(PinT* pi, PortT* po, DdrT* dd, uint8_t b) AVRTL_AUTO_RET( AvrPin<decltype(pi),decltype(po),decltype(dd)>(pi,po,dd,b) )
-
-constexpr auto pin(int pinId)
-	AVRTL_AUTO_RET(
-		pin( portInputRegister(digitalPinToPort(pinId))
-		   , portOutputRegister(digitalPinToPort(pinId))
-		   , portModeRegister(digitalPinToPort(pinId))
-		   , digitalPinToBit(pinId) )
-		)
 
 }
 

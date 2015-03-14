@@ -4,58 +4,6 @@
 #include <inttypes.h>
 #include "AvrTL.h"
 
-//#include <Wiring.h>
-
-template<uint8_t p0, uint8_t... p>
-struct PinSetHelper;
-
-template<uint8_t p0>
-struct PinSetHelper<p0>
-{
-	static void SetOutput()
-	{
-		avrtl::pin(p0).SetOutput();
-	}
-	static void SetInput()
-	{ 
-		avrtl::pin(p0).SetInput();
-	}
-	static void writeBits(unsigned int x) 
-	{
-		avrtl::pin(p0).Set( x & 0x01 );
-	}
-};
-
-template<uint8_t p0, uint8_t... _tail>
-struct PinSetHelper
-{
-	static void SetOutput()
-	{
-		avrtl::pin(p0).SetOutput();
-		PinSetHelper<_tail...>::SetOutput();
-	}
-	static void setInput()
-	{
-		avrtl::pin(p0).SetInput();
-		PinSetHelper<_tail...>::SetInput();
-	}
-	static void writeBits(unsigned int x) 
-	{
-		avrtl::pin(p0).Set( x & 0x01 );
-		PinSetHelper<_tail...>::writeBits( x >> 1);
-	}
-};
-
-template<uint8_t... p>
-class PinSet
-{
-public:
-	static constexpr unsigned int count = sizeof...(p);
-	static void writeBits(unsigned int x) { PinSetHelper<p...>::writeBits(x); }
-	static void SetOutput() { PinSetHelper<p...>::SetOutput(); }
-	static void SetInput() { PinSetHelper<p...>::SetInput(); }
-};
-
 // commands
 #define LCD_CLEARDISPLAY 0x01
 #define LCD_RETURNHOME 0x02
@@ -115,107 +63,60 @@ public:
 
 // handles Read/Write mode with optional rw pin
 // if no pin is connected (pin = -1) nothing happens
-template<int _rw=-1>
-class LCDRW
-{
-public:
-	static void init() { avrtl::pin(_rw).SetOutput(); }
-	static void setWritable() { avrtl::pin(_rw) = 0 ; }
-	static void setReadable() { avrtl::pin(_rw)= 1 ; }
-};
-template<>
-class LCDRW<-1>
-{
-public:
-	static void init() { }
-	static void setWritable() { }
-	static void setReadable() { }
-};
 
-// handles low level data transmission
-template<uint8_t _rs, uint8_t _en, class _pins>
-class LCDDataPinsBase
+template<int _rs, int _en, int _d0, int _d1, int _d2, int _d3,int _cols=16, int _lines=2, int _dotSize=LCD_5x8DOTS>
+struct LCD
 {
-public:
-	using pins = _pins;
-	static constexpr unsigned int pinCount = pins::count;
-
-	static void selectDataMode() { avrtl::pin(_rs) = 1; }
-	static void selectCommandMode() { avrtl::pin(_rs) = 0; }
-
-	static void setWritable()
+	static constexpr int cols = _cols;
+	static constexpr int lines = _lines;
+	static constexpr int dotSize = _dotSize;
+		
+	static void pulseEnable() 
 	{
-		pins::SetOutput();
-	}
-	
-	static void setReadable()
-	{
-		pins::SetInput();
-	}
-	
-	static void initCommon()
-	{
-		avrtl::pin(_rs).SetOutput();
-		avrtl::pin(_en).SetOutput();
-		avrtl::pin(_rs) = 0;
-		avrtl::pin(_en) = 0;
-		setWritable();
-	}
-	
-	static void pulseEnable()
-	{
-  	  avrtl::pin(_en).Set(0);
+  	  avrtl::AvrPin<_en>::Set(0);
   	  avrtl::DelayMicroseconds(1);    
-  	  avrtl::pin(_en).Set(1);
+  	  avrtl::AvrPin<_en>::Set(1);
   	  avrtl::DelayMicroseconds(1);    // enable pulse must be >450ns
-  	  avrtl::pin(_en).Set(0);
+  	  avrtl::AvrPin<_en>::Set(0);
   	  avrtl::DelayMicroseconds(100);   // commands need > 37us to settle
 	}
-}; 
 
-// 4/8 bits mode template
-template<uint8_t _rs, uint8_t _en, class _pins, unsigned int npins=_pins::count>
-class LCDDataPins; 
-
-// 8-bits specialization
-template<uint8_t _rs, uint8_t _en, class _pins>
-class LCDDataPins<_rs,_en,_pins,8> : public LCDDataPinsBase<_rs,_en,_pins>
-{
-public:
-	using Super = LCDDataPinsBase<_rs,_en,_pins>;
-	using data_pins = typename Super::pins; 
-	static constexpr uint8_t data_mode = LCD_8BITMODE;
-
-	static void init(uint8_t displayFunction)
+	static void write4bits(uint8_t value) 
 	{
-		Super::initCommon();
-		write(LCD_FUNCTIONSET | displayFunction);
-    	avrtl::DelayMicroseconds(4500);  // wait more than 4.1ms
-		write(LCD_FUNCTIONSET | displayFunction);
-    	avrtl::DelayMicroseconds(150);
-		write(LCD_FUNCTIONSET | displayFunction);
+		avrtl::AvrPin<_d0>::Set(value & 1); value >>= 1;
+		avrtl::AvrPin<_d1>::Set(value & 1); value >>= 1;
+		avrtl::AvrPin<_d2>::Set(value & 1); value >>= 1;
+		avrtl::AvrPin<_d3>::Set(value & 1);
+		pulseEnable();
 	}
-
-	static void write(uint8_t value)
-	{
-		data_pins::writeBits( value );
-		Super::pulseEnable();
-	}
-};
-
-// 4-bits specialization
-template<uint8_t _rs, uint8_t _en, class _pins>
-class LCDDataPins<_rs,_en,_pins,4> : public LCDDataPinsBase<_rs,_en,_pins>
-{
-public:
-	using Super = LCDDataPinsBase<_rs,_en,_pins>;
-	using data_pins = typename Super::pins; 
 	
-	static constexpr uint8_t data_mode = LCD_4BITMODE;
-
-	static void init(uint8_t displayMode)
+	static void write(uint8_t value) 
 	{
-		Super::initCommon();
+		write4bits(value>>4);
+		write4bits(value);
+	}
+
+	static void selectDataMode()  { avrtl::AvrPin<_rs>::Set(1); }
+	static void selectCommandMode()  { avrtl::AvrPin<_rs>::Set(0); }
+
+	static void command(uint8_t value) 
+	{
+		selectCommandMode();
+		write(value);
+	}
+
+	static void init() 
+	{
+		avrtl::AvrPin<_rs>::SetOutput();
+		avrtl::AvrPin<_rs>::Set(0);
+		avrtl::AvrPin<_en>::SetOutput();
+		avrtl::AvrPin<_en>::Set(0);
+
+		avrtl::AvrPin<_d0>::SetOutput();
+		avrtl::AvrPin<_d1>::SetOutput();
+		avrtl::AvrPin<_d2>::SetOutput();
+		avrtl::AvrPin<_d3>::SetOutput();
+
 		write4bits(0x03);
 		avrtl::DelayMicroseconds(4500);
 		write4bits(0x03);
@@ -223,32 +124,17 @@ public:
 		write4bits(0x03);
 		avrtl::DelayMicroseconds(150);
 		write4bits(0x02);
-	}
-	static void write4bits(uint8_t value)
-	{
-		data_pins::writeBits( value );
-		Super::pulseEnable();
-	}
-	static void write(uint8_t value)
-	{
-		write4bits(value>>4);
-		write4bits(value);
-	}
-};
 
-template<class _RWPin, class _DataPins, int _cols, int _lines, uint8_t _dotSize>
-class LCDBase
-{
-	using RWPin = _RWPin;
-	using DataPins = _DataPins;
-	static constexpr int cols = _cols;
-	static constexpr int lines = _lines;
-	static constexpr uint8_t lineMode = (_lines<=1) ? LCD_1LINE : LCD_2LINE ;
-	static constexpr uint8_t dotSize = _dotSize;
-	static constexpr uint8_t displayFlags = DataPins::data_mode | lineMode | dotSize;	
-public:
-	// TODO: m_WriteMode should be in RWPin class and stored if necessary only
-	LCDBase()
+		command( LCD_FUNCTIONSET | LCD_4BITMODE | ((lines<=1)?LCD_1LINE:LCD_2LINE) | dotSize );
+	}
+	
+	static void sendByte(uint8_t value) 
+	{
+		selectDataMode();
+		write(value);
+	}	
+	
+	LCD()
 		: m_writeMode(true)
 		, m_displayControlFlags(0)
 		, m_displayModeFlags(0)
@@ -258,8 +144,7 @@ public:
 
 	void begin()
 	{
-		init( displayFlags );
-		command( LCD_FUNCTIONSET | displayFlags );
+		init();
 		m_writeMode = true;
 		setDisplayFlags( LCD_DISPLAYON );
 		clear();
@@ -270,12 +155,12 @@ public:
 	{
 		if( txt == 0) { print("<null>"); return; }
 		for(int i=0;txt[i]!='\0';++i)
-			write(txt[i]);
+			writeChar(txt[i]);
 	}
 
 	void print(const char c)
 	{
-		write( c );
+		writeChar( c );
 	}
 	
 	void print(unsigned long x, bool hex=false) { print((long)x,hex); }
@@ -295,12 +180,12 @@ public:
 		for(int i=0;i<n;i++)
 		{
 			int dg = digits[n-i-1];
-			write( (dg<10) ? ('0'+dg) : ('A'+(dg-10)) );
+			writeChar( (dg<10) ? ('0'+dg) : ('A'+(dg-10)) );
 		}
 	}
 
 	template<class T>
-	inline LCDBase& operator << (const T& x)
+	inline LCD& operator << (const T& x)
 	{
 		print(x);
 		return *this;
@@ -347,11 +232,11 @@ public:
 	void noBlink() { clearDisplayFlags(LCD_BLINKON); }
 	void blink() { setDisplayFlags(LCD_BLINKON); }
 
-	void scrollDisplayLeft()
+	void scrollDisplayLeft() const
 	{
 	  command(LCD_CURSORSHIFT | LCD_DISPLAYMOVE | LCD_MOVELEFT);
 	}
-	void scrollDisplayRight()
+	void scrollDisplayRight() const
 	{
 	  command(LCD_CURSORSHIFT | LCD_DISPLAYMOVE | LCD_MOVERIGHT);
 	}
@@ -374,26 +259,20 @@ public:
 	void autoscroll() { setDisplayModeFlags(LCD_ENTRYSHIFTINCREMENT); }
 	void noAutoscroll() { clearDisplayModeFlags(LCD_ENTRYSHIFTINCREMENT); }
 
-	static void createChar(uint8_t location, uint8_t charmap[])
+	void createChar(uint8_t location, uint8_t charmap[])
 	{
 	  location &= 0x7; // we only have 8 locations 0-7
 	  command(LCD_SETCGRAMADDR | (location << 3));
 	  for (int i=0; i<8; i++) {
-	    write(charmap[i]);
+	    sendByte(charmap[i]);
 	  }
 	}
 
-	static void command(uint8_t value)
-	{
-		DataPins::selectCommandMode();
-		DataPins::write(value);
-	}
-
-	void write(uint8_t value)
+	void writeChar(uint8_t value)
 	{
 		if( value == '\n' )
 		{
-			if(lineMode==LCD_1LINE)
+			if(lines==1)
 			{
 				clear();
 				setCursor(0,0);
@@ -426,29 +305,8 @@ private:
 	uint8_t m_displayModeFlags;
 	uint8_t m_bufSize;
 	uint8_t m_buffer[cols];
-
-	static void init(uint8_t displayFlags)
-	{
-		RWPin::init();
-		DataPins::init(displayFlags);
-	}
 	
-	static void setWritable()
-	{
-		RWPin::setWritable();
-		DataPins::setWritable();
-	}
-	
-	static void sendByte(uint8_t value)
-	{
-		DataPins::selectDataMode();
-		DataPins::write(value);
-	}
 };
-
-template < uint8_t rs, uint8_t en, class pins, int c=16, int l=2, uint8_t ds=LCD_5x8DOTS, int rw=-1>
-using LCD =
-LCDBase< LCDRW<rw>, LCDDataPins<rs,en,pins> ,c,l,ds >;
 
 #endif
 

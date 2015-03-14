@@ -39,13 +39,13 @@
 #define LED_PIN 13
 
 #define EEPROM_BASE_ADDR ((void*)0x0004)
-#define EEPROM_MAGIC_NUMBER (0x26101979UL)
+#define EEPROM_MAGIC_NUMBER (0x26101980UL)
 
-LCD< 7,6, PinSet<5,4,3,2> > lcd;
+LCD<7,6,5,4,3,2> lcd;
 
 using namespace avrtl;
-constexpr auto led = pin(LED_PIN);
-constexpr auto rx = pin(RECEIVE_PIN);
+constexpr auto led = AvrPin<LED_PIN>();
+constexpr auto rx = AvrPin<RECEIVE_PIN>();
 
 // Possibly detected encodings
 enum MessageEncoding
