@@ -28,7 +28,10 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
 
-#include <Wiring.h> // only for NOT_A_PORT define
+#include <Wiring.h> 
+/*#ifndef NOT_A_PORT
+#define NOT_A_PORT 0xFF
+#endif*/
 #include <BoardDefs.h> // for pin mapping
 
 namespace avrtl
@@ -54,6 +57,15 @@ namespace avrtl
 		SREG = oldSREG;
 	}
 
+	template<typename LedPinT>
+	static void blink(LedPinT& led)
+	{
+		for(int j=0;j<25;j++)
+		{
+			led = j&1;
+			DelayMicroseconds(100000);
+		}
+	}
 
 template< int _pinId >
 struct AvrPin
