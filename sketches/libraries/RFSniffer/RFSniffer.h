@@ -21,7 +21,6 @@
 /*
  * TODO: improve pulse length encoding, using TIMER0PRESCALER value
  */
-//#include "Wiring.h"
 
 template<typename RXPinT>
 struct RFSniffer
@@ -73,19 +72,46 @@ struct RFSniffer
 	}
 
 	// record a raw signal (succession of digital pulse lengthes)
-	int recordSignal(uint16_t * buf)
+	template<uint16_t bufSize, uint16_t minLatchLen, uint8_t minLatchCount>
+	int recordSignalLatchDetect(uint16_t * buf)
 	{
 	  int n=0;
-	  for(;n<MIN_PROLOG_LATCHES;++n)
+	  for(;n<minLatchCount;++n)
 	  {
 		  buf[n] = rx.PulseIn(PULSE_LVL,MAX_PULSE_LEN);
-		  if( buf[n]<MIN_LATCH_LEN || buf[n]>=MAX_PULSE_LEN ) return n;
+		  if( buf[n]<minLatchLen || buf[n]>=MAX_PULSE_LEN ) return n;
 	  }
 	  do {
 		buf[n++] = rx.PulseIn(PULSE_LVL,MAX_PULSE_LEN);
 	  }
-	  while( buf[n-1]>MIN_PULSE_LEN && buf[n-1]<=MAX_PULSE_LEN && n<MAX_PULSES);
+	  while( buf[n-1]>MIN_PULSE_LEN && buf[n-1]<=MAX_PULSE_LEN && n<bufSize);
 	  return n;
+	}
+
+	// record a raw signal (succession of digital pulse lengthes)
+	template<uint16_t bufSize>
+	int recordSignalBinaryEntropyDetect(uint16_t * buf)
+	{
+		int16_t fop0 = 0; // first occurence position
+		int16_t fop1 = 0; // first occurence position
+		int16_t curs = 0; // circular buffer cursor
+		long l;
+		uint16_t re;
+
+		buf[curs] = rx.PulseIn(PULSE_LVL,MAX_PULSE_LEN);
+		do
+		{
+			curs = (curs+1) % bufSize;
+			if(curs==fop0) return 0;
+			l = rx.PulseIn(PULSE_LVL,MAX_PULSE_LEN);
+			buf[curs] = l;
+			re = l / PULSE_ERR_RATIO;
+		} while( abs(l-buf[fop0]) <= re );
+		fop1 = curs;
+
+		... 
+		
+		return 0;
 	}
 
 	int readBinaryMessage(const RFSnifferProtocol& sp, uint8_t* buf)
@@ -180,107 +206,97 @@ struct RFSniffer
 	  return nsymbols;
 	}
 
-	bool analyseSignal( RFSnifferProtocol& sp )
+	// restrict to binary symbol coding schemes
+	bool analyseSignal(uint16_t* buf, int np, RFSnifferProtocol& sp )
 	{
-		  uint16_t buf[MAX_PULSES];
-		  sp.nPulses = recordSignal( buf );
-		  if( sp.nPulses >= MIN_MESSAGE_PULSES )
-		  {
-			uint8_t symcount[MAX_SYMBOLS];
-			sp.nSymbols = classifySymbols(buf,sp.nPulses,sp.symbols,symcount);
-			sp.nLatches=0;
-			// discriminate longest pulses as latches
-			while( sp.nLatches<sp.nSymbols && sp.symbols[sp.nLatches]>=MIN_LATCH_LEN ) ++ sp.nLatches;
-			if( (sp.nLatches+2) <= sp.nSymbols ) // at least 2 non-latch symbols are necessary to code a message
-			{
-				int nCodingSymbols = sp.nSymbols - sp.nLatches;
-				
-				// FIXME:
-				// weakness: assumes that message starts with a correct full latch sequence
+		sp.nPulses = np;
+		
+		uint8_t symcount[MAX_SYMBOLS];
+		sp.nSymbols = classifySymbols(buf,sp.nPulses,sp.symbols,symcount);
+		
+		// discriminate longest pulses as latches
+		// TODO: discriminate from symcount (most frequent=bits), then build indirection latch table
+		sp.nLatches = sp.nSymbols - 2;
 
-				// detect start latch sequence
-				sp.latchSeqLen = 0;
-				while( sp.latchSeqLen<MAX_LATCH_SEQ_LEN && buf[sp.latchSeqLen]<sp.nLatches )
-				{ 
-					sp.latchSeq[sp.latchSeqLen] = buf[sp.latchSeqLen];
-					++sp.latchSeqLen;
-				}
-				
-				// detect repeated message
-				sp.nMessageRepeats = 1;
-				{
-					int j=0;
-					for(int i=sp.latchSeqLen;i<sp.nPulses;++i)
-					{
-						if( buf[i] == buf[j] )
-						{ 
-							++j;
-							if(j==sp.latchSeqLen)
-							{
-								j=0;
-								++sp.nMessageRepeats;
-							}
-						}
-						else { j=0; }
-					}
-				}
-				sp.matchingRepeats = true;
-				if( sp.nMessageRepeats>1 )
-				{
-					int p = sp.nPulses/sp.nMessageRepeats;
-					for(int i=0;i<p;++i)
-					{
-						for(int j=1;j<sp.nMessageRepeats;++j)
-						{
-							if( buf[j*p+i] != buf[i] ) sp.matchingRepeats=false;
-						}
-					}
-				}
-				
-				if( nCodingSymbols > 2 )
-				{
-					sp.coding = CODING_UNKNOWN;
-					sp.messageBits = -1; // could be computed though
-				}
-				else 
-				{
-					sp.coding = CODING_BINARY;
-					if( symcount[sp.nLatches] == symcount[sp.nLatches+1] )
-					{
-						sp.messageBits = 0;
-						bool manchester = true;
-						bool secondBitTst = false;
-						bool firstBit;
-						for(int i=0;i<sp.nPulses && manchester;i++)
-						{
-							if( buf[i]==sp.nLatches || buf[i]==(sp.nLatches+1) )
-							{
-								++ sp.messageBits;
-								bool cbit = ( buf[i]==sp.nLatches );
-								if( secondBitTst )
-								{
-									if( cbit == firstBit ) { manchester = false; }
-									else { secondBitTst = false; }
-								}
-								else
-								{
-									firstBit = cbit;
-									secondBitTst = true;
-								}
-							}
-						}
-						if( manchester )
-						{
-							sp.coding = CODING_MANCHESTER;
-						}
-					}
-					sp.messageBits /= sp.nMessageRepeats;
-				}
-				return true;
+		if( sp.nLatches >= 1 ) // at least 1 latch is necessary
+		{
+			// TODO:
+			// FIXME: assumes that message starts with a correct full latch sequence
+
+			// detect start latch sequence
+			sp.latchSeqLen = 0;
+			while( sp.latchSeqLen<MAX_LATCH_SEQ_LEN && buf[sp.latchSeqLen]<sp.nLatches )
+			{ 
+				sp.latchSeq[sp.latchSeqLen] = buf[sp.latchSeqLen];
+				++sp.latchSeqLen;
 			}
-			else { return false; }
-		  }
-		  else { return false; }
+
+			// detect repeated message
+			sp.nMessageRepeats = 1;
+			{
+				int j=0;
+				for(int i=sp.latchSeqLen;i<sp.nPulses;++i)
+				{
+					if( buf[i] == buf[j] )
+					{ 
+						++j;
+						if(j==sp.latchSeqLen)
+						{
+							j=0;
+							++sp.nMessageRepeats;
+						}
+					}
+					else { j=0; }
+				}
+			}
+			sp.matchingRepeats = true;
+			if( sp.nMessageRepeats>1 )
+			{
+				int p = sp.nPulses/sp.nMessageRepeats;
+				for(int i=0;i<p;++i)
+				{
+					for(int j=1;j<sp.nMessageRepeats;++j)
+					{
+						if( buf[j*p+i] != buf[i] ) sp.matchingRepeats=false;
+					}
+				}
+			}
+			
+			sp.coding = CODING_BINARY;
+			if( symcount[sp.nLatches] == symcount[sp.nLatches+1] )
+			{
+				sp.messageBits = 0;
+				bool manchester = true;
+				bool secondBitTst = false;
+				bool firstBit;
+				for(int i=0;i<sp.nPulses && manchester;i++)
+				{
+					if( buf[i]==sp.nLatches || buf[i]==(sp.nLatches+1) )
+					{
+						++ sp.messageBits;
+						bool cbit = ( buf[i]==sp.nLatches );
+						if( secondBitTst )
+						{
+							if( cbit == firstBit ) { manchester = false; }
+							else { secondBitTst = false; }
+						}
+						else
+						{
+							firstBit = cbit;
+							secondBitTst = true;
+						}
+					}
+				}
+				if( manchester )
+				{
+					sp.coding = CODING_MANCHESTER;
+				}
+			}
+			sp.messageBits /= sp.nMessageRepeats;
+		
+			return true;
+		}
+		else { return false; }
 	}
 
 	RXPinT& rx;

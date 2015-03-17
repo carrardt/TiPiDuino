@@ -12,7 +12,7 @@ struct RFSnifferProtocol
 	uint16_t messageBits;
 	uint8_t latchSeq[MAX_LATCH_SEQ_LEN];
 	uint8_t nSymbols;
-	uint8_t nLatches;
+	int8_t nLatches;
 	uint8_t latchSeqLen;
 	uint8_t nMessageRepeats;
 	uint8_t coding;

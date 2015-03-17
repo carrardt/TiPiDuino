@@ -4,11 +4,20 @@
 
 using namespace avrtl;
 
+// for latch detection based analysis
+#define MIN_LATCH_LEN 		2000
+#define MIN_PROLOG_LATCHES 	1
+#define MIN_MESSAGE_PULSES 	64
+#define MAX_PULSES 			512
+
+// EEPROM address where to write detected protocol
 #define EEPROM_BASE_ADDR ((void*)0x0004)
 
+// pinout
 #define RECEIVE_PIN 8
 #define LED_PIN 13
 #define LCD_PINS 7,6,5,4,3,2 // respectively RS, EN, D7, D6, D5, D4
+
 
 int main(void) __attribute__((noreturn));
 int main(void)
@@ -32,6 +41,7 @@ int main(void)
 
 	while( ! sp.isValid() )
 	{
+		/*
 		bool entropyOk = false;
 		uint16_t entropybuf[2] = {0,0};
 		{
@@ -44,9 +54,21 @@ int main(void)
 			lcd << "\nB0=" << entropybuf[0]<<", B1="<<entropybuf[1];
 			blink(led);
 		}
+		*/
 		
-		if(0)
-		if( sniffer.analyseSignal(sp) )
+		// detect and record a signal
+		bool signalOk = false;
+		{
+			uint16_t buf[MAX_PULSES];
+			int npulses = sniffer.recordSignalLatchDetect<MAX_PULSES,MIN_LATCH_LEN,MIN_PROLOG_LATCHES>(buf);
+			if( npulses >= MIN_MESSAGE_PULSES )
+			{
+				signalOk = sniffer.analyseSignal(buf,npulses,sp);
+			}
+		}
+		
+		// signal content analysis
+		if( signalOk )
 		{
 			int mesgBits = sp.messageBits;
 			if( sp.coding == CODING_MANCHESTER ) mesgBits /= 2;

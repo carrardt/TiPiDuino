@@ -12,8 +12,8 @@ constexpr auto led = pin( portInputRegister(digitalPinToPort(LED_PIN))
 						, portModeRegister(digitalPinToPort(LED_PIN))
 						,digitalPinToBit(LED_PIN) );
 */
-constexpr auto led = pin(LED_PIN);
-bool state = false;
+static constexpr auto led = pin(LED_PIN);
+static bool state = false;
 
 void setup()
 {

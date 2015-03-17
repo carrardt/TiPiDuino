@@ -132,6 +132,10 @@ struct AvrPin
 #undef pin_bit
 };
 
+template<int P>
+static constexpr AvrPin<P> make_pin() { return AvrPin<P>(); }
+
+#define pin(P) make_pin<P>()
 
 }
 
