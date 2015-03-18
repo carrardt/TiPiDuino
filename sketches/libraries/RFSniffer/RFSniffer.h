@@ -88,49 +88,131 @@ struct RFSniffer
 	  return n;
 	}
 
+	static void rotateBufferLeft1(uint16_t * ptr, int n)
+	{
+		uint8_t first = ptr[0];
+		for(int i=0;i<(n-1);i++)
+		{
+			ptr[i] = ptr[i+1];
+		}
+		ptr[n-1] = first;
+	}
+	
+	static void rotateBufferLeft(uint16_t * ptr, int n, int disp)
+	{
+		for(int i=0;i<disp;i++)
+		{
+			rotateBufferLeft1(ptr,n);
+		}
+	}
+
+	template<typename T>
+	static int findOccurence(const T* pattern, int psize, const T* buf, int bsize)
+	{
+		int j=0;
+		for(int i=0;i<bsize;i++)
+		{
+			if( buf[i]==pattern[j] ) ++j;
+			else j=0;
+			if( j == psize ) return i-psize+1;
+		}
+		return -1;
+	}
+
 	// record a raw signal (succession of digital pulse lengthes)
-	template<uint16_t bufSize>
+	template<uint16_t bufSize, uint16_t binarySeqLen>
 	int recordSignalBinaryEntropyDetect(uint16_t * buf)
 	{
-		int16_t fop0 = 0; // first occurence position
-		int16_t fop1 = 0; // first occurence position
-		int16_t curs = 0; // circular buffer cursor
-		long l;
+		uint16_t fop0 = 0; // first occurence position
+		uint16_t fop1 = 0; // first occurence position
+		uint16_t curs = 0; // circular buffer cursor
 		uint16_t re;
+		int32_t l;
 
-		buf[curs] = rx.PulseIn(PULSE_LVL,MAX_PULSE_LEN);
+#define CURSOR_DIST(a,b) (((bufSize+b)-a)%bufSize)
+
+		l = rx.PulseIn(PULSE_LVL,MAX_PULSE_LEN);
+		if( l < MIN_PULSE_LEN ) return 0;
+		buf[curs] = l;	
+		curs=(curs+1)%bufSize;
+	
 		do
 		{
-			curs = (curs+1) % bufSize;
+			// whole buffer has been filled without finding another symbol
 			if(curs==fop0) return 0;
+
+			// read a pulse,
 			l = rx.PulseIn(PULSE_LVL,MAX_PULSE_LEN);
+			if( l < MIN_PULSE_LEN ) return 0;
+			
+			// store the pulse
 			buf[curs] = l;
+			fop1 = curs;
+			curs=(curs+1)%bufSize;
+			
+			// and test if it is different from the first one
 			re = l / PULSE_ERR_RATIO;
 		} while( abs(l-buf[fop0]) <= re );
-		fop1 = curs;
-
-		... 
 		
-		return 0;
+		// here, we have find a second symbol
+		
+		// now wait until we have a long enough binary sequence
+		while( CURSOR_DIST(fop0,curs) < binarySeqLen )
+		{
+			l = rx.PulseIn(PULSE_LVL,MAX_PULSE_LEN);
+			if( l < MIN_PULSE_LEN ) return 0;
+			buf[curs] = l;
+			re = l / PULSE_ERR_RATIO;
+			bool equalsP0 = ( abs(l-buf[fop0]) <= re );
+			bool equalsP1 = ( abs(l-buf[fop1]) <= re );
+			
+			// whenever we find a third symbol, we discard p0 and shift p1 to p0
+			// the new symbol becomes p1
+			if( !equalsP0 && !equalsP1 )
+			{
+				fop0 = fop1;
+				fop1 = curs;
+			}
+			curs=(curs+1)%bufSize;
+		}
+
+		while( curs != fop0 )
+		{
+			l = rx.PulseIn(PULSE_LVL,MAX_PULSE_LEN);
+			if( l < MIN_PULSE_LEN )
+			{
+				int recordSize = CURSOR_DIST(fop0,curs);
+				rotateBufferLeft(buf,bufSize,fop0);
+				return recordSize;
+			}			
+			buf[curs] = l;
+			curs=(curs+1)%bufSize;
+		}
+		
+		rotateBufferLeft(buf,bufSize,fop0);
+		return bufSize;
 	}
 
 	int readBinaryMessage(const RFSnifferProtocol& sp, uint8_t* buf)
 	{
-		const uint16_t b0 = sp.symbols[sp.nSymbols-1];
-		const uint16_t b1 = sp.symbols[sp.nSymbols-2];
+		const uint16_t b0 = sp.bitSymbols[0];
+		const uint16_t b1 = sp.bitSymbols[1];
 		const uint16_t b0_tol = b0 / PULSE_ERR_RATIO;
 		const uint16_t b1_tol = b1 / PULSE_ERR_RATIO;
 
 		for(uint8_t i=0;i<sp.latchSeqLen;i++)
 		{
 			long p = rx.PulseIn(PULSE_LVL,MAX_PULSE_LEN);
-			uint16_t l = sp.symbols[sp.latchSeq[i]];
+			uint16_t l = sp.latchSymbols[sp.latchSeq[i]];
 			uint16_t relerr = l / PULSE_ERR_RATIO;
 			if( abs(p-l) > relerr ) return 0;
 		}
 		
+		int bitsToRead = sp.messageBits;
+		if( sp.coding == CODING_MANCHESTER ) bitsToRead*=2;
+		
 		uint8_t byte=0;
-		for(uint16_t j=0;j<sp.messageBits;j++)
+		for(uint16_t j=0;j<bitsToRead;j++)
 		{
 			if(j%8==0) buf[byte]=0;
 			long p = rx.PulseIn(PULSE_LVL,MAX_PULSE_LEN);
@@ -141,7 +223,7 @@ struct RFSniffer
 			buf[byte] |= b;
 			if( (j%8)==7 ) { ++byte;  }
 		}
-		return sp.messageBits;
+		return bitsToRead;
 	}
 
 	static bool decodeManchester(uint8_t* buf, int nbits)
@@ -209,72 +291,121 @@ struct RFSniffer
 	// restrict to binary symbol coding schemes
 	bool analyseSignal(uint16_t* buf, int np, RFSnifferProtocol& sp )
 	{
-		sp.nPulses = np;
 		
-		uint8_t symcount[MAX_SYMBOLS];
-		sp.nSymbols = classifySymbols(buf,sp.nPulses,sp.symbols,symcount);
-		
-		// discriminate longest pulses as latches
-		// TODO: discriminate from symcount (most frequent=bits), then build indirection latch table
-		sp.nLatches = sp.nSymbols - 2;
-
-		if( sp.nLatches >= 1 ) // at least 1 latch is necessary
+		int si0=0, si1=1;
+		int nSymbols=0;
+		uint16_t symbols[MAX_SYMBOLS];
 		{
-			// TODO:
-			// FIXME: assumes that message starts with a correct full latch sequence
-
-			// detect start latch sequence
+			// TODO: 8-bits symbols counters may not be large enough
+			uint8_t symcount[MAX_SYMBOLS];
+			nSymbols = classifySymbols(buf,np,symbols,symcount);
+			if( nSymbols < 2 ) return false;
+			
+			// to find bit symbols we look for the 2 most frequent symbols
+			si0 = 0;
+			for(int i=1;i<nSymbols;i++)
+			{
+				if( symcount[i] > symcount[si0] ) si0=i;
+			}
+			si1 = (si0+1)%nSymbols;
+			for(int i=0;i<nSymbols;i++) if( i!=si0 && i!=si1)
+			{
+				if( symcount[i] > symcount[si1] ) si1=i;
+			}
+		}
+		
+		// assume the shortest pulse codes 0, the longest codes 1
+		if( symbols[si0] > symbols[si1] ) { int t=si0; si0=si1; si1=t; }
+		sp.bitSymbols[0] = symbols[si0];
+		sp.bitSymbols[1] = symbols[si1];
+		
+		// non bit coding symbols are considered as latches (start/stop markers)
+		uint8_t symbol2lacth[MAX_SYMBOLS];
+		sp.nLatches = 0;
+		for(int i=0;i<nSymbols;i++)
+		{
+			if( i!=si0 && i!=si1 && sp.nLatches<MAX_LATCH_SEQ_LEN )
+			{
+				symbol2lacth[i] = sp.nLatches;
+				sp.latchSymbols[ sp.nLatches ++ ] = symbols[i];
+			}
+			else { symbol2lacth[i] = 0xFF; };
+		}
+		
+		if( sp.nLatches == 0 )
+		{
 			sp.latchSeqLen = 0;
-			while( sp.latchSeqLen<MAX_LATCH_SEQ_LEN && buf[sp.latchSeqLen]<sp.nLatches )
-			{ 
-				sp.latchSeq[sp.latchSeqLen] = buf[sp.latchSeqLen];
-				++sp.latchSeqLen;
-			}
-
-			// detect repeated message
 			sp.nMessageRepeats = 1;
-			{
-				int j=0;
-				for(int i=sp.latchSeqLen;i<sp.nPulses;++i)
-				{
-					if( buf[i] == buf[j] )
-					{ 
-						++j;
-						if(j==sp.latchSeqLen)
-						{
-							j=0;
-							++sp.nMessageRepeats;
-						}
-					}
-					else { j=0; }
-				}
-			}
+			sp.coding = CODING_UNKNOWN;
+			sp.messageBits = np;
 			sp.matchingRepeats = true;
-			if( sp.nMessageRepeats>1 )
+		}
+		else
+		{
+			// detect start latch sequence
+			int lstart = 0;
+			while( lstart<np && ( buf[lstart]==si0 || buf[lstart]==si1 ) ) ++ lstart;
+			sp.latchSeqLen = 0;
+			while( sp.latchSeqLen<MAX_LATCH_SEQ_LEN && (lstart+sp.latchSeqLen)<np && buf[lstart+sp.latchSeqLen]!=si0 && buf[lstart+sp.latchSeqLen]!=si1 )
 			{
-				int p = sp.nPulses/sp.nMessageRepeats;
-				for(int i=0;i<p;++i)
+				sp.latchSeq[ sp.latchSeqLen  ] = symbol2lacth[ buf[ lstart + sp.latchSeqLen ] ];
+				++ sp.latchSeqLen;
+			}
+			
+			// detect repeated message
+			int fullMessageStart = -1;
+			int fullMessageSize = 0;
+			sp.nMessageRepeats = 1;
+			if( sp.latchSeqLen >= 1 ) 
+			{
+				int bstart = lstart+sp.latchSeqLen;
+				int bsize = np - bstart;
+				int i=-1;
+				while( ( i = findOccurence(buf+lstart,sp.latchSeqLen,buf+bstart,bsize) ) != -1 )
 				{
-					for(int j=1;j<sp.nMessageRepeats;++j)
+					if( fullMessageStart == -1 )
 					{
-						if( buf[j*p+i] != buf[i] ) sp.matchingRepeats=false;
+						fullMessageStart = bstart;
+						fullMessageSize = i;
 					}
+					bstart += i+sp.latchSeqLen;
+					bsize = np - bstart;
+					++ sp.nMessageRepeats;
 				}
 			}
 			
+			if( fullMessageSize > 0 )
+			{
+				sp.messageBits = fullMessageSize;
+			}
+			else
+			{
+				sp.messageBits = np - sp.nMessageRepeats*sp.latchSeqLen;
+			}
+			sp.rsv[0]=fullMessageStart;
+			sp.rsv[1]=fullMessageSize;
+
+			sp.matchingRepeats = false;
+			if( sp.nMessageRepeats>1 && fullMessageSize>0 )
+			{
+				int bstart = fullMessageStart+fullMessageSize;
+				int bsize = np - bstart;
+				sp.matchingRepeats = ( findOccurence(buf+fullMessageStart,fullMessageSize,buf+bstart,bsize) != -1 );
+			}
+
 			sp.coding = CODING_BINARY;
-			if( symcount[sp.nLatches] == symcount[sp.nLatches+1] )
+			if( fullMessageSize>0 )
 			{
 				sp.messageBits = 0;
 				bool manchester = true;
 				bool secondBitTst = false;
 				bool firstBit;
-				for(int i=0;i<sp.nPulses && manchester;i++)
+				for(int i=fullMessageStart;i<(fullMessageStart+fullMessageSize) && manchester;i++)
 				{
-					if( buf[i]==sp.nLatches || buf[i]==(sp.nLatches+1) )
+					if( buf[i]==si0 || buf[i]==si1 )
 					{
 						++ sp.messageBits;
-						bool cbit = ( buf[i]==sp.nLatches );
+						bool cbit = ( buf[i]==si0 );
 						if( secondBitTst )
 						{
 							if( cbit == firstBit ) { manchester = false; }
@@ -290,13 +421,12 @@ struct RFSniffer
 				if( manchester )
 				{
 					sp.coding = CODING_MANCHESTER;
+					sp.messageBits /= 2;
 				}
 			}
-			sp.messageBits /= sp.nMessageRepeats;
-		
-			return true;
 		}
-		else { return false; }
+
+		return true;
 	}
 
 	RXPinT& rx;

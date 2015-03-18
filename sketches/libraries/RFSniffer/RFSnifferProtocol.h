@@ -6,14 +6,13 @@
 struct RFSnifferProtocol
 {
 	uint32_t magic;
-	/* uint16_t symbolgaps[MAX_SYMBOLS]; */ // unused
-	uint16_t symbols[MAX_SYMBOLS];
-	uint16_t nPulses;
-	uint16_t messageBits;
-	uint8_t latchSeq[MAX_LATCH_SEQ_LEN];
-	uint8_t nSymbols;
+	uint16_t rsv[2];
+	uint16_t bitSymbols[2];
+	uint16_t latchSymbols[MAX_LATCH_SEQ_LEN];
 	int8_t nLatches;
+	uint8_t latchSeq[MAX_LATCH_SEQ_LEN];
 	uint8_t latchSeqLen;
+	uint16_t messageBits;
 	uint8_t nMessageRepeats;
 	uint8_t coding;
 	bool matchingRepeats;
@@ -25,9 +24,7 @@ struct RFSnifferProtocol
 	inline void init()
 	{
 		magic = 0xFFFFFFFF ;
-		nPulses = 0;
 		messageBits = 0;
-		nSymbols = 0;
 		nLatches = 0;
 		latchSeqLen = 0;
 		nMessageRepeats = 0;

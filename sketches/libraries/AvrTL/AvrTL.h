@@ -60,7 +60,7 @@ namespace avrtl
 	template<typename LedPinT>
 	static void blink(LedPinT& led)
 	{
-		for(int j=0;j<25;j++)
+		for(int j=0;j<100;j++)
 		{
 			led = j&1;
 			DelayMicroseconds(100000);
@@ -113,10 +113,11 @@ struct AvrPin
 		
 		UPDATE_CLOCK_COUNTER();
 		uint32_t te = CLOCK_ELAPSED();
-		while( te<timeout && Get()==lvl ) { UPDATE_CLOCK_COUNTER(); te=CLOCK_ELAPSED(); }
+		while( (te-ts)<timeout && Get()==lvl ) { UPDATE_CLOCK_COUNTER(); te=CLOCK_ELAPSED(); }
 		
 		SREG=oldSREG;
-		if( te >= timeout ) return 0;
+		if( (te-ts) >= timeout ) return 0;
+		
 		return (te-ts) * ( TIMER0PRESCALEFACTOR / (F_CPU / 1000000UL) );
 
 #undef UPDATE_CLOCK_COUNTER

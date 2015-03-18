@@ -8,6 +8,7 @@ using namespace avrtl;
 #define MIN_LATCH_LEN 		2000
 #define MIN_PROLOG_LATCHES 	1
 #define MIN_MESSAGE_PULSES 	64
+#define ENTROPY_DETECTION_PULSES 16
 #define MAX_PULSES 			512
 
 // EEPROM address where to write detected protocol
@@ -29,7 +30,7 @@ int main(void)
 	auto sniffer = make_sniffer(rx);
 
 	RFSnifferProtocol sp;
-	//sp.fromEEPROM(EEPROM_BASE_ADDR);
+	sp.fromEEPROM(EEPROM_BASE_ADDR);
 
 	LCD<LCD_PINS> lcd;
 	lcd.begin();
@@ -55,14 +56,25 @@ int main(void)
 			blink(led);
 		}
 		*/
-		
+
 		// detect and record a signal
 		bool signalOk = false;
 		{
 			uint16_t buf[MAX_PULSES];
-			int npulses = sniffer.recordSignalLatchDetect<MAX_PULSES,MIN_LATCH_LEN,MIN_PROLOG_LATCHES>(buf);
+			//int npulses = sniffer.recordSignalLatchDetect<MAX_PULSES,MIN_LATCH_LEN,MIN_PROLOG_LATCHES>(buf);
+			int npulses = sniffer.recordSignalBinaryEntropyDetect<MAX_PULSES,ENTROPY_DETECTION_PULSES>(buf);
 			if( npulses >= MIN_MESSAGE_PULSES )
 			{
+				/*
+				long pulseMax = 0;
+				long pulseMin = MAX_PULSE_LEN;
+				for(int i=0;i<npulses;i++)
+				{
+					if(buf[i]>pulseMax) pulseMax=buf[i];
+					if(buf[i]<pulseMin) pulseMin=buf[i];
+				}
+				lcd<<'\n'<<npulses<<' '<<pulseMin<<' '<<pulseMax;
+				*/
 				signalOk = sniffer.analyseSignal(buf,npulses,sp);
 			}
 		}
@@ -70,19 +82,34 @@ int main(void)
 		// signal content analysis
 		if( signalOk )
 		{
-			int mesgBits = sp.messageBits;
-			if( sp.coding == CODING_MANCHESTER ) mesgBits /= 2;
-			lcd << '\n';
-			lcd << sp.nSymbols <<' '<< sp.latchSeqLen <<' '<< codingChar[sp.coding] << mesgBits << " x" << sp.nMessageRepeats << (sp.matchingRepeats?'+':'-') << '\n';
-			lcd << sp.symbols[sp.nLatches]<<' '<<sp.symbols[sp.nLatches+1];
+			/*
+			lcd<<'\n' << sp.rsv[0]<<' '<<sp.rsv[1];
 			blink(led);
+			*/
+			lcd << '\n' << sp.nLatches;
+			if(sp.nLatches>0) lcd <<'/'<< sp.latchSeqLen ;
+			lcd <<' '<< (char)sp.coding << sp.messageBits << "x" << sp.nMessageRepeats << (sp.matchingRepeats?'+':'-') ;
+			lcd << '\n' << sp.bitSymbols[0]<<' '<<sp.bitSymbols[1];
+			blink(led);
+			if(sp.latchSeqLen>0)
+			{
+				lcd <<'\n'; for(int i=0;i<sp.latchSeqLen;i++) lcd<<sp.latchSeq[i]<<' '; 
+			}
+			if(sp.nLatches>0)
+			{
+				lcd <<'\n'; for(int i=0;i<sp.nLatches;i++) lcd<<sp.latchSymbols[i]<<' ';
+			}
+			if( sp.latchSeqLen>0 || sp.nLatches>0 ) blink(led);
+			
 			lcd << "\nStep2: read";
 			if( sp.messageBits > MAX_MESSAGE_BITS ) sp.messageBits = MAX_MESSAGE_BITS;
-			int nbytes = (sp.messageBits+7) / 8;
+			int bitsToRead = sp.messageBits;
+			if( sp.coding == CODING_MANCHESTER ) bitsToRead *= 2;
+			int nbytes = (bitsToRead+7) / 8;
 			uint8_t signal1[nbytes];
 			int br;
 			do { br = sniffer.readBinaryMessage(sp,signal1); } while( br==0 );
-			if( br == sp.messageBits )
+			if( br == bitsToRead )
 			{
 				int tries=0;
 				uint8_t signal2[nbytes];
@@ -94,11 +121,11 @@ int main(void)
 					if( tries > 1000 ) lcd << "\nStep3: verify";
 				} while( br==0 );
 				for(int i=0;i<nbytes;i++) if(signal1[i]!=signal2[i]) br=0;
-				if( br == sp.messageBits )
+				if( br == bitsToRead )
 				{
 					lcd << "\nWriting protocol";
 					lcd << "\nto EEPROM ...";
-					//sp.toEEPROM(EEPROM_BASE_ADDR);
+					sp.toEEPROM(EEPROM_BASE_ADDR);
 					blink(led);
 				}
 			}
@@ -108,15 +135,18 @@ int main(void)
 	lcd << "\n**** ready *****" ;
 	for(;;)
 	{
-		int nbytes = (sp.messageBits+7) / 8;
+		int bitsToRead = sp.messageBits;
+		if( sp.coding == CODING_MANCHESTER ) bitsToRead *= 2;
+		
+		int nbytes = (bitsToRead+7) / 8;
 		uint8_t buf[nbytes+1];
 		if( sniffer.readBinaryMessage(sp,buf) != 0 )
 		{
 			bool mesgValid = true;
 			if( sp.coding == CODING_MANCHESTER )
 			{
-				mesgValid = sniffer.decodeManchester(buf,sp.messageBits);
-				nbytes = ( (sp.messageBits/2) + 7 ) / 8;
+				mesgValid = sniffer.decodeManchester(buf,bitsToRead);
+				nbytes = ( (bitsToRead/2) + 7 ) / 8;
 			}
 			if( mesgValid )
 			{
@@ -135,6 +165,10 @@ int main(void)
 						half = !half;
 					} while(half);
 				}
+			}
+			else
+			{
+				lcd << "\nInvalid message";
 			}
 		}
 	}
