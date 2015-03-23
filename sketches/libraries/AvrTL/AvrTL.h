@@ -58,9 +58,9 @@ namespace avrtl
 	}
 
 	template<typename LedPinT>
-	static void blink(LedPinT& led)
+	static void blink(LedPinT& led, int N=25)
 	{
-		for(int j=0;j<100;j++)
+		for(int j=0;j<N;j++)
 		{
 			led = j&1;
 			DelayMicroseconds(100000);
@@ -71,7 +71,7 @@ template< int _pinId >
 struct AvrPin
 {
 #define pin_addr (portInputRegister(digitalPinToPort(_pinId)))
-#define port_addr (portOutputRegister(digitalPinToPort(_pinId)))
+#define port_addr (digitalPinToPortReg(_pinId))
 #define ddr_addr (portModeRegister(digitalPinToPort(_pinId)))
 #define pin_bit (digitalPinToBit(_pinId))
 	
@@ -96,7 +96,7 @@ struct AvrPin
 	static uint32_t PulseIn(bool lvl, uint32_t timeout) 
 	{
 		timeout /= TIMER0PRESCALEFACTOR / (F_CPU / 1000000UL);
-		
+
 		uint8_t oldSREG = SREG;
 		cli();
 		

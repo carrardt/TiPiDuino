@@ -2,11 +2,11 @@
 #define __RFSNIFFERPROTOCOL_H
 
 #include <avr/eeprom.h>
+#include "RFSnifferConstants.h"
 
 struct RFSnifferProtocol
 {
 	uint32_t magic;
-	uint16_t rsv[2];
 	uint16_t bitSymbols[2];
 	uint16_t latchSymbols[MAX_LATCH_SEQ_LEN];
 	int8_t nLatches;
@@ -16,6 +16,7 @@ struct RFSnifferProtocol
 	uint8_t nMessageRepeats;
 	uint8_t coding;
 	bool matchingRepeats;
+	
 	inline RFSnifferProtocol()
 	{
 		init();
@@ -35,7 +36,7 @@ struct RFSnifferProtocol
 	inline void toEEPROM(void* eeprom_addr)
 	{
 		setValid(true);
-		eeprom_write_block( (void*)this, eeprom_addr, sizeof(RFSnifferProtocol) );
+		eeprom_write_block( (const void*)this, eeprom_addr, sizeof(RFSnifferProtocol) );
 	}
 
 	inline void fromEEPROM(const void* eeprom_addr)
@@ -47,8 +48,33 @@ struct RFSnifferProtocol
 		}
 	}
 
+	inline void invalidateEEPROM(void* eeprom_addr)
+	{
+		setValid(false);
+		eeprom_write_block( (const void*)this, eeprom_addr, sizeof(RFSnifferProtocol) );
+	}
+
 	inline void setValid(bool v) { magic = v ? EEPROM_MAGIC_NUMBER : 0xFFFFFFFF; }
 	inline bool isValid() { return magic == EEPROM_MAGIC_NUMBER; }
+
+	template<typename OStreamT>
+	inline void toStream(OStreamT& out)
+	{
+		out << '\n';
+		for(int i=0;i<latchSeqLen;i++)
+		{
+			out.print((int)latchSymbols[latchSeq[i]],16,4);
+		}
+		out << 'x';
+		out.print((int)nMessageRepeats);
+		out << '\n';
+		for(int i=0;i<2;i++)
+		{
+			out.print((int)bitSymbols[i],16,4);
+		}
+		out << (char)coding;
+		out.print((int)messageBits,16);
+	}
 
 };
 

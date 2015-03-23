@@ -5,20 +5,6 @@
 #include "RFSnifferProtocol.h"
 
 /*
- * TODO: 
- * Improve learn stage robustness:
- * 		lower initial latch detection strictness (length and count),
- * 		detect bit coding symbols --through entropy-- by discriminating latches => Ok
- * 		then deduce latch symbols => Ok
- * 
- * Stage 1:
- * 		decode message,
- * 		check for repeated sends ==> Ok
- * 		verify encoding algorithm (manchester, etc.) ==> Ok
- * 
- */
-
-/*
  * TODO: improve pulse length encoding, using TIMER0PRESCALER value
  */
 
@@ -31,7 +17,7 @@ struct RFSniffer
 	static inline T abs(T x) { return (x<0) ? -x : x ; }
 
 	// detect SeqLen consecutive similar symbols (at most NSymbols different symbols)
-	// buf's size must be at least NSymbols
+	// buf size must be at least NSymbols
 	template<uint8_t NSymbols, uint8_t SeqLen>
 	inline uint8_t detectEntropyDrop(uint16_t* buf)
 	{
@@ -153,9 +139,9 @@ struct RFSniffer
 			// and test if it is different from the first one
 			re = l / PULSE_ERR_RATIO;
 		} while( abs(l-buf[fop0]) <= re );
-		
+
 		// here, we have find a second symbol
-		
+
 		// now wait until we have a long enough binary sequence
 		while( CURSOR_DIST(fop0,curs) < binarySeqLen )
 		{
@@ -207,7 +193,7 @@ struct RFSniffer
 			uint16_t relerr = l / PULSE_ERR_RATIO;
 			if( abs(p-l) > relerr ) return 0;
 		}
-		
+
 		int bitsToRead = sp.messageBits;
 		if( sp.coding == CODING_MANCHESTER ) bitsToRead*=2;
 		
@@ -382,8 +368,6 @@ struct RFSniffer
 			{
 				sp.messageBits = np - sp.nMessageRepeats*sp.latchSeqLen;
 			}
-			sp.rsv[0]=fullMessageStart;
-			sp.rsv[1]=fullMessageSize;
 
 			sp.matchingRepeats = false;
 			if( sp.nMessageRepeats>1 && fullMessageSize>0 )

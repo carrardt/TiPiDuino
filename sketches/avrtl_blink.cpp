@@ -13,7 +13,6 @@ constexpr auto led = pin( portInputRegister(digitalPinToPort(LED_PIN))
 						,digitalPinToBit(LED_PIN) );
 */
 static constexpr auto led = pin(LED_PIN);
-static bool state = false;
 
 void setup()
 {
@@ -22,7 +21,12 @@ void setup()
 
 void loop()
 {
-	state = !state;
-	led = state; //digitalWrite( LED_PIN, state ? HIGH : LOW );
-	delay(500);
+	for(int j=0;j<5;j++)
+	{
+		for(int i=0;i<6;i++)
+		{
+		led = (i%2==0); //digitalWrite( LED_PIN, state ? HIGH : LOW );
+		delay(500*j);
+		}
+	}
 }

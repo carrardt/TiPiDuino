@@ -1,8 +1,11 @@
 #include "RFSniffer.h"
-#include "LCD.h"
+//#include "RFEmitter.h"
 #include "AvrTL.h"
 
 using namespace avrtl;
+
+// what to use as a console to prin message
+// #define LCD_CONSOLE 1
 
 // for latch detection based analysis
 #define MIN_LATCH_LEN 		2000
@@ -13,12 +16,48 @@ using namespace avrtl;
 
 // EEPROM address where to write detected protocol
 #define EEPROM_BASE_ADDR ((void*)0x0004)
+#define RESET_SEQ 0x05 // press AABBA, A and B being any two different remote buttons
 
 // pinout
 #define RECEIVE_PIN 8
+#define EMIT_PIN 12
 #define LED_PIN 13
-#define LCD_PINS 7,6,5,4,3,2 // respectively RS, EN, D7, D6, D5, D4
 
+#ifdef LCD_CONSOLE
+#include "LCD.h"
+#define LCD_PINS 7,6,5,4,3,2 // respectively RS, EN, D7, D6, D5, D4
+#else
+#include "Wiring.h"
+struct SerialConsole
+{
+	template<typename T> SerialConsole& operator << ( const T& x )
+	{
+		Serial.print( x );
+		return *this;
+	}
+	void print(unsigned long x, int base=10, int ndigits=0) { print((long)x,base,ndigits); }
+	void print(unsigned int x, int base=10, int ndigits=0) { print((long)x,base,ndigits); }
+	void print(int x, int base=10, int ndigits=0) { print((long)x,base,ndigits); }
+	void print(long x, int div=10, int ndigits=0)
+	{
+		if(div<2) return;
+		char digits[16];
+		int n = 0;
+		if( x < 0 ) { Serial.print('-'); x=-x; }
+		do
+		{
+			digits[n++] = x % div;
+			x /= div;
+		} while( x > 0 );
+		for(int i=0;i<(ndigits-n);i++) Serial.print('0');
+		for(int i=0;i<n;i++)
+		{
+			int dg = digits[n-i-1];
+			Serial.print( (dg<10) ? ('0'+dg) : ('A'+(dg-10)) );
+		}
+	}
+};
+#endif
 
 int main(void) __attribute__((noreturn));
 int main(void)
@@ -32,14 +71,19 @@ int main(void)
 	RFSnifferProtocol sp;
 	sp.fromEEPROM(EEPROM_BASE_ADDR);
 
+#ifdef LCD_CONSOLE
 	LCD<LCD_PINS> lcd;
 	lcd.begin();
-	lcd << "RF sniffer\n" ;
+#else
+	Serial.begin(9600);
+	SerialConsole lcd;
+#endif
+
 	lcd << "Step 1: learn";
 
 	auto led = AvrPin<LED_PIN>();
 	led.SetOutput();
-
+	
 	while( ! sp.isValid() )
 	{
 		/*
@@ -78,8 +122,8 @@ int main(void)
 				signalOk = sniffer.analyseSignal(buf,npulses,sp);
 			}
 		}
-		
-		// signal content analysis
+				
+ 		// signal content analysis
 		if( signalOk )
 		{
 			/*
@@ -111,28 +155,36 @@ int main(void)
 			do { br = sniffer.readBinaryMessage(sp,signal1); } while( br==0 );
 			if( br == bitsToRead )
 			{
-				int tries=0;
+				uint16_t tries=0;
 				uint8_t signal2[nbytes];
 				do
 				{
 					// don't loose time printing "step 3" if repeated signal can be catched right after the first one"
 					br = sniffer.readBinaryMessage(sp,signal2);
 					++tries;
-					if( tries > 1000 ) lcd << "\nStep3: verify";
+					if( tries == 1000 ) lcd << "\nStep3: verify";
 				} while( br==0 );
 				for(int i=0;i<nbytes;i++) if(signal1[i]!=signal2[i]) br=0;
 				if( br == bitsToRead )
 				{
-					lcd << "\nWriting protocol";
-					lcd << "\nto EEPROM ...";
+					lcd << "\nSave protocol...";
 					sp.toEEPROM(EEPROM_BASE_ADDR);
 					blink(led);
 				}
 			}
 		}
 	}
-	lcd << "\n** RF sniffer **" ;
-	lcd << "\n**** ready *****" ;
+	
+/*
+	auto tx = AvrPin<EMIT_PIN>();
+	tx.SetOutput();
+	auto sender = make_emitter(tx);
+*/
+
+	int rstSeqIdx = 0;
+	uint8_t checksum = 0;
+
+	lcd << "\nRF sniffer ready" ;
 	for(;;)
 	{
 		int bitsToRead = sp.messageBits;
@@ -140,7 +192,7 @@ int main(void)
 		
 		int nbytes = (bitsToRead+7) / 8;
 		uint8_t buf[nbytes+1];
-		if( sniffer.readBinaryMessage(sp,buf) != 0 )
+		if( sniffer.readBinaryMessage(sp,buf) == bitsToRead )
 		{
 			bool mesgValid = true;
 			if( sp.coding == CODING_MANCHESTER )
@@ -150,25 +202,46 @@ int main(void)
 			}
 			if( mesgValid )
 			{
-				lcd << "\n" ;
+				uint8_t cs = 0;
 				for(int i=0;i<nbytes;i++)
 				{
-					uint8_t x = buf[i];
-					bool half=false;
-					do {
-						uint8_t a = ( x & 0xF0 ) >> 4;
-						char dg = a;
-						if( a < 10 ) dg += '0';
-						else { dg += 'A'-10; }
-						lcd << dg;
-						x <<= 4;
-						half = !half;
-					} while(half);
+					cs = ( (cs<<1) | (cs >>7) ) ^ buf[i];
 				}
+				bool rstcode = (cs == checksum);
+				if( rstcode == (((RESET_SEQ>>rstSeqIdx)&1)!=0) ) ++rstSeqIdx;
+				else rstSeqIdx=0;
+				if( !rstcode ){ checksum=cs; }
+				lcd << '\n';
+				if( rstSeqIdx>=3 )
+				{
+					lcd << "Reset protocol ";
+					if(rstSeqIdx==4)
+					{
+						lcd << '!';
+						blink(led);
+						sp.invalidateEEPROM(EEPROM_BASE_ADDR);
+						asm volatile ("  jmp 0"); 
+					}
+					else { lcd << '?'; }
+				}
+				
+				for(int i=0;i<nbytes;i++)
+				{
+					lcd.print((unsigned int)buf[i],16,2);
+				}
+				blink(led);
+				/*lcd << '\n';
+				for(int i=5;i>0;--i)
+				{
+					lcd << i << ' ';
+					blink(led,10);
+				}
+				sender.sendSignal(sp.messageBits,buf);
+				lcd << '*';*/
 			}
 			else
 			{
-				lcd << "\nInvalid message";
+				lcd << "\nBad message";
 			}
 		}
 	}

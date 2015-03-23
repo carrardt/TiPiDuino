@@ -32,6 +32,7 @@ CORE=$(shell cat $(WIRING_SRC_DIR)/framework/hardware/$(FAMILY)/boards.txt | gre
 F_CPU=$(shell cat $(WIRING_SRC_DIR)/framework/hardware/$(FAMILY)/boards.txt | grep "$(BOARD)\.build\.f_cpu"|cut -d'=' -f2)
 HARDWARE=$(shell cat $(WIRING_SRC_DIR)/framework/hardware/$(FAMILY)/boards.txt | grep "$(BOARD)\.build\.hardware"|cut -d'=' -f2)
 PROTOCOL=$(shell cat $(WIRING_SRC_DIR)/framework/hardware/$(FAMILY)/boards.txt | grep "$(BOARD)\.upload\.protocol"|cut -d'=' -f2)
+UPLOADBR=$(shell cat $(WIRING_SRC_DIR)/framework/hardware/$(FAMILY)/boards.txt | grep "$(BOARD)\.upload\.speed"|cut -d'=' -f2)
 PART=$(shell $AVRDUDE -c $PROTOCOL 2>&1|grep -i atmega328p|tr -d ' '|cut -d'=' -f1)
 VARIANT=$(FAMILY)-$(BOARD)
 
@@ -80,7 +81,7 @@ user: $(USER_LIB)
 #exemples: $(WIRING_EXEMPLES)
 
 %.flash: %.hex
-	$(AVRDUDE) -c $(PROTOCOL) -p $(MCU) -P $(SERIALPORT) -D -V -U flash:w:$<:i 
+	$(AVRDUDE) -c $(PROTOCOL) -p $(MCU) -P $(SERIALPORT) -b $(UPLOADBR) -D -U flash:w:$<:i 
 
 %.hex: $(BUILD_DIR)/%.sketch.$(VARIANT).strip.elf
 	$(OBJCOPY) $(OBJCOPY_ELF2HEX_FLAGS) $< $@
@@ -132,5 +133,9 @@ $(BUILD_DIR)/%.sketch.$(VARIANT).o: $(BUILD_DIR)/%.sketch.cpp
 	$(CXX) $(CXX_FLAGS) $(USER_LIBRARIES_INC_FLAGS) $(WIRING_INC_FLAGS) $(ETL_CXX_FLAGS) -c $< -o $@
 
 $(BUILD_DIR)/%.sketch.cpp: %.pde
+	echo "#include <Wiring.h>" > $@
+	cat $< >> $@
+
+$(BUILD_DIR)/%.sketch.cpp: %.ino
 	echo "#include <Wiring.h>" > $@
 	cat $< >> $@

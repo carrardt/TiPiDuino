@@ -163,20 +163,21 @@ struct LCD
 		writeChar( c );
 	}
 	
-	void print(unsigned long x, bool hex=false) { print((long)x,hex); }
-	void print(unsigned int x, bool hex=false) { print((long)x,hex); }
-	void print(int x, bool hex=false) { print((long)x,hex); }
-	void print(long x, bool hex=false)
+	void print(unsigned long x, int base=10, int ndigits=0) { print((long)x,base,ndigits); }
+	void print(unsigned int x, int base=10, int ndigits=0) { print((long)x,base,ndigits); }
+	void print(int x, int base=10, int ndigits=0) { print((long)x,base,ndigits); }
+	void print(long x, int div=10, int ndigits=0)
 	{
+		if(div<2) return;
 		char digits[16];
 		int n = 0;
-		int div = hex ? 16 : 10;
-		if( x < 0 ) { write('-'); x=-x; }
+		if( x < 0 ) { writeChar('-'); x=-x; }
 		do
 		{
 			digits[n++] = x % div;
 			x /= div;
 		} while( x > 0 );
+		for(int i=0;i<(ndigits-n);i++) writeChar('0');
 		for(int i=0;i<n;i++)
 		{
 			int dg = digits[n-i-1];
