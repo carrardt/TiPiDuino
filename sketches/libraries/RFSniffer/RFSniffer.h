@@ -71,7 +71,29 @@ struct RFSniffer
 		buf[n++] = rx.PulseIn(PULSE_LVL,MAX_PULSE_LEN);
 	  }
 	  while( buf[n-1]>MIN_PULSE_LEN && buf[n-1]<=MAX_PULSE_LEN && n<bufSize);
+	  if(n<bufSize) { --n; }
 	  return n;
+	}
+
+	template<uint16_t bufSize>
+	int recordSignalLatchSequenceDetect(uint16_t * buf,const int nlacthes, const uint16_t* sequence)
+	{
+		for(uint8_t i=0;i<nlacthes;i++)
+		{
+			long p = rx.PulseIn(PULSE_LVL,MAX_PULSE_LEN);
+			buf[i] = p;
+			uint16_t l = sequence[i];
+			uint16_t relerr = l / PULSE_ERR_RATIO;
+			if( abs(p-l) > relerr ) return 0;
+		}
+		int n = nlacthes;
+	    do
+	    {
+			buf[n++] = rx.PulseIn(PULSE_LVL,MAX_PULSE_LEN);
+	    }
+	    while( buf[n-1]>MIN_PULSE_LEN && buf[n-1]<=MAX_PULSE_LEN && n<bufSize);
+		if(n<bufSize) { --n; }
+	    return n;
 	}
 
 	static void rotateBufferLeft1(uint16_t * ptr, int n)
@@ -174,7 +196,7 @@ struct RFSniffer
 			buf[curs] = l;
 			curs=(curs+1)%bufSize;
 		}
-		
+
 		rotateBufferLeft(buf,bufSize,fop0);
 		return bufSize;
 	}
@@ -189,7 +211,7 @@ struct RFSniffer
 		for(uint8_t i=0;i<sp.latchSeqLen;i++)
 		{
 			long p = rx.PulseIn(PULSE_LVL,MAX_PULSE_LEN);
-			uint16_t l = sp.latchSymbols[sp.latchSeq[i]];
+			uint16_t l = sp.latchSeq[i];
 			uint16_t relerr = l / PULSE_ERR_RATIO;
 			if( abs(p-l) > relerr ) return 0;
 		}
@@ -305,20 +327,8 @@ struct RFSniffer
 		sp.bitSymbols[0] = symbols[si0];
 		sp.bitSymbols[1] = symbols[si1];
 		
-		// non bit coding symbols are considered as latches (start/stop markers)
-		uint8_t symbol2lacth[MAX_SYMBOLS];
-		sp.nLatches = 0;
-		for(int i=0;i<nSymbols;i++)
-		{
-			if( i!=si0 && i!=si1 && sp.nLatches<MAX_LATCH_SEQ_LEN )
-			{
-				symbol2lacth[i] = sp.nLatches;
-				sp.latchSymbols[ sp.nLatches ++ ] = symbols[i];
-			}
-			else { symbol2lacth[i] = 0xFF; };
-		}
-		
-		if( sp.nLatches == 0 )
+		// non bit coding symbols are considered as latches (start/stop markers)		
+		if( nSymbols == 2 ) // no latches, only bits
 		{
 			sp.latchSeqLen = 0;
 			sp.nMessageRepeats = 1;
@@ -334,7 +344,7 @@ struct RFSniffer
 			sp.latchSeqLen = 0;
 			while( sp.latchSeqLen<MAX_LATCH_SEQ_LEN && (lstart+sp.latchSeqLen)<np && buf[lstart+sp.latchSeqLen]!=si0 && buf[lstart+sp.latchSeqLen]!=si1 )
 			{
-				sp.latchSeq[ sp.latchSeqLen  ] = symbol2lacth[ buf[ lstart + sp.latchSeqLen ] ];
+				sp.latchSeq[ sp.latchSeqLen ] = symbols[ buf[ lstart + sp.latchSeqLen ] ];
 				++ sp.latchSeqLen;
 			}
 			

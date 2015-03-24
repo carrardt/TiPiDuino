@@ -8,9 +8,7 @@ struct RFSnifferProtocol
 {
 	uint32_t magic;
 	uint16_t bitSymbols[2];
-	uint16_t latchSymbols[MAX_LATCH_SEQ_LEN];
-	int8_t nLatches;
-	uint8_t latchSeq[MAX_LATCH_SEQ_LEN];
+	uint16_t latchSeq[MAX_LATCH_SEQ_LEN];
 	uint8_t latchSeqLen;
 	uint16_t messageBits;
 	uint8_t nMessageRepeats;
@@ -26,8 +24,10 @@ struct RFSnifferProtocol
 	{
 		magic = 0xFFFFFFFF ;
 		messageBits = 0;
-		nLatches = 0;
 		latchSeqLen = 0;
+		bitSymbols[0] = 0;
+		bitSymbols[1] = 0;
+		for(int i=0;i<MAX_LATCH_SEQ_LEN;i++) latchSeq[i]=0;
 		nMessageRepeats = 0;
 		coding = CODING_UNKNOWN;
 		matchingRepeats = false;
@@ -63,7 +63,7 @@ struct RFSnifferProtocol
 		out << '\n';
 		for(int i=0;i<latchSeqLen;i++)
 		{
-			out.print((int)latchSymbols[latchSeq[i]],16,4);
+			out.print((int)latchSeq[i],16,4);
 		}
 		out << 'x';
 		out.print((int)nMessageRepeats);

@@ -9,7 +9,7 @@
 #define MAX_LATCH_SEQ_LEN	6
 #define MAX_MESSAGE_BITS	128
 #define MAX_MESSAGE_BYTES	(MAX_MESSAGE_BITS/8)
-#define EEPROM_MAGIC_NUMBER (0x040412UL)
+#define EEPROM_MAGIC_NUMBER (0x040411UL)
 
 // Possibly detected encodings
 enum MessageEncoding
