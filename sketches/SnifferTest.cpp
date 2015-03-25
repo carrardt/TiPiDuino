@@ -26,51 +26,13 @@ using namespace avrtl;
 #ifdef LCD_CONSOLE
 #include "LCD.h"
 #define LCD_PINS 7,6,5,4,3,2 // respectively RS, EN, D7, D6, D5, D4
-#define BLINK_LED blink(led)
+using Console = LCD<LCD_PINS>;
 #else
-#include "Wiring.h"
-struct SerialConsole
-{
-	template<typename T> SerialConsole& operator << ( const T& x )
-	{
-		Serial.print( x );
-		return *this;
-	}
-	SerialConsole& operator << ( char x )
-	{
-		if(x=='\n') Serial.println("");
-		else Serial.print(x);
-		return *this;
-	}
-	SerialConsole& operator << ( char* s )
-	{
-		while(*s != '\0') (*this) << *(s++) ;
-		return *this;
-	}
-	void print(unsigned long x, int base=10, int ndigits=0) { print((long)x,base,ndigits); }
-	void print(unsigned int x, int base=10, int ndigits=0) { print((long)x,base,ndigits); }
-	void print(int x, int base=10, int ndigits=0) { print((long)x,base,ndigits); }
-	void print(long x, int div=10, int ndigits=0)
-	{
-		if(div<2) return;
-		char digits[16];
-		int n = 0;
-		if( x < 0 ) { Serial.print((char)'-'); x=-x; }
-		do
-		{
-			digits[n++] = x % div;
-			x /= div;
-		} while( x > 0 );
-		for(int i=0;i<(ndigits-n);i++) Serial.print((char)'0');
-		for(int i=0;i<n;i++)
-		{
-			int dg = digits[n-i-1];
-			Serial.print( (dg<10) ? (char)('0'+dg) : (char)('A'+(dg-10)) );
-		}
-	}
-};
-#define BLINK_LED do{ Serial.println(" "); avrtl::DelayMicroseconds(1000000UL); }while(0)
+#include "SerialConsole.h"
+using Console = SerialConsole;
 #endif
+
+#define BLINK_LED blink(led)
 
 static const char* stageLabel[3] = {"detect","analyse","verify"};
 
@@ -83,13 +45,8 @@ int main(void)
 	rx.SetInput();
 	auto sniffer = make_sniffer(rx);
 
-#ifdef LCD_CONSOLE
-	LCD<LCD_PINS> lcd;
+	Console lcd;
 	lcd.begin();
-#else
-	Serial.begin(9600);
-	SerialConsole lcd;
-#endif
 
 	auto led = AvrPin<LED_PIN>();
 	led.SetOutput();
@@ -144,7 +101,7 @@ int main(void)
 			}
 			if(signalOk)
 			{ 
-				lcd <<"nl=" sp.latchSeqLen<<" " ;
+				lcd <<"nl="<< sp.latchSeqLen<<" " ;
 				for(int i=0;i<sp.latchSeqLen;i++) { lcd<<sp.latchSeq[i]<<' '; }
 				lcd <<'\n';
 				lcd <<' '<< (char)sp.coding << sp.messageBits << "x" << sp.nMessageRepeats << (sp.matchingRepeats?'+':'-') << '\n';

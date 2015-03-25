@@ -33,7 +33,7 @@ F_CPU=$(shell cat $(WIRING_SRC_DIR)/framework/hardware/$(FAMILY)/boards.txt | gr
 HARDWARE=$(shell cat $(WIRING_SRC_DIR)/framework/hardware/$(FAMILY)/boards.txt | grep "$(BOARD)\.build\.hardware"|cut -d'=' -f2)
 PROTOCOL=$(shell cat $(WIRING_SRC_DIR)/framework/hardware/$(FAMILY)/boards.txt | grep "$(BOARD)\.upload\.protocol"|cut -d'=' -f2)
 UPLOADBR=$(shell cat $(WIRING_SRC_DIR)/framework/hardware/$(FAMILY)/boards.txt | grep "$(BOARD)\.upload\.speed"|cut -d'=' -f2)
-PART=$(shell $AVRDUDE -c $PROTOCOL 2>&1|grep -i atmega328p|tr -d ' '|cut -d'=' -f1)
+PART=$(shell $AVRDUDE -c $PROTOCOL 2>&1|grep -i "= $(MCU)"|tr -d ' '|cut -d'=' -f1)
 VARIANT=$(FAMILY)-$(BOARD)
 
 # Compile options

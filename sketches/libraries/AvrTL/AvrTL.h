@@ -36,9 +36,10 @@
 
 namespace avrtl
 {
-	static void DelayMicroseconds(uint32_t timeout)
+	static constexpr uint32_t TIMER_CPU_RATIO = TIMER0PRESCALEFACTOR / (F_CPU / 1000000UL);
+	
+	static void DelayTimerTicks(uint32_t tickCount)
 	{
-		timeout /= TIMER0PRESCALEFACTOR / (F_CPU / 1000000UL);
 		uint8_t oldSREG = SREG;
 		cli();
 		
@@ -49,7 +50,7 @@ namespace avrtl
 #define CLOCK_ELAPSED() ((m*256+t)-t0)
 
 		UPDATE_CLOCK_COUNTER();
-		while( CLOCK_ELAPSED() < timeout ) { UPDATE_CLOCK_COUNTER(); }
+		while( CLOCK_ELAPSED() < tickCount ) { UPDATE_CLOCK_COUNTER(); }
 
 #undef UPDATE_CLOCK_COUNTER
 #undef CLOCK_ELAPSED
@@ -57,6 +58,11 @@ namespace avrtl
 		SREG = oldSREG;
 	}
 
+	static void DelayMicroseconds(uint32_t timeout)
+	{
+		DelayTimerTicks( timeout / TIMER_CPU_RATIO );
+	}
+	
 	template<typename LedPinT>
 	static void blink(LedPinT& led, int N=25)
 	{
@@ -66,6 +72,7 @@ namespace avrtl
 			DelayMicroseconds(100000);
 		}
 	}
+template<uint32_t speed> struct BaudRate { };
 
 template< int _pinId >
 struct AvrPin
@@ -95,7 +102,7 @@ struct AvrPin
 
 	static uint32_t PulseIn(bool lvl, uint32_t timeout) 
 	{
-		timeout /= TIMER0PRESCALEFACTOR / (F_CPU / 1000000UL);
+		timeout /= TIMER_CPU_RATIO;
 
 		uint8_t oldSREG = SREG;
 		cli();
@@ -118,10 +125,33 @@ struct AvrPin
 		SREG=oldSREG;
 		if( (te-ts) >= timeout ) return 0;
 		
-		return (te-ts) * ( TIMER0PRESCALEFACTOR / (F_CPU / 1000000UL) );
+		return (te-ts) * TIMER_CPU_RATIO;
 
 #undef UPDATE_CLOCK_COUNTER
 #undef CLOCK_ELAPSED
+	}
+
+	template< uint32_t speed >
+	static void serialWriteByte(uint8_t b, BaudRate<speed>)
+	{
+	  static constexpr uint32_t bitDelayTicks = 1000000UL / ( speed * TIMER_CPU_RATIO );
+	  Set( false );
+	  DelayTimerTicks(bitDelayTicks);
+	  for (uint8_t mask=0x01;mask;mask<<=1) 
+	  {
+		Set( (b&mask)!=0  );
+		DelayTimerTicks(bitDelayTicks);
+	  }
+	  Set( true );
+	  DelayTimerTicks(bitDelayTicks);
+	}
+
+	template< uint32_t speed >
+	static inline void serialBegin(BaudRate<speed>)
+	{
+	  static constexpr uint32_t bitDelayTicks = 1000000UL / ( speed * TIMER_CPU_RATIO );
+	  Set( true );
+	  DelayTimerTicks(bitDelayTicks);
 	}
 
     operator bool() const { return Get(); }
