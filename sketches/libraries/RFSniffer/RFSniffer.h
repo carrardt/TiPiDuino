@@ -359,7 +359,7 @@ struct RFSniffer
 		{
 			sp.latchSeqLen = 0;
 			sp.nMessageRepeats = 1;
-			sp.coding = CODING_UNKNOWN;
+			sp.coding = CODING_BINARY;
 			sp.messageBits = np;
 			sp.matchingRepeats = true;
 		}

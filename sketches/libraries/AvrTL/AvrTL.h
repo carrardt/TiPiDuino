@@ -27,6 +27,7 @@
 #include <stdint.h>
 #include <avr/io.h>
 #include <avr/interrupt.h>
+#include <avr/eeprom.h>
 #include <stdlib.h>
 
 #define NOT_A_PORT 0xFF
@@ -39,9 +40,6 @@ namespace avrtl
 {
 	static constexpr uint32_t TIMER_CPU_RATIO = TIMER0PRESCALEFACTOR / (F_CPU / 1000000UL);
 
-	template<typename T>
-	static inline T abs(T x) { return (x<0) ? (-x) : x ; }
-
 	static inline void boardInit()
 	{
 		// Sets the timer prescale factor to 64;
@@ -50,6 +48,33 @@ namespace avrtl
 		// start interrupts
 		sei();
 	}
+
+	template<typename T>
+	static inline T abs(T x) { return (x<0) ? (-x) : x ; }
+
+	static uint8_t checksum8(const uint8_t* buf, int nbytes)
+	{
+		uint8_t cs = 0;
+		for(int i=0;i<nbytes;i++)
+		{
+			cs = ( (cs<<1) | (cs >>7) ) ^ buf[i];
+		}
+		return cs;
+	}
+
+	static void eeprom_gently_write_byte(uint8_t* ptr, uint8_t value)
+	{
+		if( eeprom_read_byte(ptr) != value )
+		{
+			eeprom_write_byte(ptr,value);
+		}
+	}
+
+	static void eeprom_gently_write_block(const uint8_t* src, uint8_t* ptr, uint16_t N)
+	{
+		for(;N;--N) eeprom_gently_write_byte(ptr++,*(src++));
+	}
+
 
 	static void DelayTimerTicks(uint32_t tickCount)
 	{
@@ -77,8 +102,9 @@ namespace avrtl
 	}
 	
 	template<typename LedPinT>
-	static void blink(LedPinT& led, int N=25)
+	static void blink(LedPinT& led, int N=10)
 	{
+		led = true;
 		for(int j=0;j<N;j++)
 		{
 			led = j&1;

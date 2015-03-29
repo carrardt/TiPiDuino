@@ -31,6 +31,12 @@ struct PrintStream
 	{
 		while(*s != '\0') print( *(s++) );
 	}
+
+	void print( void* s )
+	{
+		uint32_t addr = (uint32_t)s;
+		print(addr,16,4);
+	}
 		
 	void print(unsigned long x, int base=10, int ndigits=0) { print((long)x,base,ndigits); }
 	void print(unsigned int x, int base=10, int ndigits=0) { print((long)x,base,ndigits); }

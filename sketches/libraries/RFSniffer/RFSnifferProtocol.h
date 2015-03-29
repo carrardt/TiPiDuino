@@ -3,6 +3,7 @@
 
 #include <avr/eeprom.h>
 #include "RFSnifferConstants.h"
+#include "AvrTL.h"
 
 struct RFSnifferProtocol
 {
@@ -34,12 +35,13 @@ struct RFSnifferProtocol
 		nMessageRepeats = 0;
 		coding = CODING_UNKNOWN;
 		matchingRepeats = false;
+		pulseLevel = true;
 	}
 
 	inline void toEEPROM(void* eeprom_addr)
 	{
 		setValid(true);
-		eeprom_write_block( (const void*)this, eeprom_addr, sizeof(RFSnifferProtocol) );
+		avrtl::eeprom_gently_write_block( (const uint8_t*)this, (uint8_t*)eeprom_addr, sizeof(RFSnifferProtocol) );
 	}
 
 	inline void fromEEPROM(const void* eeprom_addr)
@@ -63,20 +65,29 @@ struct RFSnifferProtocol
 	template<typename OStreamT>
 	inline void toStream(OStreamT& out)
 	{
-		out << '\n';
-		for(int i=0;i<latchSeqLen;i++)
+		if( latchSeqLen>0 )
 		{
-			out.print((int)latchSeq[i],16,4);
+			out <<'L';
+			for(int i=0;i<latchSeqLen;i++)
+			{
+				out<<'-';
+				out.print(latchSeq[i],16);
+			}
+			out<<'\n';
 		}
-		out << 'x';
-		out.print((int)nMessageRepeats);
-		out << '\n';
+		out << (char) coding;
+		out.print((int)messageBits,16);
+		if( nMessageRepeats > 1 )
+		{
+			out << 'x';
+			out.print((int)nMessageRepeats);
+		}
 		for(int i=0;i<2;i++)
 		{
-			out.print((int)bitSymbols[i],16,4);
+			out<<'-';
+			out.print((int)bitSymbols[i],16);
 		}
-		out << (char)coding;
-		out.print((int)messageBits,16);
+		out<<'\n';
 	}
 
 };
