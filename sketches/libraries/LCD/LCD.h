@@ -4,6 +4,13 @@
 #include <inttypes.h>
 #include "AvrTL.h"
 
+// DEBUG
+#include "SerialConsole.h"
+#include "PrintStream.h"
+static SerialConsole dbgOutput;
+static PrintStream<SerialConsole> dbg(dbgOutput);
+#define DBG_MSG(x) do { dbg << x << endl; } while(0)
+
 // commands
 #define LCD_CLEARDISPLAY 0x01
 #define LCD_RETURNHOME 0x02
@@ -101,6 +108,7 @@ struct LCD
 
 	static void command(uint8_t value) 
 	{
+		DBG_MSG("command "<<value);
 		selectCommandMode();
 		write(value);
 	}
@@ -117,6 +125,7 @@ struct LCD
 		avrtl::AvrPin<_d2>::SetOutput();
 		avrtl::AvrPin<_d3>::SetOutput();
 
+		DBG_MSG("Init LCD");
 		write4bits(0x03);
 		avrtl::DelayMicroseconds(4500);
 		write4bits(0x03);
@@ -125,11 +134,13 @@ struct LCD
 		avrtl::DelayMicroseconds(150);
 		write4bits(0x02);
 
+		DBG_MSG("lines="<<lines);
 		command( LCD_FUNCTIONSET | LCD_4BITMODE | ((lines<=1)?LCD_1LINE:LCD_2LINE) | dotSize );
 	}
 	
 	static void sendByte(uint8_t value) 
 	{
+		DBG_MSG("byte "<<value);
 		selectDataMode();
 		write(value);
 	}	
@@ -149,47 +160,6 @@ struct LCD
 		setDisplayFlags( LCD_DISPLAYON );
 		clear();
   		setDisplayModeFlags( LCD_ENTRYLEFT | LCD_ENTRYSHIFTDECREMENT);
-	}
-
-	void print(const char* txt)
-	{
-		if( txt == 0) { print("<null>"); return; }
-		for(int i=0;txt[i]!='\0';++i)
-			writeChar(txt[i]);
-	}
-
-	void print(const char c)
-	{
-		writeChar( c );
-	}
-	
-	void print(unsigned long x, int base=10, int ndigits=0) { print((long)x,base,ndigits); }
-	void print(unsigned int x, int base=10, int ndigits=0) { print((long)x,base,ndigits); }
-	void print(int x, int base=10, int ndigits=0) { print((long)x,base,ndigits); }
-	void print(long x, int div=10, int ndigits=0)
-	{
-		if(div<2) return;
-		char digits[16];
-		int n = 0;
-		if( x < 0 ) { writeChar('-'); x=-x; }
-		do
-		{
-			digits[n++] = x % div;
-			x /= div;
-		} while( x > 0 );
-		for(int i=0;i<(ndigits-n);i++) writeChar('0');
-		for(int i=0;i<n;i++)
-		{
-			int dg = digits[n-i-1];
-			writeChar( (dg<10) ? ('0'+dg) : ('A'+(dg-10)) );
-		}
-	}
-
-	template<class T>
-	inline LCD& operator << (const T& x)
-	{
-		print(x);
-		return *this;
 	}
 
 	static void clear()
@@ -273,7 +243,7 @@ struct LCD
 	{
 		if( value == '\n' )
 		{
-			if(lines==1)
+			if(lines==1 || true)
 			{
 				clear();
 				setCursor(0,0);

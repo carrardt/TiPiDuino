@@ -1,6 +1,6 @@
 #include <AvrTL.h>
-#include <SerialConsole.h>
 #include <PrintStream.h>
+#include <LCD.h>
 
 using namespace avrtl;
 
@@ -14,18 +14,20 @@ constexpr auto led = pin( portInputRegister(digitalPinToPort(LED_PIN))
 						,digitalPinToBit(LED_PIN) );
 */
 static constexpr auto led = pin(LED_PIN);
-SerialConsole serialConsole;
-PrintStream<SerialConsole> cout(serialConsole);
+#define LCD_PINS 7,6,5,4,3,2 // respectively RS, EN, D7, D6, D5, D4
+LCD<LCD_PINS> lcd;
+PrintStream< LCD<LCD_PINS> > cout(lcd);
 
 void setup()
 {
 	led.SetOutput(); //pinMode(LED_PIN,OUTPUT);
-	serialConsole.begin(9600);
+	dbgOutput.begin(9600);
+	lcd.begin();
 }
 
 void loop()
 {
-	cout<<"Hello World ;)"<<endl;
+	cout<<"Hello World ;)\n";
 	for(int j=0;j<5;j++)
 	{
 		for(int i=0;i<6;i++)

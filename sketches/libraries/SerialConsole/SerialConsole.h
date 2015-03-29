@@ -31,7 +31,7 @@ struct SerialConsole
 	  calcBaud = F_CPU/16/calcUBRR;
 	  calcBaudU2X = F_CPU/8/calcUBRRU2X;
 
-	  if (abs(calcBaudU2X - baud) < abs(calcBaud - baud))
+	  if ( avrtl::abs(calcBaudU2X - baud) < avrtl::abs(calcBaud - baud))
 	  {
 		UCSR0A = 1 << U2X;
 		ubrrValue = calcUBRRU2X - 1;
@@ -55,40 +55,6 @@ struct SerialConsole
 		__SerialConsole_byte = x;
 		UCSR0B |= (1 << UDRIE);
 		SREG = oldSREG;
-	}
-	
-	SerialConsole operator << ( char x ) const
-	{
-		writeChar( x );
-		return SerialConsole();
-	}
-	
-	SerialConsole operator << ( const char* s ) const
-	{
-		while(*s != '\0') writeChar( *(s++) );
-		return SerialConsole();
-	}
-	
-	static void print(unsigned long x, int base=10, int ndigits=0) { print((long)x,base,ndigits); }
-	static void print(unsigned int x, int base=10, int ndigits=0) { print((long)x,base,ndigits); }
-	static void print(int x, int base=10, int ndigits=0) { print((long)x,base,ndigits); }
-	static void print(long x, int div=10, int ndigits=0)
-	{
-		if(div<2) return;
-		char digits[16];
-		int n = 0;
-		if( x < 0 ) { writeChar((char)'-'); x=-x; }
-		do
-		{
-			digits[n++] = x % div;
-			x /= div;
-		} while( x > 0 );
-		for(int i=0;i<(ndigits-n);i++) writeChar('0');
-		for(int i=0;i<n;i++)
-		{
-			int dg = digits[n-i-1];
-			writeChar ( (dg<10) ? (char)('0'+dg) : (char)('A'+(dg-10)) );
-		}
 	}
 };
 

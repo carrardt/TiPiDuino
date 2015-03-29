@@ -89,8 +89,11 @@ user: $(USER_LIB)
 $(BUILD_DIR)/%.sketch.$(VARIANT).strip.elf: $(BUILD_DIR)/%.sketch.$(VARIANT).elf
 	$(STRIP) $(STRIP_FLAGS) $< -o $@
 
-$(BUILD_DIR)/%.sketch.$(VARIANT).elf: $(BUILD_DIR)/%.sketch.$(VARIANT).o $(USER_LIB) $(WIRING_LIB)
-	$(CXX) $(LD_FLAGS) $< -L$(BUILD_DIR) -l$(USER_LIBNAME) -l$(WIRING_LIBNAME) -o $@
+#$(WIRING_LIB)
+$(BUILD_DIR)/%.sketch.$(VARIANT).elf: $(BUILD_DIR)/%.sketch.$(VARIANT).o $(USER_LIB)
+	$(CXX) $(LD_FLAGS) $< -L$(BUILD_DIR) -l$(USER_LIBNAME) -o $@
+	#-l$(WIRING_LIBNAME)
+
 
 $(USER_LIB): $(USER_LIBRARIES_OBJS)
 	$(AR) rcs $@ $?

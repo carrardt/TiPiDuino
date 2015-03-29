@@ -27,17 +27,30 @@
 #include <stdint.h>
 #include <avr/io.h>
 #include <avr/interrupt.h>
+#include <stdlib.h>
 
-#include <Wiring.h> 
-/*#ifndef NOT_A_PORT
 #define NOT_A_PORT 0xFF
-#endif*/
+#define NOT_A_REG  NULL
+// #define LOW false
+// #define HIGH true
 #include <BoardDefs.h> // for pin mapping
 
 namespace avrtl
 {
 	static constexpr uint32_t TIMER_CPU_RATIO = TIMER0PRESCALEFACTOR / (F_CPU / 1000000UL);
-	
+
+	template<typename T>
+	static inline T abs(T x) { return (x<0) ? (-x) : x ; }
+
+	static inline void boardInit()
+	{
+		// Sets the timer prescale factor to 64;
+		TCCR0B = (TCCR0B & 0b11111000) | 0b011;
+
+		// start interrupts
+		sei();
+	}
+
 	static void DelayTimerTicks(uint32_t tickCount)
 	{
 		uint8_t oldSREG = SREG;
@@ -168,6 +181,19 @@ static constexpr AvrPin<P> make_pin() { return AvrPin<P>(); }
 
 #define pin(P) make_pin<P>()
 
+}
+
+
+
+// some wiring compatibility tricks
+extern void loop();
+extern void setup();
+int main(void) __attribute__ ((noreturn,OS_main,weak));
+int main(void)
+{
+	avrtl::boardInit();
+	setup();
+	for(;;) loop();
 }
 
 #endif

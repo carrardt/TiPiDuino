@@ -6,6 +6,8 @@
 
 struct RFSnifferProtocol
 {
+	static constexpr uint32_t EEPROM_MAGIC_NUMBER = 0x040411UL;
+	
 	uint32_t magic;
 	uint16_t bitSymbols[2];
 	uint16_t latchSeq[MAX_LATCH_SEQ_LEN];
@@ -14,6 +16,7 @@ struct RFSnifferProtocol
 	uint8_t nMessageRepeats;
 	uint8_t coding;
 	bool matchingRepeats;
+	bool pulseLevel;
 	
 	inline RFSnifferProtocol()
 	{

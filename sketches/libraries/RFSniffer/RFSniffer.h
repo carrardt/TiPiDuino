@@ -19,13 +19,13 @@ struct RFSniffer
 	// detect SeqLen consecutive similar symbols (at most NSymbols different symbols)
 	// buf size must be at least NSymbols
 	template<uint8_t NSymbols, uint8_t SeqLen>
-	inline uint8_t detectEntropyDrop(uint16_t* buf)
+	inline uint8_t detectEntropyDrop(uint16_t* buf, bool pulseLevel)
 	{
 		uint8_t nSymbolsInBuffer = 0;
 		uint8_t nSymbolsRead = 0;
 		while(nSymbolsInBuffer<NSymbols && nSymbolsRead<SeqLen)
 		{
-			long p = rx.PulseIn(PULSE_LVL,MAX_PULSE_LEN);
+			long p = rx.PulseIn(pulseLevel,MAX_PULSE_LEN);
 			if( p < MIN_PULSE_LEN ) return nSymbolsRead;
 			uint8_t j=NSymbols;
 			for(int s=0;s<nSymbolsInBuffer;++s)
@@ -42,7 +42,7 @@ struct RFSniffer
 		}
 		while( nSymbolsRead < SeqLen )
 		{
-			long p = rx.PulseIn(PULSE_LVL,MAX_PULSE_LEN);
+			long p = rx.PulseIn(pulseLevel,MAX_PULSE_LEN);
 			if( p < MIN_PULSE_LEN ) return nSymbolsRead;
 			uint8_t j = NSymbols;
 			for(int s=0;s<NSymbols;++s)
@@ -59,16 +59,16 @@ struct RFSniffer
 
 	// record a raw signal (succession of digital pulse lengthes)
 	template<uint16_t bufSize, uint16_t minLatchLen, uint8_t minLatchCount>
-	int recordSignalLatchDetect(uint16_t * buf)
+	int recordSignalLatchDetect(uint16_t * buf,bool pulseLevel)
 	{
 	  int n=0;
 	  for(;n<minLatchCount;++n)
 	  {
-		  buf[n] = rx.PulseIn(PULSE_LVL,MAX_PULSE_LEN);
+		  buf[n] = rx.PulseIn(pulseLevel,MAX_PULSE_LEN);
 		  if( buf[n]<minLatchLen || buf[n]>=MAX_PULSE_LEN ) return n;
 	  }
 	  do {
-		buf[n++] = rx.PulseIn(PULSE_LVL,MAX_PULSE_LEN);
+		buf[n++] = rx.PulseIn(pulseLevel,MAX_PULSE_LEN);
 	  }
 	  while( buf[n-1]>MIN_PULSE_LEN && buf[n-1]<=MAX_PULSE_LEN && n<bufSize);
 	  if(n<bufSize) { --n; }
@@ -76,11 +76,11 @@ struct RFSniffer
 	}
 
 	template<uint16_t bufSize>
-	int recordSignalLatchSequenceDetect(uint16_t * buf,const int nlacthes, const uint16_t* sequence)
+	int recordSignalLatchSequenceDetect(uint16_t * buf,bool pulseLevel,const int nlacthes, const uint16_t* sequence)
 	{
 		for(uint8_t i=0;i<nlacthes;i++)
 		{
-			long p = rx.PulseIn(PULSE_LVL,MAX_PULSE_LEN);
+			long p = rx.PulseIn(pulseLevel,MAX_PULSE_LEN);
 			buf[i] = p;
 			uint16_t l = sequence[i];
 			uint16_t relerr = l / PULSE_ERR_RATIO;
@@ -89,7 +89,7 @@ struct RFSniffer
 		int n = nlacthes;
 	    do
 	    {
-			buf[n++] = rx.PulseIn(PULSE_LVL,MAX_PULSE_LEN);
+			buf[n++] = rx.PulseIn(pulseLevel,MAX_PULSE_LEN);
 	    }
 	    while( buf[n-1]>MIN_PULSE_LEN && buf[n-1]<=MAX_PULSE_LEN && n<bufSize);
 		if(n<bufSize) { --n; }
@@ -129,7 +129,7 @@ struct RFSniffer
 
 	// record a raw signal (succession of digital pulse lengthes)
 	template<uint16_t bufSize, uint16_t binarySeqLen>
-	int recordSignalBinaryEntropyDetect(uint16_t * buf)
+	int recordSignalBinaryEntropyDetect(uint16_t * buf, bool pulseLevel, uint16_t& P1)
 	{
 		uint16_t fop0 = 0; // first occurence position
 		uint16_t fop1 = 0; // first occurence position
@@ -139,7 +139,7 @@ struct RFSniffer
 
 #define CURSOR_DIST(a,b) (((bufSize+b)-a)%bufSize)
 
-		l = rx.PulseIn(PULSE_LVL,MAX_PULSE_LEN);
+		l = rx.PulseIn(pulseLevel,MAX_PULSE_LEN);
 		if( l < MIN_PULSE_LEN ) return 0;
 		buf[curs] = l;	
 		curs=(curs+1)%bufSize;
@@ -149,9 +149,10 @@ struct RFSniffer
 			// whole buffer has been filled without finding another symbol
 			if(curs==fop0) return 0;
 
-			// read a pulse,
-			l = rx.PulseIn(PULSE_LVL,MAX_PULSE_LEN);
-			if( l < MIN_PULSE_LEN ) return 0;
+			// read a valid pulse,
+			do {
+				l = rx.PulseIn(pulseLevel,MAX_PULSE_LEN);
+			} while( l < MIN_PULSE_LEN ) ;
 			
 			// store the pulse
 			buf[curs] = l;
@@ -167,7 +168,7 @@ struct RFSniffer
 		// now wait until we have a long enough binary sequence
 		while( CURSOR_DIST(fop0,curs) < binarySeqLen )
 		{
-			l = rx.PulseIn(PULSE_LVL,MAX_PULSE_LEN);
+			l = rx.PulseIn(pulseLevel,MAX_PULSE_LEN);
 			if( l < MIN_PULSE_LEN ) return 0;
 			buf[curs] = l;
 			re = l / PULSE_ERR_RATIO;
@@ -186,17 +187,19 @@ struct RFSniffer
 
 		while( curs != fop0 )
 		{
-			l = rx.PulseIn(PULSE_LVL,MAX_PULSE_LEN);
+			l = rx.PulseIn(pulseLevel,MAX_PULSE_LEN);
 			if( l < MIN_PULSE_LEN )
 			{
 				int recordSize = CURSOR_DIST(fop0,curs);
+				P1 = (fop1+bufSize-fop0)%bufSize;
 				rotateBufferLeft(buf,bufSize,fop0);
 				return recordSize;
-			}			
+			}
 			buf[curs] = l;
 			curs=(curs+1)%bufSize;
 		}
 
+		P1 = (fop1+bufSize-fop0)%bufSize;
 		rotateBufferLeft(buf,bufSize,fop0);
 		return bufSize;
 	}
@@ -208,22 +211,38 @@ struct RFSniffer
 		const uint16_t b0_tol = b0 / PULSE_ERR_RATIO;
 		const uint16_t b1_tol = b1 / PULSE_ERR_RATIO;
 
-		for(uint8_t i=0;i<sp.latchSeqLen;i++)
-		{
-			long p = rx.PulseIn(PULSE_LVL,MAX_PULSE_LEN);
-			uint16_t l = sp.latchSeq[i];
-			uint16_t relerr = l / PULSE_ERR_RATIO;
-			if( abs(p-l) > relerr ) return 0;
-		}
-
 		int bitsToRead = sp.messageBits;
 		if( sp.coding == CODING_MANCHESTER ) bitsToRead*=2;
 		
 		uint8_t byte=0;
-		for(uint16_t j=0;j<bitsToRead;j++)
+		uint16_t j=0;
+		if( sp.latchSeqLen > 0 )
+		{
+			for(uint8_t i=0;i<sp.latchSeqLen;i++)
+			{
+				long p = rx.PulseIn(sp.pulseLevel,MAX_PULSE_LEN);
+				uint16_t l = sp.latchSeq[i];
+				uint16_t relerr = l / PULSE_ERR_RATIO;
+				if( abs(p-l) > relerr ) return 0;
+			}
+		}
+		else
+		{
+			bool badBit;
+			do
+			{
+				long p = rx.PulseIn(sp.pulseLevel,MAX_PULSE_LEN);
+				buf[byte] = 0;
+				badBit = false;
+				if( abs(p-b1) <= b1_tol ) buf[byte] = 1;
+				else if( abs(p-b0) > b0_tol ) badBit=true;
+			}while( badBit );
+			++ j;
+		}
+		for(;j<bitsToRead;j++)
 		{
 			if(j%8==0) buf[byte]=0;
-			long p = rx.PulseIn(PULSE_LVL,MAX_PULSE_LEN);
+			long p = rx.PulseIn(sp.pulseLevel,MAX_PULSE_LEN);
 			uint8_t b = 0;
 			if( abs(p-b1) <= b1_tol ) b = 1;
 			else if( abs(p-b0) > b0_tol ) return j;
@@ -257,6 +276,13 @@ struct RFSniffer
 		}
 		if( k!=0 ) buf[j++] = byte;
 		return true;
+	}
+
+	static bool identicalPulses(long p1, long p2)
+	{
+		long r = (p2>p1) ? p2 : p1 ;
+		long re = r / PULSE_ERR_RATIO;
+		return ( abs(p2-p1) < re );
 	}
 
 	// build a classification of pulse lengthes in a signal record
@@ -326,6 +352,7 @@ struct RFSniffer
 		if( symbols[si0] > symbols[si1] ) { int t=si0; si0=si1; si1=t; }
 		sp.bitSymbols[0] = symbols[si0];
 		sp.bitSymbols[1] = symbols[si1];
+		if( identicalPulses(sp.bitSymbols[0],sp.bitSymbols[1]) ) return false;
 		
 		// non bit coding symbols are considered as latches (start/stop markers)		
 		if( nSymbols == 2 ) // no latches, only bits
