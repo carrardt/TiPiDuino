@@ -5,7 +5,7 @@
 using namespace avrtl;
 
 // what to use as a console to prin message
-// #define LCD_CONSOLE 1
+//#define LCD_CONSOLE 1
 
 // for latch detection based analysis
 #define MIN_MESSAGE_PULSES 		 32
@@ -21,26 +21,29 @@ using namespace avrtl;
 
 // pinout
 #define RECEIVE_PIN 9
-#define EMIT_PIN 12
 #define LED_PIN 13
+#define SERIAL_RX 10
+#define SERIAL_TX 11
+#define SERIAL_SPEED 19200
 
 #ifdef LCD_CONSOLE
 #include "LCD.h"
 #define LCD_PINS 7,6,5,4,3,2 // respectively RS, EN, D7, D6, D5, D4
 LCD<LCD_PINS> lcd;
-PrintStream< LCD<LCD_PINS> > cout(lcd);
 #else
-#include "SerialConsole.h"
-SerialConsole serialConsole;
-PrintStream<SerialConsole> cout(serialConsole);
+#include "SoftSerialIO.h"
+static auto serial_rx = pin(SERIAL_RX);
+static auto serial_tx = pin(SERIAL_TX);
+static auto serialIO = make_softserial<SERIAL_SPEED>(serial_rx,serial_tx);
 #endif
 
 static const char* stageLabel[3] = {"detect","analyse","verify"};
-static auto rx = AvrPin<RECEIVE_PIN>();
-static auto led = AvrPin<LED_PIN>();
+static auto rx = pin(RECEIVE_PIN);
+static auto led = pin(LED_PIN);
 static auto sniffer = make_sniffer(rx);
 static RFSnifferProtocol sp;
 static uint8_t* eeprom_ptr = (uint8_t*)EEPROM_CODES_ADDR;
+static PrintStream cout;
 
 template<typename OutStream>
 static bool testSequence(OutStream& out, uint8_t seq, bool value, uint8_t& seqIdx, const char* mesg)
@@ -108,14 +111,10 @@ void setup()
 	// setup output to serial line or LCD display
 #ifdef LCD_CONSOLE
 	lcd.begin();
-	lcd.clear();
-	lcd.home();
-	lcd.setCursor(0,0);
-	for(int i=0;i<10;i++) lcd.writeChar('0'+i);
-	lcd.writeChar('\n');
-	blink(led);
+	cout.begin(&lcd);
 #else
-	serialConsole.begin(9600);
+	serialIO.begin();
+	cout.begin(&serialIO);
 #endif
 
 	// try to read a previously analysed protocol from EEPROM
@@ -150,7 +149,7 @@ void loop(void)
 	{
 		if( stageChanged )
 		{
-			cout<<(stage+1)<<") "<<stageLabel[stage]<<'\n';
+			cout<<(stage+1)<<") "<<stageLabel[stage]<<' '<<(sp.pulseLevel?'H':'L')<<'\n';
 			stageChanged=false;
 		}
 		// detect and record a signal
@@ -202,6 +201,7 @@ void loop(void)
 				++stage;
 				if( sp.latchSeqLen == 0 ) ++stage;
 				stageChanged=true;
+				sp.toStream(cout);
 				blink(led);
 			}
 		}
@@ -229,11 +229,13 @@ void loop(void)
 				*/
 				++stage;
 				stageChanged=true;
+				sp.toStream(cout);
+				blink(led);
 			}
 		}
  		// signal content analysis
 		else if( stage == 2 )
-		{			
+		{
 			if( sp.messageBits > MAX_MESSAGE_BITS ) sp.messageBits = MAX_MESSAGE_BITS;
 			int bitsToRead = sp.messageBits;
 			if( sp.coding == CODING_MANCHESTER ) bitsToRead *= 2;

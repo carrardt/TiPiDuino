@@ -4,13 +4,6 @@
 #include <inttypes.h>
 #include "AvrTL.h"
 
-// DEBUG
-#include "SerialConsole.h"
-#include "PrintStream.h"
-static SerialConsole dbgOutput;
-static PrintStream<SerialConsole> dbg(dbgOutput);
-#define DBG_MSG(x) do { dbg << x << endl; } while(0)
-
 // commands
 #define LCD_CLEARDISPLAY 0x01
 #define LCD_RETURNHOME 0x02
@@ -71,61 +64,62 @@ static PrintStream<SerialConsole> dbg(dbgOutput);
 // handles Read/Write mode with optional rw pin
 // if no pin is connected (pin = -1) nothing happens
 
+#include <ByteStream.h>
+
 template<int _rs, int _en, int _d0, int _d1, int _d2, int _d3,int _cols=16, int _lines=2, int _dotSize=LCD_5x8DOTS>
-struct LCD
+struct LCD : public ByteStream
 {
 	static constexpr int cols = _cols;
 	static constexpr int lines = _lines;
 	static constexpr int dotSize = _dotSize;
-		
-	static void pulseEnable() 
+	avrtl::AvrPin<_rs> rs;
+	avrtl::AvrPin<_en> en;
+	avrtl::AvrPin<_d0> d0;
+	avrtl::AvrPin<_d1> d1;
+	avrtl::AvrPin<_d2> d2;
+	avrtl::AvrPin<_d3> d3;
+
+	void pulseEnable() 
 	{
-  	  avrtl::AvrPin<_en>::Set(0);
-  	  avrtl::DelayMicroseconds(1);    
-  	  avrtl::AvrPin<_en>::Set(1);
-  	  avrtl::DelayMicroseconds(1);    // enable pulse must be >450ns
-  	  avrtl::AvrPin<_en>::Set(0);
-  	  avrtl::DelayMicroseconds(100);   // commands need > 37us to settle
+	  en = 0;
+	  avrtl::DelayMicroseconds(1);    
+	  en = 1;
+	  avrtl::DelayMicroseconds(1);    // enable pulse must be >450ns
+	  en = 0;
+	  avrtl::DelayMicroseconds(100);   // commands need > 37us to settle
 	}
 
-	static void write4bits(uint8_t value) 
+	void write4bits(uint8_t value) 
 	{
-		avrtl::AvrPin<_d0>::Set(value & 1); value >>= 1;
-		avrtl::AvrPin<_d1>::Set(value & 1); value >>= 1;
-		avrtl::AvrPin<_d2>::Set(value & 1); value >>= 1;
-		avrtl::AvrPin<_d3>::Set(value & 1);
+		d0 = value & 1; value >>= 1;
+		d1 = value & 1; value >>= 1;
+		d2 = value & 1; value >>= 1;
+		d3 = value & 1;
 		pulseEnable();
 	}
 	
-	static void write(uint8_t value) 
+	void write(uint8_t value) 
 	{
 		write4bits(value>>4);
 		write4bits(value);
 	}
 
-	static void selectDataMode()  { avrtl::AvrPin<_rs>::Set(1); }
-	static void selectCommandMode()  { avrtl::AvrPin<_rs>::Set(0); }
-
-	static void command(uint8_t value) 
+	void command(uint8_t value) 
 	{
-		DBG_MSG("command "<<value);
-		selectCommandMode();
+		rs = 0;
 		write(value);
 	}
 
-	static void init() 
+	void init() 
 	{
-		avrtl::AvrPin<_rs>::SetOutput();
-		avrtl::AvrPin<_rs>::Set(0);
-		avrtl::AvrPin<_en>::SetOutput();
-		avrtl::AvrPin<_en>::Set(0);
-
-		avrtl::AvrPin<_d0>::SetOutput();
-		avrtl::AvrPin<_d1>::SetOutput();
-		avrtl::AvrPin<_d2>::SetOutput();
-		avrtl::AvrPin<_d3>::SetOutput();
-
-		DBG_MSG("Init LCD");
+		rs.SetOutput();
+		rs = 0;
+		en.SetOutput();
+		en = 0;
+		d0.SetOutput();
+		d1.SetOutput();
+		d2.SetOutput();
+		d3.SetOutput();
 		write4bits(0x03);
 		avrtl::DelayMicroseconds(4500);
 		write4bits(0x03);
@@ -133,20 +127,18 @@ struct LCD
 		write4bits(0x03);
 		avrtl::DelayMicroseconds(150);
 		write4bits(0x02);
-
-		DBG_MSG("lines="<<lines);
 		command( LCD_FUNCTIONSET | LCD_4BITMODE | ((lines<=1)?LCD_1LINE:LCD_2LINE) | dotSize );
 	}
 	
-	static void sendByte(uint8_t value) 
+	void sendByte(uint8_t value) 
 	{
-		DBG_MSG("byte "<<value);
-		selectDataMode();
+		rs = 1;
 		write(value);
 	}	
 	
 	LCD()
 		: m_writeMode(true)
+		, m_lineFeed(false)
 		, m_displayControlFlags(0)
 		, m_displayModeFlags(0)
 		, m_bufSize(0)
@@ -162,19 +154,19 @@ struct LCD
   		setDisplayModeFlags( LCD_ENTRYLEFT | LCD_ENTRYSHIFTDECREMENT);
 	}
 
-	static void clear()
+	void clear()
 	{
 	  command(LCD_CLEARDISPLAY);  // clear display, set cursor position to zero
 	  avrtl::DelayMicroseconds(2000);  // this command takes a long time!
 	}
 	
-	static void home()
+	void home()
 	{
 	  command(LCD_RETURNHOME);  // set cursor position to zero
 	  avrtl::DelayMicroseconds(2000);  // this command takes a long time!
 	}
 	
-	static void setCursor(uint8_t col, uint8_t row)
+	void setCursor(uint8_t col, uint8_t row)
 	{
 	  int row_offsets[] = { 0x00, 0x40, 0x14, 0x54 };
 	  if ( row >= lines ) {
@@ -239,26 +231,36 @@ struct LCD
 	  }
 	}
 
-	void writeChar(uint8_t value)
+	virtual bool writeChar(char value)
 	{
-		if( value == '\n' )
+		if(m_lineFeed)
 		{
-			if(lines==1 || true)
+			if( lines == 1 )
 			{
 				clear();
 				setCursor(0,0);
-				m_bufSize = 0;
 			}
 			else
 			{
+				int i;
 				setCursor(0,0);
-				for(int i=0;i<m_bufSize;i++) sendByte(m_buffer[i]);
-				for(int i=m_bufSize;i<cols;i++) sendByte(' ');
+				for(i=0;i<m_bufSize;i++) sendByte(m_buffer[i]);
+				for(;i<cols;i++) sendByte(' ');
 				setCursor(0,1);
-				for(int i=0;i<cols;i++) sendByte(' ');
+				for(i=0;i<cols;i++) sendByte(' ');
 				setCursor(0,1);
-				m_bufSize = 0;
 			}
+			m_bufSize = 0;
+			m_lineFeed = false;
+		}
+		
+		if( value == '\n' )
+		{
+			m_lineFeed = true;
+		}
+		else if( value == '\r' )
+		{
+			// ignore it
 		}
 		else
 		{
@@ -268,10 +270,12 @@ struct LCD
 			}
 			sendByte(value);
 		}
+		return true;
 	}
 
 private:
 	bool m_writeMode;
+	bool m_lineFeed;
 	uint8_t m_displayControlFlags;
 	uint8_t m_displayModeFlags;
 	uint8_t m_bufSize;

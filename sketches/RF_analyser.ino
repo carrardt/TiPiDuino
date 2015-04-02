@@ -1,5 +1,5 @@
 
-#define RECEIVE_PIN        8 
+#define RECEIVE_PIN        9 
 #define PULSE_LVL          LOW
 #define BAD_BIT            0xFF
 #define NOISE_THRESHOLD    100

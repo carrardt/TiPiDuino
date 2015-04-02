@@ -38,7 +38,7 @@ VARIANT=$(FAMILY)-$(BOARD)
 
 # Compile options
 MCU_FLAGS=-mmcu=$(MCU)
-COMMON_FLAGS=$(MCU_FLAGS) -DF_CPU=$(F_CPU)
+COMMON_FLAGS=$(MCU_FLAGS) -DF_CPU=$(F_CPU) -DBUILD_TIMESTAMP=$$(date +'(%Y%m%d+%H%M%S)')
 C_FLAGS=-O3 -Os $(COMMON_FLAGS)
 CXX_FLAGS=-std=c++1y -O3 -Os $(COMMON_FLAGS)
 LD_FLAGS=-std=c++1y -Os $(MCU_FLAGS)
@@ -83,17 +83,17 @@ user: $(USER_LIB)
 %.flash: %.hex
 	$(AVRDUDE) -c $(PROTOCOL) -p $(MCU) -P $(SERIALPORT) -b $(UPLOADBR) -D -U flash:w:$<:i 
 
-%.hex: $(BUILD_DIR)/%.sketch.$(VARIANT).strip.elf
+%.hex: $(BUILD_DIR)/%.$(VARIANT).strip.elf
 	$(OBJCOPY) $(OBJCOPY_ELF2HEX_FLAGS) $< $@
 
-$(BUILD_DIR)/%.sketch.$(VARIANT).strip.elf: $(BUILD_DIR)/%.sketch.$(VARIANT).elf
+$(BUILD_DIR)/%.$(VARIANT).strip.elf: $(BUILD_DIR)/%.$(VARIANT).elf
 	$(STRIP) $(STRIP_FLAGS) $< -o $@
 
-#$(WIRING_LIB)
-$(BUILD_DIR)/%.sketch.$(VARIANT).elf: $(BUILD_DIR)/%.sketch.$(VARIANT).o $(USER_LIB)
+$(BUILD_DIR)/%.$(VARIANT).elf: $(BUILD_DIR)/%.prog.$(VARIANT).o $(USER_LIB)
 	$(CXX) $(LD_FLAGS) $< -L$(BUILD_DIR) -l$(USER_LIBNAME) -o $@
-	#-l$(WIRING_LIBNAME)
 
+$(BUILD_DIR)/%.$(VARIANT).elf: $(BUILD_DIR)/%.sketch.$(VARIANT).o $(USER_LIB) $(WIRING_LIB)
+	$(CXX) $(LD_FLAGS) $< -L$(BUILD_DIR) -l$(USER_LIBNAME) -l$(WIRING_LIBNAME) -o $@
 
 $(USER_LIB): $(USER_LIBRARIES_OBJS)
 	$(AR) rcs $@ $?
@@ -125,20 +125,21 @@ $(BUILD_DIR)/libraries/%.user.$(VARIANT).o: $(USER_LIBRARIES_DIR)/%.c
 $(BUILD_DIR)/libraries/%.user.$(VARIANT).o: $(USER_LIBRARIES_DIR)/%.cpp
 	$(CXX) $(CXX_FLAGS) $(USER_LIBRARIES_INC_FLAGS) $(WIRING_INC_FLAGS) -c $< -o $@
 
-# compilation des programmes
-$(BUILD_DIR)/%.sketch.$(VARIANT).o: $(SKETCHES)/%.c
+# compilation des programmes sans Wiring/Arduino
+$(BUILD_DIR)/%.prog.$(VARIANT).o: $(SKETCHES)/%.c
 	$(CC) $(C_FLAGS) $(USER_LIBRARIES_INC_FLAGS) $(WIRING_INC_FLAGS) -c $< -o $@
 
-$(BUILD_DIR)/%.sketch.$(VARIANT).o: $(SKETCHES)/%.cpp
+$(BUILD_DIR)/%.prog.$(VARIANT).o: $(SKETCHES)/%.cpp
 	$(CXX) $(CXX_FLAGS) $(USER_LIBRARIES_INC_FLAGS) $(WIRING_INC_FLAGS) $(ETL_CXX_FLAGS) -c $< -o $@
 
+# compilation des sketch Arduino / Wiring
 $(BUILD_DIR)/%.sketch.$(VARIANT).o: $(BUILD_DIR)/%.sketch.cpp
 	$(CXX) $(CXX_FLAGS) $(USER_LIBRARIES_INC_FLAGS) $(WIRING_INC_FLAGS) $(ETL_CXX_FLAGS) -c $< -o $@
 
-$(BUILD_DIR)/%.sketch.cpp: %.pde
+$(BUILD_DIR)/%.sketch.cpp: $(SKETCHES)/%.pde
 	echo "#include <Wiring.h>" > $@
 	cat $< >> $@
 
-$(BUILD_DIR)/%.sketch.cpp: %.ino
+$(BUILD_DIR)/%.sketch.cpp: $(SKETCHES)/%.ino
 	echo "#include <Wiring.h>" > $@
 	cat $< >> $@

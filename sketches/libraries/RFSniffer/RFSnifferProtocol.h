@@ -7,13 +7,13 @@
 
 struct RFSnifferProtocol
 {
-	static constexpr uint32_t EEPROM_MAGIC_NUMBER = 0x040411UL;
+	static constexpr uint32_t EEPROM_MAGIC_NUMBER = 0x26101976UL+BUILD_TIMESTAMP;
 	
 	uint32_t magic;
 	uint16_t bitSymbols[2];
 	uint16_t latchSeq[MAX_LATCH_SEQ_LEN];
-	uint8_t latchSeqLen;
 	uint16_t messageBits;
+	uint8_t latchSeqLen;
 	uint8_t nMessageRepeats;
 	uint8_t coding;
 	bool matchingRepeats;
@@ -76,7 +76,7 @@ struct RFSnifferProtocol
 			out<<'\n';
 		}
 		out << (char) coding;
-		out.print((int)messageBits,16);
+		out.print(messageBits,16);
 		if( nMessageRepeats > 1 )
 		{
 			out << 'x';
@@ -87,6 +87,7 @@ struct RFSnifferProtocol
 			out<<'-';
 			out.print((int)bitSymbols[i],16);
 		}
+		out<<'-'<<messageBits;
 		out<<'\n';
 	}
 

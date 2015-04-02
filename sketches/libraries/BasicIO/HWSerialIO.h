@@ -1,16 +1,18 @@
-#ifndef __TIPIDUINO_SerialConsole_h
-#define __TIPIDUINO_SerialConsole_h
+#ifndef __TIPIDUINO_HWSerialIO_h
+#define __TIPIDUINO_HWSerialIO_h
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
-#include <AvrTL.h>
 
-// Warning !! Needs Wirinlib ISRs defined as weak symblols
+#include <AvrTL.h>
+#include <ByteStream.h>
+
+// Warning !! Needs Wiring lib ISRs defined as weak symblols
 // ISR(vect,__attribute__ ((weak)))
 
-static volatile uint8_t __SerialConsole_byte = 0;
+static volatile uint8_t __HWSerialIO_Tx_byte = 0;
 
-struct SerialConsole
+struct HWSerialIO : public ByteStream
 {
 	static constexpr uint8_t U2X = 1;
 	static constexpr uint8_t TXEN = 3;
@@ -47,26 +49,27 @@ struct SerialConsole
 	  UCSR0B = 1 << TXEN;
 	}
 	
-	static inline void writeChar( char x )
+	virtual bool writeChar( char x )
 	{
-		while( __SerialConsole_byte!=0 ) {}
+		while( __HWSerialIO_Tx_byte!=0 ) {}
 		uint8_t oldSREG = SREG;
 		cli();
-		__SerialConsole_byte = x;
+		__HWSerialIO_Tx_byte = x;
 		UCSR0B |= (1 << UDRIE);
 		SREG = oldSREG;
+		return true;
 	}
 };
 
 ISR(USART_UDRE_vect)
 {
-	uint8_t b = __SerialConsole_byte;
+	uint8_t b = __HWSerialIO_Tx_byte;
 	if( b != 0 )
 	{
 		UDR0 = b;
-		__SerialConsole_byte = 0;
+		__HWSerialIO_Tx_byte = 0;
 	}
-	UCSR0B = 1 << SerialConsole::TXEN ; 
+	UCSR0B = 1 << HWSerialIO::TXEN ; 
 }
 
 #endif

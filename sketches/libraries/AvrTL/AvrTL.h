@@ -36,9 +36,18 @@
 // #define HIGH true
 #include <BoardDefs.h> // for pin mapping
 
+
+#ifndef BUILD_TIMESTAMP
+#define BUILD_TIMESTAMP 0
+#endif
+
 namespace avrtl
 {
+	// from timer ticks to microseconds
 	static constexpr uint32_t TIMER_CPU_RATIO = TIMER0PRESCALEFACTOR / (F_CPU / 1000000UL);
+	
+	// from cpu clock ticks / microseconds
+	static constexpr uint32_t MSEC_CPU_RATIO = (F_CPU / 1000000UL);
 
 	static inline void boardInit()
 	{
@@ -102,10 +111,9 @@ namespace avrtl
 	}
 	
 	template<typename LedPinT>
-	static void blink(LedPinT& led, int N=10)
+	static void blink(LedPinT& led, int N=20)
 	{
-		led = true;
-		for(int j=0;j<N;j++)
+		for(int j=1;j<=N;j++)
 		{
 			led = j&1;
 			DelayMicroseconds(100000);
@@ -205,10 +213,9 @@ struct AvrPin
 template<int P>
 static constexpr AvrPin<P> make_pin() { return AvrPin<P>(); }
 
-#define pin(P) make_pin<P>()
-
 }
 
+#define pin(P) avrtl::AvrPin<P>()
 
 
 // some wiring compatibility tricks
