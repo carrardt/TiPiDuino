@@ -13,6 +13,7 @@ using namespace avrtl;
 #define MAX_PULSES 				384
 
 // EEPROM address where to write detected protocol
+#define EEPROM_PULSELVL_ADDR 	((uint8_t*)0x0001)
 #define EEPROM_PROTOCOL_ADDR 	((uint8_t*)0x0004)
 #define EEPROM_CODES_ADDR 		(EEPROM_PROTOCOL_ADDR+sizeof(RFSnifferProtocol))
 #define EEPROM_CODES_BYTES 		512
@@ -183,11 +184,14 @@ void loop(void)
 						// cout<<"=> "<<P0Bit<<", "<<P1Bit<<'\n';
 						if( P0Bit==2 || P1Bit==2 || P0Bit==P1Bit )
 						{
-							retry_mesg(cout);
 							signalOk = false;
 						}
 					}
-					if( ! signalOk ) { sp.pulseLevel = !sp.pulseLevel; }
+					if( ! signalOk )
+					{
+						sp.pulseLevel = !sp.pulseLevel;
+						stageChanged=true;
+					}
 			}
 			if(signalOk)
 			{

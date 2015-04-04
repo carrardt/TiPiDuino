@@ -87,7 +87,6 @@ struct RFSnifferProtocol
 			out<<'-';
 			out.print((int)bitSymbols[i],16);
 		}
-		out<<'-'<<messageBits;
 		out<<'\n';
 	}
 

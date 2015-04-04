@@ -60,6 +60,8 @@ struct SoftSerialIO : public ByteStream
 
 	  SREG=oldSREG;
 	  
+	  if( b == '\n' ) { avrtl::DelayMicroseconds(100000); }
+	  
 	  return true;
 	}
 
