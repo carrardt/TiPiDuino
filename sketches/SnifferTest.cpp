@@ -1,6 +1,8 @@
 #include "AvrTL.h"
 #include "RFSniffer.h"
+#include "RFSnifferEEPROM.h"
 #include "PrintStream.h"
+#include "HWSerialIO.h"
 
 using namespace avrtl;
 
@@ -12,16 +14,14 @@ using namespace avrtl;
 #define ENTROPY_DETECTION_PULSES 32
 #define MAX_PULSES 				384
 
-// EEPROM address where to write detected protocol
-#define EEPROM_PULSELVL_ADDR 	((uint8_t*)0x0001)
-#define EEPROM_PROTOCOL_ADDR 	((uint8_t*)0x0004)
-#define EEPROM_CODES_ADDR 		(EEPROM_PROTOCOL_ADDR+sizeof(RFSnifferProtocol))
-#define EEPROM_CODES_BYTES 		512
 #define RESET_SEQ 0x05  		// press AABBA, A and B being any two different remote buttons
-#define REPLAY_SEQ 0x08 		// press ABABB, A and B being any two different remote buttons
+#define REPLAY_SEQ 0x07 		// press ABABB, A and B being any two different remote buttons
 
 // pinout
-#define RECEIVE_PIN 9
+#define RF_RECEIVE_PIN 9
+#define IR_RECEIVE_PIN 8
+#define RF_EMIT_PIN 7
+#define IR_EMIT_PIN 6
 #define LED_PIN 13
 #define SERIAL_RX 10
 #define SERIAL_TX 11
@@ -39,7 +39,7 @@ static auto serialIO = make_softserial<SERIAL_SPEED>(serial_rx,serial_tx);
 #endif
 
 static const char* stageLabel[3] = {"detect","analyse","verify"};
-static auto rx = pin(RECEIVE_PIN);
+static auto rx = AvrPin< DualPin<IR_RECEIVE_PIN,RF_RECEIVE_PIN> >();
 static auto led = pin(LED_PIN);
 static auto sniffer = make_sniffer(rx);
 static RFSnifferProtocol sp;
@@ -70,37 +70,6 @@ template<typename OutputStream>
 static void retry_mesg(OutputStream& out)
 {
 	out<<"press button\n";
-}
-
-static int findRecordedMessage(const uint8_t* buf, int nbytes)
-{
-	uint8_t* ptr = EEPROM_CODES_ADDR;
-	int offset = 0;
-	int mesgFoundAt = -1;
-	int mesgIdx = 0;
-	while( (ptr-EEPROM_CODES_ADDR)<EEPROM_CODES_BYTES && (mesgFoundAt==-1) && eeprom_read_byte(ptr+offset)!=0 )
-	{
-		int len = eeprom_read_byte(ptr);
-		++ptr;
-		if( len > MAX_MESSAGE_BYTES ) return -1;
-		bool match = true;
-		int i=0;
-		for(;i<len;i++)
-		{
-			if( i < nbytes )
-			{
-				match = match && ( eeprom_read_byte(ptr) == buf[i] );
-			}
-			else 
-			{
-				match = false;
-			}
-			++ptr;
-		}
-		if( match ) { mesgFoundAt=mesgIdx; }
-		++ mesgIdx;
-	}
-	return mesgFoundAt;
 }
 
 void setup()
@@ -137,8 +106,14 @@ void setup()
 	}
 	else
 	{
+		uint8_t flags = eeprom_read_byte( EEPROM_FLAGS_ADDR );
+		if(flags>=4) flags=0;
+		sp.flags = flags;
+		eeprom_gently_write_byte(EEPROM_FLAGS_ADDR,(flags+1));
 		eeprom_gently_write_byte(EEPROM_CODES_ADDR,0);
 	}
+
+	rx.SelectPin( sp.mediumRF() );
 }
 
 void loop(void)
@@ -150,7 +125,7 @@ void loop(void)
 	{
 		if( stageChanged )
 		{
-			cout<<(stage+1)<<") "<<stageLabel[stage]<<' '<<(sp.pulseLevel?'H':'L')<<'\n';
+			cout<<stageLabel[stage]<<' '<<(sp.mediumRF()?"RF":"IR")<<'/'<<(sp.pulseLevel()?"Hi":"Lo")<<'\n';
 			stageChanged=false;
 		}
 		// detect and record a signal
@@ -158,7 +133,7 @@ void loop(void)
 		{
 			uint16_t buf[MAX_PULSES];
 			uint16_t P1Idx=0;
-			int npulses = sniffer.recordSignalBinaryEntropyDetect<MAX_PULSES,ENTROPY_DETECTION_PULSES>(buf,sp.pulseLevel,P1Idx);
+			int npulses = sniffer.recordSignalBinaryEntropyDetect<MAX_PULSES,ENTROPY_DETECTION_PULSES>(buf,sp.pulseLevel(),P1Idx);
 			bool signalOk = false;
 			if( npulses >= MIN_MESSAGE_PULSES )
 			{
@@ -189,7 +164,9 @@ void loop(void)
 					}
 					if( ! signalOk )
 					{
-						sp.pulseLevel = !sp.pulseLevel;
+						sp.setPulseLevel( ! sp.pulseLevel() );
+						//sp.setMediumRF( ! sp.mediumRF() );
+						//rx.SelectPin( sp.mediumRF() );
 						stageChanged=true;
 					}
 			}
@@ -216,14 +193,14 @@ void loop(void)
 			if( sp.latchSeqLen > 0 )
 			{
 				uint16_t buf[MAX_PULSES];
-				int npulses = sniffer.recordSignalLatchSequenceDetect<MAX_PULSES>(buf,sp.pulseLevel,sp.latchSeqLen,sp.latchSeq);
+				int npulses = sniffer.recordSignalLatchSequenceDetect<MAX_PULSES>(buf,sp.pulseLevel(),sp.latchSeqLen,sp.latchSeq);
 				if( npulses >= MIN_MESSAGE_PULSES )
 				{
 					signalOk = sniffer.analyseSignal(buf,npulses,sp);
 				}
 			}
 			if(signalOk)
-			{ 
+			{
 				/*
 				cout <<"nl="<< sp.latchSeqLen<<" " ;
 				for(int i=0;i<sp.latchSeqLen;i++) { cout<<sp.latchSeq[i]<<' '; }
@@ -268,6 +245,9 @@ void loop(void)
 			else
 			{
 				cout << "Err: "<<br<<'/'<<bitsToRead<<'\n';
+				blink(led);
+				stage=0;
+				stageChanged=true;
 			}
 		}
 	}
@@ -278,71 +258,87 @@ void loop(void)
 	auto sender = make_emitter(tx);
 */
 
-	uint8_t rstSeqIdx = 0;
-	uint8_t replaySeqIdx = 0;
-	uint8_t last_checksum = 0;
-
-	cout << "Ready\n" ;
-	sp.toStream(cout);
-	for(;;)
+	if( eeprom_read_byte(EEPROM_CODES_ADDR) != 0 )
 	{
-		int bitsToRead = sp.messageBits;
-		if( sp.coding == CODING_MANCHESTER ) bitsToRead *= 2;
-		
-		int nbytes = (bitsToRead+7) / 8;
-		uint8_t buf[nbytes+1];
-		if( sniffer.readBinaryMessage(sp,buf) == bitsToRead )
+		cout << "Replay mode\n" ;
+		HWSerialIO hwserial;
+		hwserial.begin(9600);
+		InputStream cin;
+		cin.begin( & hwserial );
+		for(;;)
 		{
-			bool mesgValid = true;
-			if( sp.coding == CODING_MANCHESTER )
+			int mesgId=0, nbytes=0;
+			cin >> mesgId;
+			uint8_t* ptr = getMessageAddr( mesgId, nbytes );
+			for(int i=0;i<nbytes;++i)
 			{
-				mesgValid = sniffer.decodeManchester(buf,bitsToRead);
-				nbytes = ( (bitsToRead/2) + 7 ) / 8;
+				cout.print( (unsigned int) eeprom_read_byte(ptr+i), 16, 2 );
 			}
-			if( mesgValid )
-			{
-				uint8_t cs = checksum8(buf,nbytes);
-				bool same_mesg = (cs == last_checksum);
-				last_checksum = cs;
-				if( testSequence(cout,RESET_SEQ,same_mesg,rstSeqIdx,"Reset") )
-				{
-					blink(led);
-					sp.invalidateEEPROM(EEPROM_PROTOCOL_ADDR);
-					asm volatile ("  jmp 0"); 
-				}
-				if( testSequence(cout,REPLAY_SEQ,same_mesg,replaySeqIdx,"Replay") )
-				{
-					blink(led);
-				}
+			cout<<'\n';
+		}
+	}
+	else
+	{
+		cout << "Record mode\n" ;
+		uint8_t rstSeqIdx = 0;
+		uint8_t last_checksum = 0;
+		sp.toStream(cout);
+		for(;;)
+		{
+			int bitsToRead = sp.messageBits;
+			if( sp.coding == CODING_MANCHESTER ) bitsToRead *= 2;
 
-				int mesgFoundAt = findRecordedMessage(buf,nbytes);
-				if( mesgFoundAt == -1 )
+			int nbytes = (bitsToRead+7) / 8;
+			uint8_t buf[nbytes+1];
+			if( sniffer.readBinaryMessage(sp,buf) == bitsToRead )
+			{
+				bool mesgValid = true;
+				if( sp.coding == CODING_MANCHESTER )
 				{
-					if( (eeprom_ptr-EEPROM_CODES_ADDR) >= EEPROM_CODES_BYTES )
+					mesgValid = sniffer.decodeManchester(buf,bitsToRead);
+					nbytes = ( (bitsToRead/2) + 7 ) / 8;
+				}
+				if( mesgValid )
+				{
+					uint8_t cs = checksum8(buf,nbytes);
+					bool same_mesg = (cs == last_checksum);
+					last_checksum = cs;
+					if( testSequence(cout,RESET_SEQ,same_mesg,rstSeqIdx,"Reset") )
 					{
-						cout<<"#Full\n";
+						blink(led);
+						sp.invalidateEEPROM(EEPROM_PROTOCOL_ADDR);
+						asm volatile ("  jmp 0"); 
+					}
+
+					int mesgFoundAt = findRecordedMessage(buf,nbytes);
+					if( mesgFoundAt == -1 )
+					{
+						if( (eeprom_ptr-EEPROM_CODES_ADDR) >= EEPROM_CODES_BYTES )
+						{
+							cout<<"#Full\n";
+						}
+						else
+						{
+							eeprom_gently_write_byte( eeprom_ptr++, nbytes );
+							for(int i=0;i<nbytes;i++)
+							{
+								eeprom_gently_write_byte( eeprom_ptr++, buf[i] );
+								cout.print((unsigned int)buf[i],16,2);
+							}
+							eeprom_gently_write_byte( eeprom_ptr, 0 );
+							cout << '\n';
+						}
 					}
 					else
 					{
-						eeprom_gently_write_byte( eeprom_ptr++, nbytes );
-						for(int i=0;i<nbytes;i++)
-						{
-							eeprom_gently_write_byte( eeprom_ptr++, buf[i] );
-							cout.print((unsigned int)buf[i],16,2);
-						}
-						eeprom_gently_write_byte( eeprom_ptr, 0 );
-						cout << '\n';
+						cout<<"#"<<mesgFoundAt<<'\n';
 					}
+					blink(led);
 				}
 				else
 				{
-					cout<<"#"<<mesgFoundAt<<'\n';
+					cout << "#Bad\n";
 				}
-				blink(led);
-			}
-			else
-			{
-				cout << "#Bad\n";
 			}
 		}
 	}

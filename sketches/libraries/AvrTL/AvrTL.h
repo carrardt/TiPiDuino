@@ -36,7 +36,6 @@
 // #define HIGH true
 #include <BoardDefs.h> // for pin mapping
 
-
 #ifndef BUILD_TIMESTAMP
 #define BUILD_TIMESTAMP 0
 #endif
@@ -45,7 +44,7 @@ namespace avrtl
 {
 	// from timer ticks to microseconds
 	static constexpr uint32_t TIMER_CPU_RATIO = TIMER0PRESCALEFACTOR / (F_CPU / 1000000UL);
-	
+
 	// from cpu clock ticks / microseconds
 	static constexpr uint32_t MSEC_CPU_RATIO = (F_CPU / 1000000UL);
 
@@ -121,33 +120,84 @@ namespace avrtl
 	}
 template<uint32_t speed> struct BaudRate { };
 
+template<int _p1, int _p2, bool SamePort = (digitalPinToPort(_p1)==digitalPinToPort(_p2)) >
+struct DualPin {};
+
+template<int _p1, int _p2>
+struct DualPin<_p1,_p2,true>
+{
+#define pin_addr (portInputRegister(digitalPinToPort(_p1)))
+#define port_addr (digitalPinToPortReg(_p1))
+#define ddr_addr (portModeRegister(digitalPinToPort(_p1)))
+#define pin1_bit (digitalPinToBit(_p1))
+#define pin2_bit (digitalPinToBit(_p2))
+
+	void SelectPin(bool pselect)
+	{
+		mask = 1 << ( pselect ? pin2_bit : pin1_bit ) ;
+	}
+	
+	// equivalent to a or of input pins, and duplicate write to all pins
+	void SelectAllPins()
+	{
+		mask = SetAllMask();
+	}
+	
+	uint8_t SetMask() const { return mask; }
+	uint8_t ClearMask() const { return ~mask; }
+	
+	uint8_t SetAllMask() const { return (1<<pin1_bit) | (1<<pin2_bit); }
+	uint8_t ClearAllMask() const { return ~mask; }
+	
+    void SetOutput() const { *ddr_addr |= SetAllMask(); }
+    void SetInput() const { *ddr_addr &= ClearAllMask(); }
+    
+    void Set(bool b) const
+    {
+		if(b) { *port_addr |= SetMask(); }
+		else { *port_addr &= ClearMask(); }
+	}
+    bool Get() const
+    { 
+		return ( (*pin_addr) & mask ) != 0;
+	}
+	uint8_t mask;
+#undef pin_addr
+#undef port_addr
+#undef ddr_addr
+#undef pin_bit
+};
+
 template< int _pinId >
-struct AvrPin
+struct StaticPin
 {
 #define pin_addr (portInputRegister(digitalPinToPort(_pinId)))
 #define port_addr (digitalPinToPortReg(_pinId))
 #define ddr_addr (portModeRegister(digitalPinToPort(_pinId)))
 #define pin_bit (digitalPinToBit(_pinId))
-	
 	static uint8_t SetMask()  { return 1<<pin_bit; }
 	static uint8_t ClearMask()  { return ~SetMask(); }
-
     static void SetOutput()  { *ddr_addr |= SetMask(); }
-    
     static void SetInput()  { *ddr_addr &= ClearMask(); }
-
     static void Set(bool b) 
     {
 		if(b) { *port_addr |= SetMask(); }
 		else { *port_addr &= ClearMask(); }
 	}
-	
     static bool Get() 
     { 
 		return ( (*pin_addr) >> pin_bit ) & 1;
 	}
+#undef pin_addr
+#undef port_addr
+#undef ddr_addr
+#undef pin_bit
+};
 
-	static uint32_t PulseIn(bool lvl, uint32_t timeout) 
+template< typename BasePinT >
+struct AvrPin : public BasePinT
+{
+	uint32_t PulseIn(bool lvl, uint32_t timeout) 
 	{
 		timeout /= TIMER_CPU_RATIO;
 
@@ -162,12 +212,12 @@ struct AvrPin
 
 		UPDATE_CLOCK_COUNTER();
 		uint32_t ts = CLOCK_ELAPSED();
-		while( ts<timeout && Get()!=lvl ) { UPDATE_CLOCK_COUNTER(); ts=CLOCK_ELAPSED(); }
+		while( ts<timeout && BasePinT::Get()!=lvl ) { UPDATE_CLOCK_COUNTER(); ts=CLOCK_ELAPSED(); }
 		if( ts >= timeout ) { SREG=oldSREG; return 0; }
 		
 		UPDATE_CLOCK_COUNTER();
 		uint32_t te = CLOCK_ELAPSED();
-		while( (te-ts)<timeout && Get()==lvl ) { UPDATE_CLOCK_COUNTER(); te=CLOCK_ELAPSED(); }
+		while( (te-ts)<timeout && BasePinT::Get()==lvl ) { UPDATE_CLOCK_COUNTER(); te=CLOCK_ELAPSED(); }
 		
 		SREG=oldSREG;
 		if( (te-ts) >= timeout ) return 0;
@@ -178,44 +228,41 @@ struct AvrPin
 #undef CLOCK_ELAPSED
 	}
 
+
+
 	template< uint32_t speed >
-	static void serialWriteByte(uint8_t b, BaudRate<speed>)
+	void serialWriteByte(uint8_t b, BaudRate<speed>)
 	{
 	  static constexpr uint32_t bitDelayTicks = 1000000UL / ( speed * TIMER_CPU_RATIO );
-	  Set( false );
+	  BasePinT::Set( false );
 	  DelayTimerTicks(bitDelayTicks);
 	  for (uint8_t mask=0x01;mask;mask<<=1) 
 	  {
-		Set( (b&mask)!=0  );
+		BasePinT::Set( (b&mask)!=0  );
 		DelayTimerTicks(bitDelayTicks);
 	  }
-	  Set( true );
+	  BasePinT::Set( true );
 	  DelayTimerTicks(bitDelayTicks);
 	}
 
 	template< uint32_t speed >
-	static inline void serialBegin(BaudRate<speed>)
+	void serialBegin(BaudRate<speed>)
 	{
 	  static constexpr uint32_t bitDelayTicks = 1000000UL / ( speed * TIMER_CPU_RATIO );
-	  Set( true );
+	  BasePinT::Set( true );
 	  DelayTimerTicks(bitDelayTicks);
 	}
 
-    operator bool() const { return Get(); }
-    bool operator = (bool b) const { Set(b); return b; }
-
-#undef pin_addr
-#undef port_addr
-#undef ddr_addr
-#undef pin_bit
+    operator bool() const { return BasePinT::Get(); }
+    bool operator = (bool b) const { BasePinT::Set(b); return b; }
 };
 
 template<int P>
-static constexpr AvrPin<P> make_pin() { return AvrPin<P>(); }
+static constexpr AvrPin< StaticPin<P> > make_pin() { return AvrPin< StaticPin<P> >(); }
 
 }
 
-#define pin(P) avrtl::AvrPin<P>()
+#define pin(P) AvrPin< StaticPin<P> >()
 
 
 // some wiring compatibility tricks

@@ -10,13 +10,18 @@
 // Warning !! Needs Wiring lib ISRs defined as weak symblols
 // ISR(vect,__attribute__ ((weak)))
 
-static volatile uint8_t __HWSerialIO_Tx_byte = 0;
-
 struct HWSerialIO : public ByteStream
 {
 	static constexpr uint8_t U2X = 1;
+	static constexpr uint8_t RXCIE = 7;
+	static constexpr uint8_t RXEN = 4;
 	static constexpr uint8_t TXEN = 3;
 	static constexpr uint8_t UDRIE = 5;
+	static constexpr uint8_t FLAGS_EN = (1<<TXEN) | (1<<RXEN) | (1<<RXCIE);
+	static constexpr uint8_t BufferSize = 16;
+
+	static volatile uint8_t Tx_byte;
+	static volatile uint8_t Rx_byte;
 
 	static inline void begin(uint32_t baud=9600)
 	{
@@ -46,30 +51,48 @@ struct HWSerialIO : public ByteStream
 	  UCSR0C = 0b110;
 	  UBRR0H = ubrrValue >> 8;
 	  UBRR0L = ubrrValue;
-	  UCSR0B = 1 << TXEN;
+	  UCSR0B = FLAGS_EN;
 	}
 	
 	virtual bool writeChar( char x )
 	{
-		while( __HWSerialIO_Tx_byte!=0 ) {}
+		while( Tx_byte!=0 ) {}
 		uint8_t oldSREG = SREG;
 		cli();
-		__HWSerialIO_Tx_byte = x;
+		Tx_byte = x;
 		UCSR0B |= (1 << UDRIE);
 		SREG = oldSREG;
 		return true;
 	}
+	
+	virtual char readChar()
+	{
+		char c;
+		while( ( c = HWSerialIO::Rx_byte ) == 0 ) {}
+		HWSerialIO::Rx_byte = 0;
+		return c;
+	}
+
 };
+
+volatile uint8_t HWSerialIO::Tx_byte = 0;
+volatile uint8_t HWSerialIO::Rx_byte = 0;
+
 
 ISR(USART_UDRE_vect)
 {
-	uint8_t b = __HWSerialIO_Tx_byte;
+	uint8_t b = HWSerialIO::Tx_byte;
 	if( b != 0 )
 	{
 		UDR0 = b;
-		__HWSerialIO_Tx_byte = 0;
+		HWSerialIO::Tx_byte = 0;
 	}
-	UCSR0B = 1 << HWSerialIO::TXEN ; 
+	UCSR0B = HWSerialIO::FLAGS_EN;
+}
+
+ISR(USART_RX_vect)
+{
+	HWSerialIO::Rx_byte = UDR0;
 }
 
 #endif

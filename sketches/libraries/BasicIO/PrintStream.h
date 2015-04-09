@@ -2,6 +2,7 @@
 #define __TIPIDUINO_PrintStream_h
 
 #include <ByteStream.h>
+#include <AvrTL.h>
 
 static constexpr auto endl = '\n';
 
@@ -32,6 +33,7 @@ struct PrintStream
 	{ 
 		if( stream != 0 )
 		{
+			if( x == '\n' ) { avrtl::DelayMicroseconds(300000); }
 			stream->writeChar( x );
 		}
 	}

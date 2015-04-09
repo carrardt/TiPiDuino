@@ -213,17 +213,21 @@ struct RFSniffer
 
 		int bitsToRead = sp.messageBits;
 		if( sp.coding == CODING_MANCHESTER ) bitsToRead*=2;
+		const bool lvl = sp.pulseLevel();
 		
 		uint8_t byte=0;
 		uint16_t j=0;
 		if( sp.latchSeqLen > 0 )
 		{
-			for(uint8_t i=0;i<sp.latchSeqLen;i++)
+			for(uint8_t i=0;i<sp.latchSeqLen;)
 			{
-				long p = rx.PulseIn(sp.pulseLevel,MAX_PULSE_LEN);
+				long p = rx.PulseIn(lvl,MAX_PULSE_LEN);
 				uint16_t l = sp.latchSeq[i];
 				uint16_t relerr = l / PULSE_ERR_RATIO;
-				if( abs(p-l) > relerr ) return 0;
+				// TODO: could poll right here to catch signal more accurately
+				// something like if(bad) i=0; else ++i;
+				if( abs(p-l) > relerr ) i=0;
+				else ++i;
 			}
 		}
 		else
@@ -231,7 +235,7 @@ struct RFSniffer
 			bool badBit;
 			do
 			{
-				long p = rx.PulseIn(sp.pulseLevel,MAX_PULSE_LEN);
+				long p = rx.PulseIn(lvl,MAX_PULSE_LEN);
 				buf[byte] = 0;
 				badBit = false;
 				if( abs(p-b1) <= b1_tol ) buf[byte] = 1;
@@ -242,7 +246,7 @@ struct RFSniffer
 		for(;j<bitsToRead;j++)
 		{
 			if(j%8==0) buf[byte]=0;
-			long p = rx.PulseIn(sp.pulseLevel,MAX_PULSE_LEN);
+			long p = rx.PulseIn(lvl,MAX_PULSE_LEN);
 			uint8_t b = 0;
 			if( abs(p-b1) <= b1_tol ) b = 1;
 			else if( abs(p-b0) > b0_tol ) return j;
@@ -361,7 +365,7 @@ struct RFSniffer
 			sp.nMessageRepeats = 1;
 			sp.coding = CODING_BINARY;
 			sp.messageBits = np;
-			sp.matchingRepeats = true;
+			sp.setMatchingRepeats( true );
 		}
 		else
 		{
@@ -406,12 +410,12 @@ struct RFSniffer
 				sp.messageBits = np - sp.nMessageRepeats*sp.latchSeqLen;
 			}
 
-			sp.matchingRepeats = false;
+			sp.setMatchingRepeats( false );
 			if( sp.nMessageRepeats>1 && fullMessageSize>0 )
 			{
 				int bstart = fullMessageStart+fullMessageSize;
 				int bsize = np - bstart;
-				sp.matchingRepeats = ( findOccurence(buf+fullMessageStart,fullMessageSize,buf+bstart,bsize) != -1 );
+				sp.setMatchingRepeats( findOccurence(buf+fullMessageStart,fullMessageSize,buf+bstart,bsize) != -1 );
 			}
 
 			sp.coding = CODING_BINARY;

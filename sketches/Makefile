@@ -13,6 +13,7 @@ SKETCHES=$(HOME)/dev/TiPiDuino/sketches
 # default board model
 FAMILY=Arduino
 BOARD=ArduinoUno
+#BOARD=ArduinoDuemilanove
 
 # cross compiler
 CC=avr-gcc
@@ -38,7 +39,7 @@ VARIANT=$(FAMILY)-$(BOARD)
 
 # Compile options
 MCU_FLAGS=-mmcu=$(MCU)
-COMMON_FLAGS=$(MCU_FLAGS) -DF_CPU=$(F_CPU) -DBUILD_TIMESTAMP=$$(date +'(%Y%m%d+%H%M%S)')
+COMMON_FLAGS=$(MCU_FLAGS) -DF_CPU=$(F_CPU) -DBUILD_TIMESTAMP=$$(date +'(1%Y%m%d+1%H%M%S)')
 C_FLAGS=-O3 -Os $(COMMON_FLAGS)
 CXX_FLAGS=-std=c++1y -O3 -Os $(COMMON_FLAGS)
 LD_FLAGS=-std=c++1y -Os $(MCU_FLAGS)

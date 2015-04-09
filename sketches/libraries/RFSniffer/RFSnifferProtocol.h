@@ -7,26 +7,24 @@
 
 struct RFSnifferProtocol
 {
-	static constexpr uint32_t EEPROM_MAGIC_NUMBER = 0x26101976UL+BUILD_TIMESTAMP;
+	static constexpr uint8_t MATCHING_REPEATS_FLAG = 0x10;
+	static constexpr uint8_t VALID_FLAG = 0x20;
+
+	static constexpr uint8_t LOW_LEVEL_FLAG = 0x00;
+	static constexpr uint8_t HIGH_LEVEL_FLAG = 0x01;
+
+	static constexpr uint8_t IR_FLAG = 0x00;
+	static constexpr uint8_t RF_FLAG = 0x02;
 	
-	uint32_t magic;
-	uint16_t bitSymbols[2];
-	uint16_t latchSeq[MAX_LATCH_SEQ_LEN];
-	uint16_t messageBits;
-	uint8_t latchSeqLen;
-	uint8_t nMessageRepeats;
-	uint8_t coding;
-	bool matchingRepeats;
-	bool pulseLevel;
+	static constexpr uint8_t RESET_MODIFIY_FLAGS_MASK = 0x03;
 	
-	inline RFSnifferProtocol()
+	RFSnifferProtocol()
 	{
 		init();
 	}
 
-	inline void init()
+	void init()
 	{
-		magic = 0xFFFFFFFF ;
 		messageBits = 0;
 		latchSeqLen = 0;
 		bitSymbols[0] = 0;
@@ -34,17 +32,45 @@ struct RFSnifferProtocol
 		for(int i=0;i<MAX_LATCH_SEQ_LEN;i++) latchSeq[i]=0;
 		nMessageRepeats = 0;
 		coding = CODING_UNKNOWN;
-		matchingRepeats = false;
-		pulseLevel = true;
+		flags = 0;
 	}
 
-	inline void toEEPROM(void* eeprom_addr)
+	bool mediumRF() const 
 	{
-		setValid(true);
+		return (flags&RF_FLAG)!=0;
+	}
+	void setMediumRF(bool value)
+	{
+		if(value) { flags |= RF_FLAG; }
+		else { flags &= ~RF_FLAG; }
+	}
+
+	bool matchingRepeats() const
+	{
+		return (flags&MATCHING_REPEATS_FLAG)!=0;
+	}
+	void setMatchingRepeats(bool value)
+	{
+		if(value) { flags |= MATCHING_REPEATS_FLAG; }
+		else { flags &= ~MATCHING_REPEATS_FLAG; }
+	}
+
+	inline bool pulseLevel() const
+	{
+		return (flags&HIGH_LEVEL_FLAG)!=0;
+	}
+	inline void setPulseLevel(bool value)
+	{
+		if(value) { flags |= HIGH_LEVEL_FLAG; }
+		else { flags &= ~HIGH_LEVEL_FLAG; }
+	}
+
+	void toEEPROM(void* eeprom_addr) const
+	{
 		avrtl::eeprom_gently_write_block( (const uint8_t*)this, (uint8_t*)eeprom_addr, sizeof(RFSnifferProtocol) );
 	}
 
-	inline void fromEEPROM(const void* eeprom_addr)
+	void fromEEPROM(const void* eeprom_addr)
 	{
 		eeprom_read_block( (void*)this, eeprom_addr, sizeof(RFSnifferProtocol) );
 		if( ! isValid() )
@@ -53,14 +79,15 @@ struct RFSnifferProtocol
 		}
 	}
 
-	inline void invalidateEEPROM(void* eeprom_addr)
+	void setValid(bool v)
 	{
-		setValid(false);
-		eeprom_write_block( (const void*)this, eeprom_addr, sizeof(RFSnifferProtocol) );
+		if(v) flags |= VALID_FLAG;
+		else flags &= ~VALID_FLAG;
 	}
-
-	inline void setValid(bool v) { magic = v ? EEPROM_MAGIC_NUMBER : 0xFFFFFFFF; }
-	inline bool isValid() { return magic == EEPROM_MAGIC_NUMBER; }
+	bool isValid()
+	{
+		return (flags&VALID_FLAG)!=0 && bitSymbols[0]>0 && bitSymbols[1]>0;
+	}	
 
 	template<typename OStreamT>
 	inline void toStream(OStreamT& out)
@@ -75,6 +102,8 @@ struct RFSnifferProtocol
 			}
 			out<<'\n';
 		}
+		out << ( mediumRF() ? 'R' : 'I' );		
+		out << ( pulseLevel() ? "H" : "L" );
 		out << (char) coding;
 		out.print(messageBits,16);
 		if( nMessageRepeats > 1 )
@@ -90,6 +119,16 @@ struct RFSnifferProtocol
 		out<<'\n';
 	}
 
+
+	static uint8_t defaultFlags;
+	
+	uint16_t bitSymbols[2];
+	uint16_t latchSeq[MAX_LATCH_SEQ_LEN];
+	uint16_t messageBits;
+	uint8_t latchSeqLen;
+	uint8_t nMessageRepeats;
+	uint8_t coding;
+	uint8_t flags;
 };
 
 #endif

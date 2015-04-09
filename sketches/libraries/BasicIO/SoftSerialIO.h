@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <ByteStream.h>
 #include <AvrTL.h>
+//#include <DigitalOutput.h>
 
 template<typename _RxPinT, typename _TxPinT, uint32_t _BaudRate>
 struct SoftSerialIO : public ByteStream
@@ -18,7 +19,7 @@ struct SoftSerialIO : public ByteStream
 	TxPin tx;
 	
 	SoftSerialIO(const RxPin& _rx, const TxPin& _tx) : rx(_rx), tx(_tx) {}
-	
+
 	void begin()
 	{
 		rx.SetInput();
@@ -30,38 +31,47 @@ struct SoftSerialIO : public ByteStream
 
 	virtual bool writeByte(uint8_t b)
 	{
+		/*
+	  TimingBufferSignal<10,false> serialByteSignal(false);
+	  serialByteSignal.timings[0] = bitDelay;
+	  int j=0;
+	  bool prevLevel = false;
+	  for(int i=0;i<8;++i)
+	  {
+		  bool nextLevel = ( (b&0x01) != 0 );
+		  if( nextLevel == prevLevel )
+		  {
+			  serialByteSignal.timings[j] += bitDelay;
+		  }
+		  else
+		  {
+			  ++j;
+			  serialByteSignal.timings[j] = bitDelay;
+			  prevLevel = !prevLevel;
+		  }
+	  }
+	  if(prevLevel) { serialByteSignal.timings[j] += bitDelay*2; }
+	  else { ++j; serialByteSignal.timings[j] = bitDelay*2; }
+	  for(;j<10;++j) { serialByteSignal.timings[j]=0; }
+	  digitalOutput( bitDelay*10, serialByteSignal, tx );
+	  */
+
 	  byte mask;
-	  
 	  uint8_t oldSREG = SREG;
 	  cli();
 	  
 	  tx = 0;
-	  //digitalWrite(transmitPin, LOW);
 	  avrtl::DelayMicroseconds(bitDelay);
-
 	  for (mask = 0x01; mask; mask <<= 1) 
 	  {
-		if (b & mask) // choose bit
-		{ 
-		  //digitalWrite(transmitPin,HIGH); // send 1
-		  tx = 1;
-		}
-		else
-		{
-		  // digitalWrite(transmitPin,LOW); // send 0
-		  tx = 0;
-		}
+		if (b & mask) tx = 1;
+		else tx = 0;
 		avrtl::DelayMicroseconds(bitDelay);
 	  }
-
-	  //digitalWrite(transmitPin, HIGH);
 	  tx = 1;
 	  avrtl::DelayMicroseconds(bitDelay);
 
 	  SREG=oldSREG;
-	  
-	  if( b == '\n' ) { avrtl::DelayMicroseconds(100000); }
-	  
 	  return true;
 	}
 
