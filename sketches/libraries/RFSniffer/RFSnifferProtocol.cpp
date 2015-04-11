@@ -1,11 +1,8 @@
 #include "RFSnifferProtocol.h"
+#include "AvrTL.h"
+#include <avr/eeprom.h>
 
 uint8_t RFSnifferProtocol::defaultFlags = 0;
-
-RFSnifferProtocol::RFSnifferProtocol()
-{
-	init();
-}
 
 void RFSnifferProtocol::init()
 {
@@ -16,7 +13,7 @@ void RFSnifferProtocol::init()
 	for(int i=0;i<MAX_LATCH_SEQ_LEN;i++) latchSeq[i]=0;
 	nMessageRepeats = 0;
 	coding = CODING_UNKNOWN;
-	flags = 0;
+	flags = RFSnifferProtocol::defaultFlags;
 }
 
 bool RFSnifferProtocol::mediumRF() const 
@@ -65,7 +62,7 @@ void RFSnifferProtocol::setValid(bool v)
 	else flags &= ~VALID_FLAG;
 }
 
-bool RFSnifferProtocol::isValid()
+bool RFSnifferProtocol::isValid() const
 {
 	return (flags&VALID_FLAG)!=0 && bitSymbols[0]>0 && bitSymbols[1]>0;
 }	

@@ -2,40 +2,44 @@
 #define __RFSnifferEEPROM_h
 
 #include "RFSnifferProtocol.h"
+#include <avr/eeprom.h>
+
+namespace RFSnifferEEPROM
+{
 
 // EEPROM address where to write detected protocol
-#define EEPROM_MAGIC_NUMBER 	((uint16_t)(BUILD_TIMESTAMP & 0xFFFF))
-#define EEPROM_MAX_PROTOCOLS	4
+static constexpr uint16_t EEPROM_MAGIC_NUMBER = ((uint16_t)(BUILD_TIMESTAMP & 0xFFFF));
+static constexpr uint8_t EEPROM_MAX_PROTOCOLS = 4;
 
-#define EEPROM_MAGIC_ADDR		((uint8_t*)0x0000)		// 2 bytes
-#define EEPROM_FLAGS_ADDR 		(EEPROM_MAGIC_ADDR+2)	// 1 byte
-#define EEPROM_BEHAVIOR_ADDR	(EEPROM_FLAGS_ADDR+1)	// 1 byte
-#define EEPROM_PROTOCOLS_ADDR 	(EEPROM_BEHAVIOR_ADDR+1)	// 4 * sizeof(RFSnifferProtocol)
-#define EEPROM_CODES_ADDR		(EEPROM_PROTOCOLS_ADDR+EEPROM_MAX_PROTOCOLS*sizeof(RFSnifferProtocol))
+static constexpr uint8_t* EEPROM_MAGIC_ADDR		= ((uint8_t*)0x0000);		// 2 bytes
+static constexpr uint8_t* EEPROM_FLAGS_ADDR 	= (EEPROM_MAGIC_ADDR+2);	// 1 byte
+static constexpr uint8_t* EEPROM_OPERATION_ADDR	= (EEPROM_FLAGS_ADDR+1);	// 1 byte
+static constexpr uint8_t* EEPROM_PROTOCOLS_ADDR = (EEPROM_OPERATION_ADDR+1);	// 4 * sizeof(RFSnifferProtocol)
+static constexpr uint8_t* EEPROM_CODES_ADDR		= (EEPROM_PROTOCOLS_ADDR+EEPROM_MAX_PROTOCOLS*sizeof(RFSnifferProtocol));
 
-#define LEARN_NEW_PROTOCOL		0xFF
-#define RECORD_PROTOCOL_0		0x00
-#define RECORD_PROTOCOL_1		0x01
-#define RECORD_PROTOCOL_2		0x02
-#define RECORD_PROTOCOL_3		0x03
-#define INTERACTIVE_MODE		0x10
-#define STANDALONE_MODE			0x20
+static constexpr uint8_t LEARN_NEW_PROTOCOL = 0xFF;
+static constexpr uint8_t RECORD_PROTOCOL_0  = 0x00;
+static constexpr uint8_t RECORD_PROTOCOL_1  = 0x01;
+static constexpr uint8_t RECORD_PROTOCOL_2  = 0x02;
+static constexpr uint8_t RECORD_PROTOCOL_3  = 0x03;
+static constexpr uint8_t COMMAND_MODE       = 0x10;
+static constexpr uint8_t STANDALONE_MODE    = 0x20;
 
 template<typename FuncT>
-static void forEachProtocolInEEPROM( FuncT afunc )
+static inline void forEachProtocolInEEPROM( FuncT afunc )
 {
 	uint8_t* protPtr = EEPROM_PROTOCOLS_ADDR;
 	for(int i=0;i<EEPROM_MAX_PROTOCOLS;i++)
 	{
 		RFSnifferProtocol p;
 		p.fromEEPROM( protPtr );
-		if( p.isValid() ) { afunc (i,p); }
+		afunc (i,p);
 		protPtr += sizeof(RFSnifferProtocol);
 	}
 }
 
 template<typename FuncT>
-static void forEachMessageInEEPROM( FuncT afunc )
+static inline void forEachMessageInEEPROM( FuncT afunc )
 {
 	uint8_t* ptr = EEPROM_CODES_ADDR;
 	int mesgIdx = 0;
@@ -47,13 +51,15 @@ static void forEachMessageInEEPROM( FuncT afunc )
 		ptr += len;
 		++ mesgIdx;
 	}
-	if( mesgFoundAt != -1 && )
-	return mesgFoundAt;
 }
 
 void initEEPROM();
+void readProtocol(int pId,RFSnifferProtocol& sp);
 int findRecordedMessage(int pId, const uint8_t* buf, int nbytes);
-int saveProtocolToEEPROM(RFSnifferProtocol& proto);
-int saveMessageToEEPROM(int pId, const uint8_t* buf, int nbytes);
+int saveProtocol(const RFSnifferProtocol& proto);
+int saveMessage(int pId, const uint8_t* buf, int nbytes);
+uint8_t getOperationMode();
+void setOperationMode(uint8_t mode);
+}
 
 #endif

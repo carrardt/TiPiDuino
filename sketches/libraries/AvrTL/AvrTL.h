@@ -118,6 +118,40 @@ namespace avrtl
 			DelayMicroseconds(100000);
 		}
 	}
+	
+	template<typename T>
+	static void rotateBufferLeft1(T * ptr, int n)
+	{
+		T first = ptr[0];
+		for(int i=0;i<(n-1);i++)
+		{
+			ptr[i] = ptr[i+1];
+		}
+		ptr[n-1] = first;
+	}
+
+	template<typename T>
+	static void rotateBufferLeft(T * ptr, int n, int disp)
+	{
+		for(int i=0;i<disp;i++)
+		{
+			rotateBufferLeft1(ptr,n);
+		}
+	}
+	
+	template<typename T>
+	static int findOccurence(const T* pattern, int psize, const T* buf, int bsize)
+	{
+		int j=0;
+		for(int i=0;i<bsize;i++)
+		{
+			if( buf[i]==pattern[j] ) ++j;
+			else j=0; // mttre i -= j avant, ca permet de gerer tous les cas
+			if( j == psize ) return i-psize+1;
+		}
+		return -1;
+	}
+
 template<uint32_t speed> struct BaudRate { };
 
 template<int _p1, int _p2, bool SamePort = (digitalPinToPort(_p1)==digitalPinToPort(_p2)) >
@@ -269,11 +303,5 @@ static constexpr AvrPin< StaticPin<P> > make_pin() { return AvrPin< StaticPin<P>
 extern void loop();
 extern void setup();
 int main(void) __attribute__ ((noreturn,OS_main,weak));
-int main(void)
-{
-	avrtl::boardInit();
-	setup();
-	for(;;) loop();
-}
 
 #endif

@@ -1,9 +1,8 @@
 #ifndef __RFSNIFFERPROTOCOL_H
 #define __RFSNIFFERPROTOCOL_H
 
-#include <avr/eeprom.h>
 #include "RFSnifferConstants.h"
-#include "AvrTL.h"
+#include <stdint.h>
 
 struct RFSnifferProtocol
 {
@@ -18,76 +17,18 @@ struct RFSnifferProtocol
 	
 	static constexpr uint8_t RESET_MODIFIY_FLAGS_MASK = 0x03;
 	
-	RFSnifferProtocol()
-	{
-		init();
-	}
-
-	void init()
-	{
-		messageBits = 0;
-		latchSeqLen = 0;
-		bitSymbols[0] = 0;
-		bitSymbols[1] = 0;
-		for(int i=0;i<MAX_LATCH_SEQ_LEN;i++) latchSeq[i]=0;
-		nMessageRepeats = 0;
-		coding = CODING_UNKNOWN;
-		flags = 0;
-	}
-
-	bool mediumRF() const 
-	{
-		return (flags&RF_FLAG)!=0;
-	}
-	void setMediumRF(bool value)
-	{
-		if(value) { flags |= RF_FLAG; }
-		else { flags &= ~RF_FLAG; }
-	}
-
-	bool matchingRepeats() const
-	{
-		return (flags&MATCHING_REPEATS_FLAG)!=0;
-	}
-	void setMatchingRepeats(bool value)
-	{
-		if(value) { flags |= MATCHING_REPEATS_FLAG; }
-		else { flags &= ~MATCHING_REPEATS_FLAG; }
-	}
-
-	inline bool pulseLevel() const
-	{
-		return (flags&HIGH_LEVEL_FLAG)!=0;
-	}
-	inline void setPulseLevel(bool value)
-	{
-		if(value) { flags |= HIGH_LEVEL_FLAG; }
-		else { flags &= ~HIGH_LEVEL_FLAG; }
-	}
-
-	void toEEPROM(void* eeprom_addr) const
-	{
-		avrtl::eeprom_gently_write_block( (const uint8_t*)this, (uint8_t*)eeprom_addr, sizeof(RFSnifferProtocol) );
-	}
-
-	void fromEEPROM(const void* eeprom_addr)
-	{
-		eeprom_read_block( (void*)this, eeprom_addr, sizeof(RFSnifferProtocol) );
-		if( ! isValid() )
-		{
-			init();
-		}
-	}
-
-	void setValid(bool v)
-	{
-		if(v) flags |= VALID_FLAG;
-		else flags &= ~VALID_FLAG;
-	}
-	bool isValid()
-	{
-		return (flags&VALID_FLAG)!=0 && bitSymbols[0]>0 && bitSymbols[1]>0;
-	}	
+	RFSnifferProtocol() { init(); }
+	void init();
+	bool mediumRF() const;
+	void setMediumRF(bool value);
+	bool matchingRepeats() const;
+	void setMatchingRepeats(bool value);
+	inline bool pulseLevel() const { return (flags&HIGH_LEVEL_FLAG)!=0; }
+	void setPulseLevel(bool value);
+	void toEEPROM(void* eeprom_addr) const;
+	void fromEEPROM(const void* eeprom_addr);
+	void setValid(bool v);
+	bool isValid() const;
 
 	template<typename OStreamT>
 	inline void toStream(OStreamT& out)

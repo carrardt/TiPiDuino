@@ -21,7 +21,7 @@ struct PrintStream
 	PrintStream& operator << ( const int32_t& x ) { print( x ); return *this; }
 	PrintStream& operator << ( const uint32_t& x ) { print( x ); return *this; }
 	PrintStream& operator << ( const char* x ) { print( x ); return *this; }
-	
+
 	template<typename T>
 	void println( const T& x )
 	{
@@ -84,5 +84,6 @@ struct PrintStream
 	ByteStream* stream;
 };
 
+//extern PrintStream dbgout;
 
 #endif
