@@ -59,14 +59,17 @@ struct HWSerialIO : public ByteStream
 		while( Tx_byte!=0 ) {}
 		uint8_t oldSREG = SREG;
 		cli();
-		Tx_byte = x;
+		HWSerialIO::Tx_byte = x;
 		UCSR0B |= (1 << UDRIE);
+		HWSerialIO::Rx_byte = 0;
 		SREG = oldSREG;
 		return true;
 	}
-	
+
 	virtual char readChar()
 	{
+		HWSerialIO::Rx_byte = 0;
+		while( Tx_byte!=0 ) {}
 		char c;
 		while( ( c = HWSerialIO::Rx_byte ) == 0 ) {}
 		HWSerialIO::Rx_byte = 0;
@@ -74,25 +77,5 @@ struct HWSerialIO : public ByteStream
 	}
 
 };
-
-volatile uint8_t HWSerialIO::Tx_byte = 0;
-volatile uint8_t HWSerialIO::Rx_byte = 0;
-
-
-ISR(USART_UDRE_vect)
-{
-	uint8_t b = HWSerialIO::Tx_byte;
-	if( b != 0 )
-	{
-		UDR0 = b;
-		HWSerialIO::Tx_byte = 0;
-	}
-	UCSR0B = HWSerialIO::FLAGS_EN;
-}
-
-ISR(USART_RX_vect)
-{
-	HWSerialIO::Rx_byte = UDR0;
-}
 
 #endif

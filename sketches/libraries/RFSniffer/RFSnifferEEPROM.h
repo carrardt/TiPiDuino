@@ -8,7 +8,7 @@ namespace RFSnifferEEPROM
 {
 
 // EEPROM address where to write detected protocol
-static constexpr uint16_t EEPROM_MAGIC_NUMBER = ((uint16_t)(BUILD_TIMESTAMP & 0xFFFF));
+static constexpr uint16_t EEPROM_MAGIC_NUMBER = 0; //((uint16_t)(BUILD_TIMESTAMP & 0xFFFF));
 static constexpr uint8_t EEPROM_MAX_PROTOCOLS = 4;
 
 static constexpr uint8_t* EEPROM_MAGIC_ADDR		= ((uint8_t*)0x0000);		// 2 bytes
@@ -53,13 +53,37 @@ static inline void forEachMessageInEEPROM( FuncT afunc )
 	}
 }
 
+static inline RFSnifferProtocol readProtocol(int pId)
+{
+	RFSnifferProtocol sp;
+	sp.fromEEPROM(EEPROM_PROTOCOLS_ADDR+pId*sizeof(RFSnifferProtocol));
+	return sp;
+}
+
+static inline uint8_t getOperationMode()
+{
+	return eeprom_read_byte(EEPROM_OPERATION_ADDR);
+}
+
+static inline void setOperationMode(uint8_t mode)
+{
+	eeprom_write_byte(EEPROM_OPERATION_ADDR,mode);
+}
+
+struct MessageInfo
+{
+	uint8_t nbytes;
+	uint8_t protocolId;
+	uint8_t* eeprom_addr;
+	inline MessageInfo(): nbytes(0) {}
+};
+
 void initEEPROM();
-void readProtocol(int pId,RFSnifferProtocol& sp);
 int findRecordedMessage(int pId, const uint8_t* buf, int nbytes);
 int saveProtocol(const RFSnifferProtocol& proto);
 int saveMessage(int pId, const uint8_t* buf, int nbytes);
-uint8_t getOperationMode();
-void setOperationMode(uint8_t mode);
+MessageInfo getMessageInfo(int mId);
+
 }
 
 #endif

@@ -15,7 +15,7 @@ void initEEPROM()
 	eeprom_read_block(&magic,EEPROM_MAGIC_ADDR,sizeof(magic));
 //	dbgout << "eeprom=" << (int)magic<<"\n";
 //	dbgout << "magic="<< (int)EEPROM_MAGIC_ADDR<<"\n";
-	if( magic != EEPROM_MAGIC_NUMBER )
+	if( EEPROM_MAGIC_NUMBER!=0 && magic!=EEPROM_MAGIC_NUMBER )
 	{
 		//dbgout << "bad magic\nreset eeprom\n";
 		magic = EEPROM_MAGIC_NUMBER;
@@ -34,7 +34,10 @@ void initEEPROM()
 		RFSnifferProtocol::defaultFlags = eeprom_read_byte(EEPROM_FLAGS_ADDR);
 		//dbgout << "EPROM ok, flags="<<(int)RFSnifferProtocol::defaultFlags<<"\n";
 	}
-	avrtl::eeprom_gently_write_byte(EEPROM_FLAGS_ADDR, (RFSnifferProtocol::defaultFlags+1) & RFSnifferProtocol::RESET_MODIFIY_FLAGS_MASK );
+	if( getOperationMode() == LEARN_NEW_PROTOCOL )
+	{
+		avrtl::eeprom_gently_write_byte(EEPROM_FLAGS_ADDR, (RFSnifferProtocol::defaultFlags+1) & RFSnifferProtocol::RESET_MODIFIY_FLAGS_MASK );
+	}
 }
 
 int findRecordedMessage(int pId, const uint8_t* buf, int nbytes)
@@ -51,11 +54,6 @@ int findRecordedMessage(int pId, const uint8_t* buf, int nbytes)
 		}
 		);
 	return mesgFoundIdx;
-}
-
-void readProtocol(int pId,RFSnifferProtocol& sp)
-{
-	sp.fromEEPROM(EEPROM_PROTOCOLS_ADDR+pId*sizeof(RFSnifferProtocol));
 }
 
 int saveProtocol(const RFSnifferProtocol& proto)
@@ -86,14 +84,18 @@ int saveMessage(int pId, const uint8_t* buf, int nbytes)
 	return mId;
 }
 
-uint8_t getOperationMode()
+MessageInfo getMessageInfo(int mId)
 {
-	return eeprom_read_byte(EEPROM_OPERATION_ADDR);
+	MessageInfo info;
+	forEachMessageInEEPROM( [&](int mesgIdx, int protocolIdx, int len, uint8_t* ptr) {
+		if( mId == mesgIdx )
+		{
+			info.nbytes = len;
+			info.protocolId = protocolIdx;
+			info.eeprom_addr = ptr;
+		}
+	});
+	return info;
 }
 
-void setOperationMode(uint8_t mode)
-{
-	eeprom_write_byte(EEPROM_OPERATION_ADDR,mode);
-}
-
-}
+} // namespace RFSnifferEEPROM

@@ -33,7 +33,7 @@ struct PrintStream
 	{ 
 		if( stream != 0 )
 		{
-			if( x == '\n' ) { avrtl::DelayMicroseconds(300000); }
+			//if( x == '\n' ) { avrtl::DelayMicroseconds(300000); }
 			stream->writeChar( x );
 		}
 	}

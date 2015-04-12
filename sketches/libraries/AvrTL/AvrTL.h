@@ -1,23 +1,7 @@
 /*
  * AvrTL.h
  * 
- * Copyright 2015  <picuntu@g8picuntu>
- * 
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- * 
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- * 
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
- * MA 02110-1301, USA.
- * 
+ * No Copyright
  * 
  */
 
@@ -83,6 +67,14 @@ namespace avrtl
 		for(;N;--N) eeprom_gently_write_byte(ptr++,*(src++));
 	}
 
+	template<typename OStreamT>
+	static void printEEPROM(OStreamT& out, uint8_t* ptr, int nbytes)
+	{
+		for(int i=0;i<nbytes;++i)
+		{
+			out.print( (unsigned int) eeprom_read_byte(ptr+i), 16, 2 );
+		}
+	}
 
 	static void DelayTimerTicks(uint32_t tickCount)
 	{
@@ -142,12 +134,20 @@ namespace avrtl
 	template<typename T>
 	static int findOccurence(const T* pattern, int psize, const T* buf, int bsize)
 	{
-		int j=0;
+		int j = 0;
+		int start = 0;
 		for(int i=0;i<bsize;i++)
 		{
-			if( buf[i]==pattern[j] ) ++j;
-			else j=0; // mttre i -= j avant, ca permet de gerer tous les cas
-			if( j == psize ) return i-psize+1;
+			if( buf[i]==pattern[j] )
+			{
+				++j;
+				if( j == psize ) return i-psize+1;
+			}
+			else
+			{
+				i = start++;
+				j = 0;
+			}
 		}
 		return -1;
 	}
@@ -200,6 +200,14 @@ struct DualPin<_p1,_p2,true>
 #undef port_addr
 #undef ddr_addr
 #undef pin_bit
+};
+
+struct NullPin
+{
+    static void SetOutput() {}
+    static void SetInput() {}
+    static void Set(bool b) {}
+    static constexpr bool Get() { return false; }
 };
 
 template< int _pinId >
@@ -260,31 +268,6 @@ struct AvrPin : public BasePinT
 
 #undef UPDATE_CLOCK_COUNTER
 #undef CLOCK_ELAPSED
-	}
-
-
-
-	template< uint32_t speed >
-	void serialWriteByte(uint8_t b, BaudRate<speed>)
-	{
-	  static constexpr uint32_t bitDelayTicks = 1000000UL / ( speed * TIMER_CPU_RATIO );
-	  BasePinT::Set( false );
-	  DelayTimerTicks(bitDelayTicks);
-	  for (uint8_t mask=0x01;mask;mask<<=1) 
-	  {
-		BasePinT::Set( (b&mask)!=0  );
-		DelayTimerTicks(bitDelayTicks);
-	  }
-	  BasePinT::Set( true );
-	  DelayTimerTicks(bitDelayTicks);
-	}
-
-	template< uint32_t speed >
-	void serialBegin(BaudRate<speed>)
-	{
-	  static constexpr uint32_t bitDelayTicks = 1000000UL / ( speed * TIMER_CPU_RATIO );
-	  BasePinT::Set( true );
-	  DelayTimerTicks(bitDelayTicks);
 	}
 
     operator bool() const { return BasePinT::Get(); }

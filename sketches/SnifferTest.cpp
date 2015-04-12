@@ -4,6 +4,7 @@
 #include "RFSnifferEEPROM.h"
 #include "PrintStream.h"
 #include "HWSerialIO.h"
+#include "InputStream.h"
 
 using namespace avrtl;
 
@@ -11,32 +12,35 @@ using namespace avrtl;
 //#define LCD_CONSOLE 1
 //#define SOFT_SERIAL_CONSOLE 1
 
-#define RESET_SEQ 0x05  		// press AABBA, A and B being any two different remote buttons
-//#define REPLAY_SEQ 0x07 		// press ABABB, A and B being any two different remote buttons
+// Sequence for learning a new protocol
+#define RECORD_MODE_SEQ 0x05  		// press AABBA, A and B being any two different remote buttons
+
+// sequence to go to command line mode
+#define COMMAND_MODE_SEQ 0x07 		// press AAAAA, A and B being any two different remote buttons
 
 // pinout
 #define RF_RECEIVE_PIN 9
 #define IR_RECEIVE_PIN 8
-#define RF_EMIT_PIN 7
-#define IR_EMIT_PIN 6
+#define RF_EMIT_PIN 11
+#define IR_EMIT_PIN 10
 #define LED_PIN 13
-#define SERIAL_RX 10
-#define SERIAL_TX 11
+#define SOFT_SERIAL_TX 12
 #define SERIAL_SPEED 19200
 
 #ifdef LCD_CONSOLE
 #include "LCD.h"
 #define LCD_PINS 7,6,5,4,3,2 // respectively RS, EN, D7, D6, D5, D4
 LCD<LCD_PINS> lcd;
-#else
+#elif defined(SOFT_SERIAL_CONSOLE)
 #include "SoftSerialIO.h"
-static auto serial_rx = pin(SERIAL_RX);
-static auto serial_tx = pin(SERIAL_TX);
+static auto serial_rx = AvrPin<NullPin>();
+static auto serial_tx = pin(SOFT_SERIAL_TX);
 static auto serialIO = make_softserial<SERIAL_SPEED>(serial_rx,serial_tx);
 #endif
 
-HWSerialIO hwserial;
+HWSerialIO hwserial; // pins 0,1
 static auto rx = AvrPin< DualPin<IR_RECEIVE_PIN,RF_RECEIVE_PIN> >();
+static auto tx = AvrPin< DualPin<IR_EMIT_PIN,RF_EMIT_PIN> >();
 static auto led = pin(LED_PIN);
 static PrintStream cout;
 
@@ -64,31 +68,86 @@ void setup()
 {
 	// setup pin mode
 	rx.SetInput();
+	tx.SetOutput();
 	led.SetOutput();
 
-	// hwserial.begin(SERIAL_SPEED);
-	// dbgout.begin(&hwserial);
+	hwserial.begin(SERIAL_SPEED);
 
 	// setup output to serial line or LCD display
 #ifdef LCD_CONSOLE
 	lcd.begin();
 	cout.begin(&lcd);
-#else
+#elif defined(SOFT_SERIAL_CONSOLE)
 	serialIO.begin();
 	cout.begin(&serialIO);
+#else
+	cout.begin(&hwserial);
 #endif
 
 	// try to read a previously analysed protocol from EEPROM
 	RFSnifferEEPROM::initEEPROM();
+
+	// permet de selectionner la bonne entree
+	{
+		RFSnifferProtocol sp;
+		rx.SelectPin( sp.mediumRF() );
+	}
+
+	cout<<"* Mega Sniffer *\n";
+}
+
+void recordMessage(int pId);
+void processInputCommand();
+
+
+void loop(void)
+{
+	int op_mode = RFSnifferEEPROM::getOperationMode();
+	switch( op_mode )
+	{			
+		case RFSnifferEEPROM::RECORD_PROTOCOL_0 :
+		case RFSnifferEEPROM::RECORD_PROTOCOL_1 :
+		case RFSnifferEEPROM::RECORD_PROTOCOL_2 :
+		case RFSnifferEEPROM::RECORD_PROTOCOL_3 :
+			recordMessage( op_mode - RFSnifferEEPROM::RECORD_PROTOCOL_0 );
+			break;
+
+		case RFSnifferEEPROM::COMMAND_MODE :
+			processInputCommand(hwserial);
+			break;
+
+		case RFSnifferEEPROM::LEARN_NEW_PROTOCOL :
+			{
+				RFSnifferProtocol sp;
+				auto sniffer = make_sniffer(rx,sp,led,cout);
+				sniffer.learnProtocol();
+				int pId = RFSnifferEEPROM::saveProtocol(sp);
+				cout<<"P#"<<pId<<" saved\n";
+				blink(led,50);
+				RFSnifferEEPROM::setOperationMode( RFSnifferEEPROM::RECORD_PROTOCOL_0+pId );
+			}
+			break;
+
+		default:
+			break;
+	}
+}
+
+void rebootToOperationMode(int op)
+{
+	RFSnifferEEPROM::setOperationMode(op);
+	blink(led);
+	asm volatile ("  jmp 0");
 }
 
 void recordMessage(int pId)
 {
-	cout << "record mode P#"<<pId<<"\n" ;
-	uint8_t rstSeqIdx = 0;
+	cout << "record P#"<<pId<<"\n" ;
+	uint8_t recordModeSeqIdx = 0;
+	uint8_t commandModeSeqIdx = 0;
 	uint8_t last_checksum = 0;
-	RFSnifferProtocol sp;
-	RFSnifferEEPROM::readProtocol(pId,sp);
+	
+	auto sp = RFSnifferEEPROM::readProtocol(pId);
 	sp.toStream(cout);
 	auto sniffer = make_sniffer(rx,sp,led,cout);
 	for(;;)
@@ -108,78 +167,71 @@ void recordMessage(int pId)
 			}
 			if( mesgValid )
 			{
+				int mesgId = RFSnifferEEPROM::saveMessage(pId,buf,nbytes);
+				cout<<"M#"<<mesgId<<'\n';
 				uint8_t cs = checksum8(buf,nbytes);
 				bool same_mesg = (cs == last_checksum);
 				last_checksum = cs;
-				if( testSequence(cout,RESET_SEQ,same_mesg,rstSeqIdx,"New protocol") )
+				if( testSequence(cout,RECORD_MODE_SEQ,same_mesg,recordModeSeqIdx,"New protocol") )
 				{
-					blink(led);
-					RFSnifferEEPROM::setOperationMode(RFSnifferEEPROM::LEARN_NEW_PROTOCOL);
-					asm volatile ("  jmp 0"); 
+					rebootToOperationMode(RFSnifferEEPROM::LEARN_NEW_PROTOCOL);
 				}
-
-				int mesgId = RFSnifferEEPROM::saveMessage(pId,buf,nbytes);
-				cout<<"M#"<<mesgId<<'\n';
-				blink(led);
+				if( testSequence(cout,COMMAND_MODE_SEQ,same_mesg,commandModeSeqIdx,"Program mode") )
+				{
+					rebootToOperationMode(RFSnifferEEPROM::COMMAND_MODE);
+				}
 			}
 		}
 	}
 }
 
-void loop(void)
+void processInputCommand(ByteStream* rawInput)
 {
-	int op_mode = RFSnifferEEPROM::getOperationMode();
-	// dbgout << "Operation mode = "<<op_mode<<"\n";
-	switch( op_mode )
+	InputStream cin;
+	cin.begin( rawInput );
+	char c = cin.readFirstNonSpace();
+	switch( c )
 	{
-		case RFSnifferEEPROM::LEARN_NEW_PROTOCOL :
+		case 'p':
 			{
-				RFSnifferProtocol sp;
-				rx.SelectPin( sp.mediumRF() ); // sp influenced by RFSnifferProtocol::defaultFlags, handled through EEPROM
-				auto sniffer = make_sniffer(rx,sp,led,cout);
-				sniffer.learnProtocol();
-				int pId = RFSnifferEEPROM::saveProtocol(sp);
-				cout<<"P#"<<pId<<" saved\n";
-				blink(led,50);
-				RFSnifferEEPROM::setOperationMode( RFSnifferEEPROM::RECORD_PROTOCOL_0 );
+				int mesgId = 0;
+				cin >> mesgId;
+				RFSnifferEEPROM::MessageInfo mesg = RFSnifferEEPROM::getMessageInfo( mesgId );
+				cout << "P#" << mesg.protocolId<<':';
+				printEEPROM(cout,mesg.eeprom_addr,mesg.nbytes);
+				cout << '\n';
+				auto proto = RFSnifferEEPROM::readProtocol( mesg.protocolId );
+				uint8_t buf[MAX_MESSAGE_BYTES];
+				eeprom_read_block(buf,mesg.eeprom_addr,mesg.nbytes);
+				tx.SelectPin( proto.mediumRF() );
+				proto.writeMessage(buf,mesg.nbytes,tx);
 			}
 			break;
-			
-		case RFSnifferEEPROM::RECORD_PROTOCOL_0 :
-		case RFSnifferEEPROM::RECORD_PROTOCOL_1 :
-		case RFSnifferEEPROM::RECORD_PROTOCOL_2 :
-		case RFSnifferEEPROM::RECORD_PROTOCOL_3 :
+
+		case 'o':
 			{
-				int pId = op_mode - RFSnifferEEPROM::RECORD_PROTOCOL_0;
-				recordMessage( pId );
+				int op_mode = RFSnifferEEPROM::COMMAND_MODE;
+				cin >> op_mode;
+				rebootToOperationMode( op_mode );
 			}
 			break;
-			
+
+		case 'r':
+			{
+				int bufSize=0;
+				cin >> bufSize;
+				char program[bufSize];
+				for(int i=0;i<bufSize;i++) cin >> program[i];
+				BufferInputStream progStream(program,bufSize);
+				while( ! progStream.eof() )
+				{
+					processInputCommand( progStream );
+				}
+			}
+			break;
+
 		default:
 			break;
 	}
-	
-	/*
-	if( eeprom_read_byte(EEPROM_CODES_ADDR) != 0 )
-	{
-		cout << "Replay mode\n" ;
-		HWSerialIO hwserial;
-		hwserial.begin(9600);
-		InputStream cin;
-		cin.begin( & hwserial );
-		for(;;)
-		{
-			int mesgId=0, nbytes=0;
-			cin >> mesgId;
-			uint8_t* ptr = getMessageAddr( mesgId, nbytes );
-			for(int i=0;i<nbytes;++i)
-			{
-				cout.print( (unsigned int) eeprom_read_byte(ptr+i), 16, 2 );
-			}
-			cout<<'\n';
-		}
-	}
-	*/
 }
-
 
