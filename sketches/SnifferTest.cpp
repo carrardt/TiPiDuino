@@ -97,8 +97,7 @@ void setup()
 }
 
 void recordMessage(int pId);
-void processInputCommand();
-
+int processCommands(ByteStream* rawInput, int8_t* cmem=0);
 
 void loop(void)
 {
@@ -113,7 +112,7 @@ void loop(void)
 			break;
 
 		case RFSnifferEEPROM::COMMAND_MODE :
-			processInputCommand(hwserial);
+			cout << processCommands(&hwserial) << '\n';
 			break;
 
 		case RFSnifferEEPROM::LEARN_NEW_PROTOCOL :
@@ -154,84 +153,169 @@ void recordMessage(int pId)
 	{
 		int bitsToRead = sp.messageBits;
 		if( sp.coding == CODING_MANCHESTER ) bitsToRead *= 2;
-
 		int nbytes = (bitsToRead+7) / 8;
 		uint8_t buf[nbytes+1];
-		if( sniffer.readBinaryMessage(buf) == bitsToRead )
+		if( sp.readMessage(rx,buf) == sp.messageBits )
 		{
-			bool mesgValid = true;
-			if( sp.coding == CODING_MANCHESTER )
+			nbytes = (sp.messageBits+7) / 8;
+			int mesgId = RFSnifferEEPROM::saveMessage(pId,buf,nbytes);
+			cout<<"M#"<<mesgId<<'\n';
+			uint8_t cs = checksum8(buf,nbytes);
+			bool same_mesg = (cs == last_checksum);
+			last_checksum = cs;
+			if( testSequence(cout,RECORD_MODE_SEQ,same_mesg,recordModeSeqIdx,"New protocol") )
 			{
-				mesgValid = sniffer.decodeManchester(buf,bitsToRead);
-				nbytes = ( (bitsToRead/2) + 7 ) / 8;
+				rebootToOperationMode(RFSnifferEEPROM::LEARN_NEW_PROTOCOL);
 			}
-			if( mesgValid )
+			if( testSequence(cout,COMMAND_MODE_SEQ,same_mesg,commandModeSeqIdx,"Program mode") )
 			{
-				int mesgId = RFSnifferEEPROM::saveMessage(pId,buf,nbytes);
-				cout<<"M#"<<mesgId<<'\n';
-				uint8_t cs = checksum8(buf,nbytes);
-				bool same_mesg = (cs == last_checksum);
-				last_checksum = cs;
-				if( testSequence(cout,RECORD_MODE_SEQ,same_mesg,recordModeSeqIdx,"New protocol") )
-				{
-					rebootToOperationMode(RFSnifferEEPROM::LEARN_NEW_PROTOCOL);
-				}
-				if( testSequence(cout,COMMAND_MODE_SEQ,same_mesg,commandModeSeqIdx,"Program mode") )
-				{
-					rebootToOperationMode(RFSnifferEEPROM::COMMAND_MODE);
-				}
+				rebootToOperationMode(RFSnifferEEPROM::COMMAND_MODE);
 			}
 		}
 	}
 }
 
-void processInputCommand(ByteStream* rawInput)
+
+int8_t readCommandMemory(int8_t* cmem, int regIndex)
 {
-	InputStream cin;
-	cin.begin( rawInput );
-	char c = cin.readFirstNonSpace();
-	switch( c )
+	if(cmem==0) return regIndex;
+	else return cmem[regIndex];
+}
+
+void writeCommandMemory(int8_t* cmem, int regIndex, int8_t value)
+{
+	if(cmem!=0)
 	{
-		case 'p':
-			{
-				int mesgId = 0;
-				cin >> mesgId;
-				RFSnifferEEPROM::MessageInfo mesg = RFSnifferEEPROM::getMessageInfo( mesgId );
-				cout << "P#" << mesg.protocolId<<':';
-				printEEPROM(cout,mesg.eeprom_addr,mesg.nbytes);
-				cout << '\n';
-				auto proto = RFSnifferEEPROM::readProtocol( mesg.protocolId );
-				uint8_t buf[MAX_MESSAGE_BYTES];
-				eeprom_read_block(buf,mesg.eeprom_addr,mesg.nbytes);
-				tx.SelectPin( proto.mediumRF() );
-				proto.writeMessage(buf,mesg.nbytes,tx);
-			}
-			break;
-
-		case 'o':
-			{
-				int op_mode = RFSnifferEEPROM::COMMAND_MODE;
-				cin >> op_mode;
-				rebootToOperationMode( op_mode );
-			}
-			break;
-
-		case 'r':
-			{
-				int bufSize=0;
-				cin >> bufSize;
-				char program[bufSize];
-				for(int i=0;i<bufSize;i++) cin >> program[i];
-				BufferInputStream progStream(program,bufSize);
-				while( ! progStream.eof() )
-				{
-					processInputCommand( progStream );
-				}
-			}
-			break;
-
-		default:
-			break;
+		cout<<"cmem["<<regIndex<<"]="<<(int)cmem[regIndex]<<'\n';
+		cmem[regIndex] = value;
 	}
+}
+
+int readCommandIntgerValue(int8_t* cmem, InputStream& cin)
+{
+	int x = 0;
+	cin >> x;
+	while( x < 0)
+	{
+		x = readCommandMemory(cmem,1-x);
+	}
+	return x;
+}
+
+int processCommands(ByteStream* rawInput, int8_t* cmem)
+{
+	while( !rawInput->eof() )
+	{
+		InputStream cin;
+		cin.begin( rawInput );
+		char c = cin.readFirstNonSpace();
+		switch( c )
+		{
+			// exit
+			case 'x':
+				return readCommandMemory(cmem,0);
+
+			// reboot in another operation mode
+			case 'o':
+				rebootToOperationMode( readCommandIntgerValue(cmem,cin) );
+				break;
+
+			// send (emit) a message
+			case 's':
+				{
+					int mesgId = readCommandIntgerValue(cmem,cin);
+					RFSnifferEEPROM::MessageInfo mesg = RFSnifferEEPROM::getMessageInfo( mesgId );
+					cout << "P#" << mesg.protocolId<<":M#"<<mesgId<<'\n';
+					printEEPROM(cout,mesg.eeprom_addr,mesg.nbytes);
+					cout << '\n';
+					auto proto = RFSnifferEEPROM::readProtocol( mesg.protocolId );
+					uint8_t buf[MAX_MESSAGE_BYTES];
+					eeprom_read_block(buf,mesg.eeprom_addr,mesg.nbytes);
+					tx.SelectPin( proto.mediumRF() );
+					proto.writeMessage(buf,mesg.nbytes,tx);
+				}
+				break;
+
+			// wite/move command memory value
+			case 'm':
+				{
+					int regIndex = readCommandIntgerValue(cmem,cin);
+					writeCommandMemory(cmem,regIndex, readCommandIntgerValue(cmem,cin) );
+				}
+				break;
+
+			// increment a memory operand
+			case '+':
+				{
+					int regIndex = readCommandIntgerValue(cmem,cin);
+					int value = readCommandIntgerValue(cmem,cin);
+					writeCommandMemory(cmem,regIndex,readCommandMemory(cmem,regIndex)+value);
+				}
+				break;
+
+			// receive a message and write its index (if found) to command memory
+			case 'r':
+				{
+					int regIndex = readCommandIntgerValue(cmem,cin);
+					int mId;
+					{
+						uint8_t buf[MAX_MESSAGE_BYTES];
+						int protoId = readCommandIntgerValue(cmem,cin);
+						int nbytes = 0;
+						{
+							auto proto = RFSnifferEEPROM::readProtocol(protoId);
+							tx.SelectPin( proto.mediumRF() );
+							while( proto.readMessage(rx,buf) != proto.messageBits ) ;
+							nbytes = (proto.messageBits+7)/8;
+						}
+						mId = RFSnifferEEPROM::findRecordedMessage(protoId,buf,nbytes);
+					}
+					if( mId != -1 )
+					{
+						writeCommandMemory(cmem,regIndex,mId);
+					}
+				}
+				break;
+
+			// alloc command memory
+			case 'a':
+				{
+					int allocSize = readCommandIntgerValue(cmem,cin);
+					if(allocSize>0)
+					{
+						int8_t buf[allocSize];
+						buf[0] = readCommandMemory(cmem,0);
+						int8_t r = processCommands(rawInput,buf);
+						writeCommandMemory(cmem,0,r);
+					}
+				}
+				break;
+			
+			// add a program/message to eeprom
+			case 'p':
+				{
+					int regIndex = readCommandIntgerValue(cmem,cin);
+					int pId = readCommandIntgerValue(cmem,cin);
+					int bufSize = readCommandIntgerValue(cmem,cin);
+					writeCommandMemory( regIndex, RFSnifferEEPROM::appendMessage(pId,rawInput,bufSize) );
+				}
+				break;
+			
+			// execute a program in eeprom
+			case 'e':
+				{
+					int progId = readCommandIntgerValue(cmem,cin);
+					auto progStream = RFSnifferEEPROM::getMessageStream(progId);
+					processCommands(&progStream,cmem);
+				}
+				break;
+			
+			// comment
+			default:
+				while( rawInput->readChar()!='\n' );
+				break;
+		}
+	}
+	return readCommandMemory(cmem,0);
 }
 

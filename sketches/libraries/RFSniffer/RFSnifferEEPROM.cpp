@@ -67,11 +67,10 @@ int saveProtocol(const RFSnifferProtocol& proto)
 	return i;
 }
 
-int saveMessage(int pId, const uint8_t* buf, int nbytes)
+int appendMessage(int pId, ByteStream* stream, int nbytes)
 {
-	int mId = findRecordedMessage(pId,buf,nbytes);
-	if( mId!=-1) return mId;
 	uint8_t* nextMsgAddr = EEPROM_CODES_ADDR;
+	int mId = -1;
 	forEachMessageInEEPROM( [&](int mesgIdx, int protocolIdx, int len, uint8_t* ptr) {
 		nextMsgAddr = ptr + len;
 		mId = mesgIdx;
@@ -79,9 +78,17 @@ int saveMessage(int pId, const uint8_t* buf, int nbytes)
 	++mId;
 	avrtl::eeprom_gently_write_byte( nextMsgAddr++, nbytes );
 	avrtl::eeprom_gently_write_byte( nextMsgAddr++, pId );
-	for(int i=0;i<nbytes;i++) avrtl::eeprom_gently_write_byte( nextMsgAddr++, buf[i] );
+	for(int i=0;i<nbytes;i++) avrtl::eeprom_gently_write_byte( nextMsgAddr++, stream->readByte() );
 	avrtl::eeprom_gently_write_byte( nextMsgAddr, 0 );
 	return mId;
+}
+
+int saveMessage(int pId, const uint8_t* buf, int nbytes)
+{
+	int mId = findRecordedMessage(pId,buf,nbytes);
+	if( mId!=-1) return mId;
+	BufferInputStream stream(buf,nbytes);
+	return appendMessage(pId,&stream,nbytes);
 }
 
 MessageInfo getMessageInfo(int mId)

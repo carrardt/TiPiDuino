@@ -31,31 +31,6 @@ struct SoftSerialIO : public ByteStream
 
 	virtual bool writeByte(uint8_t b)
 	{
-		/*
-	  TimingBufferSignal<10,false> serialByteSignal(false);
-	  serialByteSignal.timings[0] = bitDelay;
-	  int j=0;
-	  bool prevLevel = false;
-	  for(int i=0;i<8;++i)
-	  {
-		  bool nextLevel = ( (b&0x01) != 0 );
-		  if( nextLevel == prevLevel )
-		  {
-			  serialByteSignal.timings[j] += bitDelay;
-		  }
-		  else
-		  {
-			  ++j;
-			  serialByteSignal.timings[j] = bitDelay;
-			  prevLevel = !prevLevel;
-		  }
-	  }
-	  if(prevLevel) { serialByteSignal.timings[j] += bitDelay*2; }
-	  else { ++j; serialByteSignal.timings[j] = bitDelay*2; }
-	  for(;j<10;++j) { serialByteSignal.timings[j]=0; }
-	  digitalOutput( bitDelay*10, serialByteSignal, tx );
-	  */
-
 	  byte mask;
 	  uint8_t oldSREG = SREG;
 	  cli();

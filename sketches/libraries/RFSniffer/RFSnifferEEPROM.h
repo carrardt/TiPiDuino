@@ -2,6 +2,7 @@
 #define __RFSnifferEEPROM_h
 
 #include "RFSnifferProtocol.h"
+#include "ByteStream.h"
 #include <avr/eeprom.h>
 
 namespace RFSnifferEEPROM
@@ -78,11 +79,24 @@ struct MessageInfo
 	inline MessageInfo(): nbytes(0) {}
 };
 
+struct EEPROMInputStream : public BufferInputStream
+{
+	inline EEPROMInputStream(const uint8_t* b, int s) : BufferInputStream(b,s) {}
+	virtual uint8_t readPtr( const uint8_t* p ) { return eeprom_read_byte(p); }
+};
+
 void initEEPROM();
 int findRecordedMessage(int pId, const uint8_t* buf, int nbytes);
 int saveProtocol(const RFSnifferProtocol& proto);
+int appendMessage(int pId, ByteStream* stream, int nbytes);
 int saveMessage(int pId, const uint8_t* buf, int nbytes);
 MessageInfo getMessageInfo(int mId);
+
+static inline EEPROMInputStream getMessageStream(int mId)
+{
+	MessageInfo info = getMessageInfo(mId);
+	return EEPROMInputStream(info.eeprom_addr,info.nbytes);
+}
 
 }
 

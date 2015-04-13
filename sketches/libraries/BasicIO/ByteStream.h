@@ -9,18 +9,23 @@ struct ByteStream
 	virtual bool writeByte( uint8_t x ) { return false; }
 	virtual char readChar() { return (char)readByte(); }
 	virtual uint8_t readByte() { return 0; }
+	virtual bool eof() const { return false; }
 };
 
 struct BufferInputStream : public ByteStream
 {
-	inline BufferInputStream(const char* b, int s) : buf(b), size(s), cur(0) {}
-	inline bool eof() const { return cur >= size; }
-	virtual uint8_t readByte() { return (cur<size) ? buf[cur++] : 0; }
-	
+	inline BufferInputStream(const uint8_t* b, int s) : buf(b), size(s) {}
+	virtual bool eof() const { return size != 0; }
+	virtual uint8_t readPtr( const uint8_t* p ) { return *p; }
+	virtual uint8_t readByte()
+	{
+		if(size==0) return 0;
+		--size;
+		return readPtr(buf++);
+	}
 private:
 	const uint8_t* buf;
-	int size;
-	int cur;
+	uint16_t size;
 };
 
 #endif

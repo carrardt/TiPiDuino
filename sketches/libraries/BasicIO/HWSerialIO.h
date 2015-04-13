@@ -54,7 +54,7 @@ struct HWSerialIO : public ByteStream
 	  UCSR0B = FLAGS_EN;
 	}
 	
-	virtual bool writeChar( char x )
+	virtual bool writeByte( uint8_t x )
 	{
 		while( Tx_byte!=0 ) {}
 		uint8_t oldSREG = SREG;
@@ -66,7 +66,7 @@ struct HWSerialIO : public ByteStream
 		return true;
 	}
 
-	virtual char readChar()
+	virtual uint8_t readByte()
 	{
 		HWSerialIO::Rx_byte = 0;
 		while( Tx_byte!=0 ) {}
