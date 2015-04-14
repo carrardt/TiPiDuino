@@ -445,7 +445,7 @@ struct RFSniffer
 				int nbytes = (bitsToRead+7) / 8;
 				uint8_t signal1[nbytes];
 				int br;
-				do { br = readBinaryMessage(signal1); } while( br==0 );
+				do { br = sp.readMessage(rx,signal1); } while( br==0 );
 				if( br == bitsToRead )
 				{
 					uint32_t retries=0;
@@ -453,7 +453,7 @@ struct RFSniffer
 					cout<<"press again\n";
 					do
 					{
-						br = readBinaryMessage(signal2);
+						br = sp.readMessage(rx,signal2);
 						++retries;
 					} while( br==0 );
 					for(int i=0;i<nbytes;i++) if(signal1[i]!=signal2[i]) br=0;

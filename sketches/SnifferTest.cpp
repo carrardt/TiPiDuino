@@ -10,7 +10,7 @@ using namespace avrtl;
 
 // what to use as a console to prin message
 //#define LCD_CONSOLE 1
-//#define SOFT_SERIAL_CONSOLE 1
+#define SOFT_SERIAL_CONSOLE 1
 
 // Sequence for learning a new protocol
 #define RECORD_MODE_SEQ 0x05  		// press AABBA, A and B being any two different remote buttons
@@ -97,7 +97,7 @@ void setup()
 }
 
 void recordMessage(int pId);
-int processCommands(ByteStream* rawInput, int8_t* cmem=0);
+int16_t processCommands(ByteStream* rawInput, int16_t* cmem=0);
 
 void loop(void)
 {
@@ -112,7 +112,7 @@ void loop(void)
 			break;
 
 		case RFSnifferEEPROM::COMMAND_MODE :
-			cout << processCommands(&hwserial) << '\n';
+			processCommands(&hwserial);
 			break;
 
 		case RFSnifferEEPROM::LEARN_NEW_PROTOCOL :
@@ -176,33 +176,30 @@ void recordMessage(int pId)
 }
 
 
-int8_t readCommandMemory(int8_t* cmem, int regIndex)
+int16_t readCommandMemory(int16_t* cmem, int regIndex)
 {
-	if(cmem==0) return regIndex;
+	if(cmem==0) return 0;
 	else return cmem[regIndex];
 }
 
-void writeCommandMemory(int8_t* cmem, int regIndex, int8_t value)
+void writeCommandMemory(int16_t* cmem, int regIndex, int16_t value)
 {
 	if(cmem!=0)
 	{
-		cout<<"cmem["<<regIndex<<"]="<<(int)cmem[regIndex]<<'\n';
 		cmem[regIndex] = value;
 	}
 }
 
-int readCommandIntgerValue(int8_t* cmem, InputStream& cin)
+int16_t readCommandIntgerValue(int16_t* cmem, InputStream& cin)
 {
-	int x = 0;
+	int32_t x = 0;
 	cin >> x;
-	while( x < 0)
-	{
-		x = readCommandMemory(cmem,1-x);
-	}
+	if( x >= 32768 ) { return x; }
+	if( x < 0 ) x = readCommandMemory(cmem,(-x)-1);
 	return x;
 }
 
-int processCommands(ByteStream* rawInput, int8_t* cmem)
+int16_t processCommands(ByteStream* rawInput, int16_t* cmem)
 {
 	while( !rawInput->eof() )
 	{
@@ -223,7 +220,7 @@ int processCommands(ByteStream* rawInput, int8_t* cmem)
 			// send (emit) a message
 			case 's':
 				{
-					int mesgId = readCommandIntgerValue(cmem,cin);
+					int16_t mesgId = readCommandIntgerValue(cmem,cin);
 					RFSnifferEEPROM::MessageInfo mesg = RFSnifferEEPROM::getMessageInfo( mesgId );
 					cout << "P#" << mesg.protocolId<<":M#"<<mesgId<<'\n';
 					printEEPROM(cout,mesg.eeprom_addr,mesg.nbytes);
@@ -239,16 +236,17 @@ int processCommands(ByteStream* rawInput, int8_t* cmem)
 			// wite/move command memory value
 			case 'm':
 				{
-					int regIndex = readCommandIntgerValue(cmem,cin);
-					writeCommandMemory(cmem,regIndex, readCommandIntgerValue(cmem,cin) );
+					int16_t regIndex = readCommandIntgerValue(cmem,cin);
+					int16_t value = readCommandIntgerValue(cmem,cin);
+					writeCommandMemory(cmem,regIndex,value);
 				}
 				break;
 
 			// increment a memory operand
 			case '+':
 				{
-					int regIndex = readCommandIntgerValue(cmem,cin);
-					int value = readCommandIntgerValue(cmem,cin);
+					int16_t regIndex = readCommandIntgerValue(cmem,cin);
+					int16_t value = readCommandIntgerValue(cmem,cin);
 					writeCommandMemory(cmem,regIndex,readCommandMemory(cmem,regIndex)+value);
 				}
 				break;
@@ -256,8 +254,8 @@ int processCommands(ByteStream* rawInput, int8_t* cmem)
 			// receive a message and write its index (if found) to command memory
 			case 'r':
 				{
-					int regIndex = readCommandIntgerValue(cmem,cin);
-					int mId;
+					int16_t regIndex = readCommandIntgerValue(cmem,cin);
+					int16_t mId;
 					{
 						uint8_t buf[MAX_MESSAGE_BYTES];
 						int protoId = readCommandIntgerValue(cmem,cin);
@@ -277,39 +275,71 @@ int processCommands(ByteStream* rawInput, int8_t* cmem)
 				}
 				break;
 
-			// alloc command memory
+			// alloc command memory, aka 'call'. previous command memory is pushed and then popped on exit
 			case 'a':
 				{
-					int allocSize = readCommandIntgerValue(cmem,cin);
-					if(allocSize>0)
-					{
-						int8_t buf[allocSize];
-						buf[0] = readCommandMemory(cmem,0);
-						int8_t r = processCommands(rawInput,buf);
-						writeCommandMemory(cmem,0,r);
-					}
+					int16_t allocSize = readCommandIntgerValue(cmem,cin);
+					int16_t buf[allocSize];
+					buf[0] = readCommandMemory(cmem,0);
+					int16_t r = processCommands(rawInput,buf);
+					writeCommandMemory(cmem,0,r);
 				}
 				break;
 			
 			// add a program/message to eeprom
 			case 'p':
 				{
-					int regIndex = readCommandIntgerValue(cmem,cin);
-					int pId = readCommandIntgerValue(cmem,cin);
-					int bufSize = readCommandIntgerValue(cmem,cin);
-					writeCommandMemory( regIndex, RFSnifferEEPROM::appendMessage(pId,rawInput,bufSize) );
+					int16_t regIndex = readCommandIntgerValue(cmem,cin);
+					int16_t pId = readCommandIntgerValue(cmem,cin);
+					int16_t bufSize = readCommandIntgerValue(cmem,cin);
+					writeCommandMemory( cmem, regIndex, RFSnifferEEPROM::appendMessage(pId,rawInput,bufSize) );
 				}
 				break;
-			
+
 			// execute a program in eeprom
 			case 'e':
 				{
-					int progId = readCommandIntgerValue(cmem,cin);
+					int16_t progId = readCommandIntgerValue(cmem,cin);
 					auto progStream = RFSnifferEEPROM::getMessageStream(progId);
 					processCommands(&progStream,cmem);
 				}
 				break;
 			
+			// dump command memory
+			case 'd':
+				{
+					int16_t regIndex = readCommandIntgerValue(cmem,cin);
+					cout <<regIndex<<":"<< readCommandMemory(cmem,regIndex) << '\n';
+				}
+				break;
+			
+			// wait delay in milliseconds
+			case 'w':
+				{
+					int32_t duration = readCommandIntgerValue(cmem,cin);
+					if(duration>0)
+					{
+						duration*=1000;
+						avrtl::DelayMicroseconds(duration);
+					}
+				}
+				break;
+
+			// loop
+			case 'l':
+				{
+					uint32_t regIndex = readCommandIntgerValue(cmem,cin);
+					int bufSize = readCommandIntgerValue(cmem,cin);
+					uint8_t buf[bufSize];
+					for(int i=0;i<bufSize;i++) { buf[i] = rawInput->readByte(); }
+					while( readCommandMemory(cmem,regIndex) != 0 )
+					{
+						BufferInputStream bufInput(buf,bufSize);
+						processCommands(&bufInput,cmem);
+					}
+				}
+				break;
+
 			// comment
 			default:
 				while( rawInput->readChar()!='\n' );

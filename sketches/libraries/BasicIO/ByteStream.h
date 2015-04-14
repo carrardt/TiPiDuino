@@ -15,17 +15,17 @@ struct ByteStream
 struct BufferInputStream : public ByteStream
 {
 	inline BufferInputStream(const uint8_t* b, int s) : buf(b), size(s) {}
-	virtual bool eof() const { return size != 0; }
+	virtual bool eof() const { return size <= 0; }
 	virtual uint8_t readPtr( const uint8_t* p ) { return *p; }
 	virtual uint8_t readByte()
 	{
-		if(size==0) return 0;
+		if(size<=0) { return 0; }
 		--size;
 		return readPtr(buf++);
 	}
 private:
 	const uint8_t* buf;
-	uint16_t size;
+	int size;
 };
 
 #endif

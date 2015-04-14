@@ -9,7 +9,7 @@ PrintStream cout;
 
 void setup()
 {
-	Serial.begin(19200);
+	Serial.begin(9600);
 	lcd.begin();
 	cout.begin(&lcd);
 }
