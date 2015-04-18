@@ -18,8 +18,8 @@ SKETCHES=$(HOME)/dev/TiPiDuino/sketches
 
 # default board model
 FAMILY=Arduino
-BOARD=ArduinoUno
-#BOARD=ArduinoDuemilanove
+#BOARD=ArduinoUno
+BOARD=ArduinoDuemilanove
 
 # cross compiler
 CC=avr-gcc

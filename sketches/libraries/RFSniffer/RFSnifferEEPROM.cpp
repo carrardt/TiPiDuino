@@ -13,14 +13,13 @@ void initEEPROM()
 {
 	uint16_t magic = 0;
 	eeprom_read_block(&magic,EEPROM_MAGIC_ADDR,sizeof(magic));
-//	dbgout << "eeprom=" << (int)magic<<"\n";
-//	dbgout << "magic="<< (int)EEPROM_MAGIC_ADDR<<"\n";
 	if( EEPROM_MAGIC_NUMBER!=0 && magic!=EEPROM_MAGIC_NUMBER )
 	{
-		//dbgout << "bad magic\nreset eeprom\n";
+		// reset EEPROM state
 		magic = EEPROM_MAGIC_NUMBER;
 		avrtl::eeprom_gently_write_block((uint8_t*)&magic,EEPROM_MAGIC_ADDR,sizeof(magic));
 		setOperationMode(LEARN_NEW_PROTOCOL);
+		setBootProgram(0xFF);
 		for(int i=0;i<EEPROM_MAX_PROTOCOLS;i++)
 		{
 			RFSnifferProtocol sp;
@@ -104,5 +103,26 @@ MessageInfo getMessageInfo(int mId)
 	});
 	return info;
 }
+
+uint8_t getOperationMode()
+{
+	return eeprom_read_byte(EEPROM_OPERATION_ADDR);
+}
+
+void setOperationMode(uint8_t mode)
+{
+	avrtl::eeprom_gently_write_byte(EEPROM_OPERATION_ADDR,mode);
+}
+
+uint8_t getBootProgram()
+{
+	return eeprom_read_byte(EEPROM_INITPROG_ADDR);
+}
+
+void setBootProgram(uint8_t mesgId)
+{
+	avrtl::eeprom_gently_write_byte(EEPROM_INITPROG_ADDR,mesgId);
+}
+
 
 } // namespace RFSnifferEEPROM

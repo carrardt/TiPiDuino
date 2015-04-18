@@ -453,19 +453,22 @@ struct RFSniffer
 					{
 						uint16_t symbols[MAX_SYMBOLS];
 						uint8_t symcount[MAX_SYMBOLS];
-						for(int i=0;i<nPulses;i++) { gaps *= avrtl::TIMER_CPU_RATIO; }
+						for(int i=0;i<nPulses;i++) { gaps[i] *= avrtl::TIMER_CPU_RATIO; }
 						int nSymbols = classifySymbols(gaps,nPulses,symbols,symcount);
-						for(int i=0;i<nSymbols;i++)
+						if( nSymbols >= 1 ) { sp.pulseGap = symbols[0]; }
+						else { sp.pulseGap = sp.bitSymbols[1]; }
+						/*for(int i=0;i<nSymbols;i++)
 						{
-							cout<<symbols[i]<<':'<<symcount<<'\n';
-						}
+							cout<<symbols[i]<<':'<<symcount[i]<<'\n';
+							avrtl::DelayMicroseconds(1000000UL);
+						}*/
 					}
 				}
 				if( br == sp.messageBits )
 				{
 					uint32_t retries=0;
 					uint8_t signal2[nbytes];
-					//cout<<"press again\n";
+					cout<<"press again\n";
 					do
 					{
 						br = sp.readMessage(rx,signal2);

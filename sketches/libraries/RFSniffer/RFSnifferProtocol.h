@@ -29,6 +29,7 @@ struct RFSnifferProtocol
 		bitSymbols[1] = 0;
 		for(int i=0;i<MAX_LATCH_SEQ_LEN;i++) latchSeq[i]=0;
 		nMessageRepeats = 0;
+		pulseGap = 255;
 		coding = CODING_UNKNOWN;
 		flags = RFSnifferProtocol::defaultFlags;
 	}
@@ -120,8 +121,8 @@ struct RFSnifferProtocol
 		out<<'\n';
 	}
 
-	static constexpr uint16_t getLatchGap(uint8_t l) { return 512; }
-	static constexpr uint16_t getBitGap(bool bvalue) { return 512; }
+	inline uint16_t getLatchGap(uint8_t l) const { return pulseGap; }
+	inline uint16_t getBitGap(bool bvalue) const { return pulseGap; }
 
 	static bool decodeManchester(uint8_t* buf, int nbits)
 	{
@@ -307,6 +308,7 @@ struct RFSnifferProtocol
 
 	uint16_t bitSymbols[2];
 	uint16_t latchSeq[MAX_LATCH_SEQ_LEN];
+	uint16_t pulseGap;
 	uint16_t messageBits;
 	uint8_t latchSeqLen;
 	uint8_t nMessageRepeats;

@@ -72,12 +72,12 @@ struct LCD : public ByteStream
 	static constexpr int cols = _cols;
 	static constexpr int lines = _lines;
 	static constexpr int dotSize = _dotSize;
-	avrtl::AvrPin<_rs> rs;
-	avrtl::AvrPin<_en> en;
-	avrtl::AvrPin<_d0> d0;
-	avrtl::AvrPin<_d1> d1;
-	avrtl::AvrPin<_d2> d2;
-	avrtl::AvrPin<_d3> d3;
+	avrtl::AvrPin<StaticPin<_rs> > rs;
+	avrtl::AvrPin<StaticPin<_en> > en;
+	avrtl::AvrPin<StaticPin<_d0> > d0;
+	avrtl::AvrPin<StaticPin<_d1> > d1;
+	avrtl::AvrPin<StaticPin<_d2> > d2;
+	avrtl::AvrPin<StaticPin<_d3> > d3;
 
 	void pulseEnable() 
 	{

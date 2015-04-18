@@ -9,8 +9,8 @@
 using namespace avrtl;
 
 // what to use as a console to prin message
-//#define LCD_CONSOLE 1
-#define SOFT_SERIAL_CONSOLE 1
+#define LCD_CONSOLE 1
+//#define SOFT_SERIAL_CONSOLE 1
 
 // Sequence for learning a new protocol
 #define RECORD_MODE_SEQ 0x05  		// press AABBA, A and B being any two different remote buttons
@@ -112,7 +112,12 @@ void loop(void)
 			break;
 
 		case RFSnifferEEPROM::COMMAND_MODE :
-			processCommands(&hwserial);
+			{
+				int16_t progId = RFSnifferEEPROM::getBootProgram();
+				auto progStream = RFSnifferEEPROM::getMessageStream(progId);
+				processCommands(&progStream);
+				processCommands(&hwserial);
+			}
 			break;
 
 		case RFSnifferEEPROM::LEARN_NEW_PROTOCOL :
@@ -160,6 +165,7 @@ void recordMessage(int pId)
 			nbytes = (sp.messageBits+7) / 8;
 			int mesgId = RFSnifferEEPROM::saveMessage(pId,buf,nbytes);
 			cout<<"M#"<<mesgId<<'\n';
+			blink(led);
 			uint8_t cs = checksum8(buf,nbytes);
 			bool same_mesg = (cs == last_checksum);
 			last_checksum = cs;
@@ -171,12 +177,13 @@ void recordMessage(int pId)
 			{
 				rebootToOperationMode(RFSnifferEEPROM::COMMAND_MODE);
 			}
+			
 		}
 	}
 }
 
 
-int16_t readCommandMemory(int16_t* cmem, int regIndex)
+int16_t readCommandMemory(const int16_t* cmem, int regIndex)
 {
 	if(cmem==0) return 0;
 	else return cmem[regIndex];
@@ -190,7 +197,7 @@ void writeCommandMemory(int16_t* cmem, int regIndex, int16_t value)
 	}
 }
 
-int16_t readCommandIntgerValue(int16_t* cmem, InputStream& cin)
+int16_t readCommandIntgerValue(const int16_t* cmem, InputStream& cin)
 {
 	int32_t x = 0;
 	cin >> x;
@@ -251,10 +258,9 @@ int16_t processCommands(ByteStream* rawInput, int16_t* cmem)
 				}
 				break;
 
-			// receive a message and write its index (if found) to command memory
+			// receive a message and write its index (if found) to command memory #0
 			case 'r':
 				{
-					int16_t regIndex = readCommandIntgerValue(cmem,cin);
 					int16_t mId;
 					{
 						uint8_t buf[MAX_MESSAGE_BYTES];
@@ -270,7 +276,7 @@ int16_t processCommands(ByteStream* rawInput, int16_t* cmem)
 					}
 					if( mId != -1 )
 					{
-						writeCommandMemory(cmem,regIndex,mId);
+						writeCommandMemory(cmem,0,mId);
 					}
 				}
 				break;
@@ -287,12 +293,17 @@ int16_t processCommands(ByteStream* rawInput, int16_t* cmem)
 				break;
 			
 			// add a program/message to eeprom
+			// for programs, protocol id must be >= 0x80.
+			// if protocol id is 0xFF, program will be executed at init when operating in program mode
 			case 'p':
 				{
-					int16_t regIndex = readCommandIntgerValue(cmem,cin);
-					int16_t pId = readCommandIntgerValue(cmem,cin);
-					int16_t bufSize = readCommandIntgerValue(cmem,cin);
-					writeCommandMemory( cmem, regIndex, RFSnifferEEPROM::appendMessage(pId,rawInput,bufSize) );
+					int16_t pId = readCommandIntgerValue(cmem,cin); // protocolId
+					int16_t bufSize = readCommandIntgerValue(cmem,cin); // number of bytes to read
+					int mId = RFSnifferEEPROM::appendMessage(pId,rawInput,bufSize);
+					if( pId == 0xFF ) { RFSnifferEEPROM::setBootProgram( mId ); }
+					cout<<"prog#"<<mId<<'\n';
+					cout<<"boot#"<<RFSnifferEEPROM::getBootProgram()<<'\n';
+					writeCommandMemory( cmem, 0, mId );
 				}
 				break;
 
@@ -301,10 +312,15 @@ int16_t processCommands(ByteStream* rawInput, int16_t* cmem)
 				{
 					int16_t progId = readCommandIntgerValue(cmem,cin);
 					auto progStream = RFSnifferEEPROM::getMessageStream(progId);
+					cout<<"len="<<progStream.size<<'\n';
+					while( !progStream.eof() ) { cout<< (char)progStream.readByte(); }
+					cout<<'\n';
+					blink(led);
+					progStream = RFSnifferEEPROM::getMessageStream(progId);
 					processCommands(&progStream,cmem);
 				}
 				break;
-			
+
 			// dump command memory
 			case 'd':
 				{
@@ -312,7 +328,7 @@ int16_t processCommands(ByteStream* rawInput, int16_t* cmem)
 					cout <<regIndex<<":"<< readCommandMemory(cmem,regIndex) << '\n';
 				}
 				break;
-			
+	
 			// wait delay in milliseconds
 			case 'w':
 				{
@@ -328,11 +344,10 @@ int16_t processCommands(ByteStream* rawInput, int16_t* cmem)
 			// loop
 			case 'l':
 				{
-					uint32_t regIndex = readCommandIntgerValue(cmem,cin);
 					int bufSize = readCommandIntgerValue(cmem,cin);
 					uint8_t buf[bufSize];
 					for(int i=0;i<bufSize;i++) { buf[i] = rawInput->readByte(); }
-					while( readCommandMemory(cmem,regIndex) != 0 )
+					while( readCommandMemory(cmem,0) != 0 )
 					{
 						BufferInputStream bufInput(buf,bufSize);
 						processCommands(&bufInput,cmem);
