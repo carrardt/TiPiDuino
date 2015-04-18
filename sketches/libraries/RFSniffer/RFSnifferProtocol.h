@@ -183,7 +183,8 @@ struct RFSnifferProtocol
 				badBit = false;
 				if( avrtl::abs(p-b1) <= b1_tol ) buf[byte] = 1;
 				else if( avrtl::abs(p-b0) > b0_tol ) badBit=true;
-			}while( badBit );
+			}
+			while( badBit );
 			++ j;
 		}
 		for(;j<bitsToRead;j++)
@@ -204,6 +205,67 @@ struct RFSnifferProtocol
 		}
 		else { return bitsToRead; }
 	}
+
+	template<typename RxPinT>
+	int readMessageWithGaps(RxPinT& rx, uint8_t* buf, uint16_t* in_gaps)
+	{
+		const uint16_t b0 = bitSymbols[0];
+		const uint16_t b1 = bitSymbols[1];
+		const uint16_t b0_tol = b0 / PULSE_ERR_RATIO;
+		const uint16_t b1_tol = b1 / PULSE_ERR_RATIO;
+		uint16_t* gaps = in_gaps;
+
+		int bitsToRead = messageBits;
+		if( coding == CODING_MANCHESTER ) bitsToRead*=2;
+		const bool lvl = pulseLevel();
+		
+		uint8_t byte=0;
+		uint16_t j=0;
+		if( latchSeqLen > 0 )
+		{
+			for(uint8_t i=0;i<latchSeqLen;)
+			{
+				long p = rx.PulseIn(lvl,MAX_PULSE_LEN,gaps++);
+				uint16_t l = latchSeq[i];
+				uint16_t relerr = l / PULSE_ERR_RATIO;
+				if( avrtl::abs(p-l) > relerr ) { i=0; gaps=in_gaps; }
+				else ++i;
+			}
+		}
+		else
+		{
+			bool badBit;
+			do
+			{
+				long p = rx.PulseIn(lvl,MAX_PULSE_LEN,gaps);
+				buf[byte] = 0;
+				badBit = false;
+				if( avrtl::abs(p-b1) <= b1_tol ) buf[byte] = 1;
+				else if( avrtl::abs(p-b0) > b0_tol ) badBit=true;
+			}
+			while( badBit );
+			++gaps;
+			++ j;
+		}
+		for(;j<bitsToRead;j++)
+		{
+			if(j%8==0) buf[byte]=0;
+			long p = rx.PulseIn(lvl,MAX_PULSE_LEN,gaps++);
+			uint8_t b = 0;
+			if( avrtl::abs(p-b1) <= b1_tol ) b = 1;
+			else if( avrtl::abs(p-b0) > b0_tol ) return 0;
+			buf[byte] <<= 1;
+			buf[byte] |= b;
+			if( (j%8)==7 ) { ++byte;  }
+		}
+		if( coding == CODING_MANCHESTER )
+		{
+			if( ! decodeManchester(buf,bitsToRead) ) return 0;
+			else return messageBits;
+		}
+		else { return bitsToRead; }
+	}
+
 
 	template<typename TxPinT>
 	void writeMessage(const uint8_t* buf, uint8_t len, TxPinT& tx)

@@ -7,7 +7,7 @@
 
 namespace RFSnifferEEPROM
 {
-
+	
 // EEPROM address where to write detected protocol
 static constexpr uint16_t EEPROM_MAGIC_NUMBER = ((uint16_t)(BUILD_TIMESTAMP & 0xFFFF));
 static constexpr uint8_t EEPROM_MAX_PROTOCOLS = 4;

@@ -351,6 +351,12 @@ struct RFSniffer
 		return true;
 	}
 
+	/***********************************
+	 * learnProtocol
+	 * 3-step learning. if successful,
+	 * initializes sp member with detected
+	 * protocol
+	 ***********************************/
 	void learnProtocol()
 	{
 		static const char* stageLabel[3] = {"detect","analyse","verify"};
@@ -378,10 +384,6 @@ struct RFSniffer
 						signalOk = analyseSignal(buf,npulses);
 						if( signalOk )
 						{
-							/*
-							cout<<"entropy detected bits "<<P0<<", "<<P1<<'\n';
-							cout<<"analysed bits "<<sp.bitSymbols[0]<<", "<<sp.bitSymbols[1]<<'\n';
-							*/
 							long re0 = sp.bitSymbols[0] / PULSE_ERR_RATIO;
 							long re1 = sp.bitSymbols[1] / PULSE_ERR_RATIO;
 							int P0Bit=2, P1Bit=2;
@@ -392,17 +394,15 @@ struct RFSniffer
 							if( identicalPulses(P1,sp.bitSymbols[0]) ) P1Bit=0;
 							else if( identicalPulses(P1,sp.bitSymbols[1]) ) P1Bit=1;
 
-							// cout<<"=> "<<P0Bit<<", "<<P1Bit<<'\n';
 							if( P0Bit==2 || P1Bit==2 || P0Bit==P1Bit )
 							{
 								signalOk = false;
 							}
 						}
+						// auto reverse pulse polarity in this case
 						if( ! signalOk )
 						{
 							sp.setPulseLevel( ! sp.pulseLevel() );
-							//sp.setMediumRF( ! sp.mediumRF() );
-							//rx.SelectPin( sp.mediumRF() );
 							stageChanged=true;
 						}
 				}
@@ -443,21 +443,36 @@ struct RFSniffer
 				int bitsToRead = sp.messageBits;
 				if( sp.coding == CODING_MANCHESTER ) bitsToRead *= 2;
 				int nbytes = (bitsToRead+7) / 8;
+				int br = 0;
 				uint8_t signal1[nbytes];
-				int br;
-				do { br = sp.readMessage(rx,signal1); } while( br==0 );
-				if( br == bitsToRead )
+				{
+					const int nPulses = bitsToRead+sp.latchSeqLen;
+					uint16_t gaps[nPulses];
+					do { br = sp.readMessageWithGaps(rx,signal1,gaps); } while( br==0 );
+					if(br==sp.messageBits)
+					{
+						uint16_t symbols[MAX_SYMBOLS];
+						uint8_t symcount[MAX_SYMBOLS];
+						for(int i=0;i<nPulses;i++) { gaps *= avrtl::TIMER_CPU_RATIO; }
+						int nSymbols = classifySymbols(gaps,nPulses,symbols,symcount);
+						for(int i=0;i<nSymbols;i++)
+						{
+							cout<<symbols[i]<<':'<<symcount<<'\n';
+						}
+					}
+				}
+				if( br == sp.messageBits )
 				{
 					uint32_t retries=0;
 					uint8_t signal2[nbytes];
-					cout<<"press again\n";
+					//cout<<"press again\n";
 					do
 					{
 						br = sp.readMessage(rx,signal2);
 						++retries;
 					} while( br==0 );
 					for(int i=0;i<nbytes;i++) if(signal1[i]!=signal2[i]) br=0;
-					if( br == bitsToRead )
+					if( br == sp.messageBits )
 					{
 						sp.setValid(true);
 					}

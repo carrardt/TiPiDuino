@@ -239,7 +239,7 @@ struct StaticPin
 template< typename BasePinT >
 struct AvrPin : public BasePinT
 {
-	uint32_t PulseIn(bool lvl, uint32_t timeout) 
+	inline uint32_t PulseIn(bool lvl, uint32_t timeout, uint16_t* gap=0) 
 	{
 		timeout /= TIMER_CPU_RATIO;
 
@@ -262,9 +262,10 @@ struct AvrPin : public BasePinT
 		while( (te-ts)<timeout && BasePinT::Get()==lvl ) { UPDATE_CLOCK_COUNTER(); te=CLOCK_ELAPSED(); }
 		
 		SREG=oldSREG;
-		if( (te-ts) >= timeout ) return 0;
 		
-		return (te-ts) * TIMER_CPU_RATIO;
+		if( gap != 0 ) { *gap = ts; }
+		if( (te-ts) >= timeout ) { return 0; }
+		else { return (te-ts) * TIMER_CPU_RATIO; }
 
 #undef UPDATE_CLOCK_COUNTER
 #undef CLOCK_ELAPSED

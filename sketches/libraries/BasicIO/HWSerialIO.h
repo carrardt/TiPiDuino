@@ -12,6 +12,10 @@
 
 struct HWSerialIO : public ByteStream
 {
+	static void begin(uint32_t baud=9600);
+	virtual bool writeByte( uint8_t x );
+	virtual uint8_t readByte();
+	
 	static constexpr uint8_t U2X = 1;
 	static constexpr uint8_t RXCIE = 7;
 	static constexpr uint8_t RXEN = 4;
@@ -22,60 +26,6 @@ struct HWSerialIO : public ByteStream
 
 	static volatile uint8_t Tx_byte;
 	static volatile uint8_t Rx_byte;
-
-	static inline void begin(uint32_t baud=9600)
-	{
-	  uint16_t ubrrValue;
-	  uint16_t calcUBRRU2X;
-	  uint16_t calcUBRR;
-	  uint32_t calcBaudU2X;
-	  uint32_t calcBaud;
-
-	  // Calculate for U2X (with rounding)
-	  calcUBRR = (F_CPU/2/baud + 4) / 8;
-	  calcUBRRU2X = (F_CPU/baud + 4) / 8;
-
-	  calcBaud = F_CPU/16/calcUBRR;
-	  calcBaudU2X = F_CPU/8/calcUBRRU2X;
-
-	  if ( avrtl::abs(calcBaudU2X - baud) < avrtl::abs(calcBaud - baud))
-	  {
-		UCSR0A = 1 << U2X;
-		ubrrValue = calcUBRRU2X - 1;
-	  }
-	  else
-	  {
-		UCSR0A = 0;
-		ubrrValue = calcUBRR - 1;
-	  }
-	  UCSR0C = 0b110;
-	  UBRR0H = ubrrValue >> 8;
-	  UBRR0L = ubrrValue;
-	  UCSR0B = FLAGS_EN;
-	}
-	
-	virtual bool writeByte( uint8_t x )
-	{
-		while( Tx_byte!=0 ) {}
-		uint8_t oldSREG = SREG;
-		cli();
-		HWSerialIO::Tx_byte = x;
-		UCSR0B |= (1 << UDRIE);
-		HWSerialIO::Rx_byte = 0;
-		SREG = oldSREG;
-		return true;
-	}
-
-	virtual uint8_t readByte()
-	{
-		HWSerialIO::Rx_byte = 0;
-		while( Tx_byte!=0 ) {}
-		char c;
-		while( ( c = HWSerialIO::Rx_byte ) == 0 ) {}
-		HWSerialIO::Rx_byte = 0;
-		return c;
-	}
-
 };
 
 #endif

@@ -2,7 +2,13 @@
 BUILD_DIR=obj
 
 # where to find Wiring sources
-WIRING_SRC_DIR=$(HOME)/dev/Wiring
+WIRING_GIT_URL=git://github.com/WiringProject/Wiring.git
+WIRING_SRC_DIR=Wiring
+all: $(WIRING_SRC_DIR)
+$(WIRING_SRC_DIR):
+	git clone -n $(WIRING_GIT_URL) $(WIRING_SRC_DIR)
+	cd $(WIRING_SRC_DIR)
+	git checkout HEAD framework
 
 # ETL template library for avr
 ETL_ROOT=$(HOME)/dev/ETL
@@ -39,7 +45,7 @@ VARIANT=$(FAMILY)-$(BOARD)
 
 # Compile options
 MCU_FLAGS=-mmcu=$(MCU)
-COMMON_FLAGS=$(MCU_FLAGS) -DF_CPU=$(F_CPU) -DBUILD_TIMESTAMP=$$(date +'(1%Y%m%d+1%H%M%S)')
+COMMON_FLAGS=-MD -c $(MCU_FLAGS) -DF_CPU=$(F_CPU) -DBUILD_TIMESTAMP=$$(date +'(1%Y%m%d+1%H%M%S)')
 C_FLAGS=-O3 -Os $(COMMON_FLAGS)
 CXX_FLAGS=-std=c++1y -O3 -Os $(COMMON_FLAGS)
 LD_FLAGS=-std=c++1y -Os $(MCU_FLAGS)
@@ -65,6 +71,8 @@ WIRING_OBJS_DIRS=$(sort $(dir $(WIRING_OBJS)))
 # User libraries
 USER_LIBNAME=User-$(VARIANT)
 USER_LIB=$(BUILD_DIR)/lib$(USER_LIBNAME).a
+#USER_SKETCHES=$(wildcard $(SKETCHES)/*.cpp $(SKETCHES)/*.ino)
+#USER_BINARIES=
 USER_LIBRARIES_DIR=$(SKETCHES)/libraries
 USER_LIBRARIES_SRC_C=$(shell find $(USER_LIBRARIES_DIR) -name "*.c")
 USER_LIBRARIES_SRC_CPP=$(shell find $(USER_LIBRARIES_DIR) -name "*.cpp")
@@ -75,9 +83,13 @@ USER_LIBRARIES_OBJS=$(subst $(SKETCHES),$(BUILD_DIR),$(patsubst %.c,%.user.$(VAR
 USER_LIBRARIES_OBJS_DIRS=$(sort $(dir $(USER_LIBRARIES_OBJS)))
 
 # Ambroise Leclerc's libstdc++ for AVRs
-ETL_CXX_FLAGS=-I$(ETL_ROOT)/include -I$(ETL_ROOT)/libstd/include
+#ETL_CXX_FLAGS=-I$(ETL_ROOT)/include -I$(ETL_ROOT)/libstd/include
+ETL_CXX_FLAGS=
 
-wiring: $(WIRING_LIB)
+# include previously generated dependencies
+include $(shell find $(BUILD_DIR) -name "*.d")
+
+wiring: $(WIRING_SRC_DIR) $(WIRING_LIB)
 user: $(USER_LIB)
 #exemples: $(WIRING_EXEMPLES)
 
@@ -114,28 +126,28 @@ MakeUserBuildDirs:
 
 # compilation des sources wiring
 $(BUILD_DIR)/%.wiring.$(VARIANT).o: $(WIRING_SRC_DIR)/%.c
-	$(CC) $(C_FLAGS) $(WIRING_INC_FLAGS) -c $< -o $@
+	$(CC) $(C_FLAGS) $(WIRING_INC_FLAGS) $< -o $@
 
 $(BUILD_DIR)/%.wiring.$(VARIANT).o: $(WIRING_SRC_DIR)/%.cpp
-	$(CXX) $(CXX_FLAGS) $(WIRING_INC_FLAGS) -c $< -o $@
+	$(CXX) $(CXX_FLAGS) $(WIRING_INC_FLAGS) $< -o $@
 
 # cmpilation des bibliothèques utilisateur
 $(BUILD_DIR)/libraries/%.user.$(VARIANT).o: $(USER_LIBRARIES_DIR)/%.c
-	$(CC) $(C_FLAGS) $(USER_LIBRARIES_INC_FLAGS) $(WIRING_INC_FLAGS) -c $< -o $@
+	$(CC) $(C_FLAGS) $(USER_LIBRARIES_INC_FLAGS) $(WIRING_INC_FLAGS) $< -o $@
 
 $(BUILD_DIR)/libraries/%.user.$(VARIANT).o: $(USER_LIBRARIES_DIR)/%.cpp
-	$(CXX) $(CXX_FLAGS) $(USER_LIBRARIES_INC_FLAGS) $(WIRING_INC_FLAGS) -c $< -o $@
+	$(CXX) $(CXX_FLAGS) $(USER_LIBRARIES_INC_FLAGS) $(WIRING_INC_FLAGS) $< -o $@
 
 # compilation des programmes sans Wiring/Arduino
 $(BUILD_DIR)/%.prog.$(VARIANT).o: $(SKETCHES)/%.c
-	$(CC) $(C_FLAGS) $(USER_LIBRARIES_INC_FLAGS) $(WIRING_INC_FLAGS) -c $< -o $@
+	$(CC) $(C_FLAGS) $(USER_LIBRARIES_INC_FLAGS) $(WIRING_INC_FLAGS) $< -o $@
 
 $(BUILD_DIR)/%.prog.$(VARIANT).o: $(SKETCHES)/%.cpp
-	$(CXX) $(CXX_FLAGS) $(USER_LIBRARIES_INC_FLAGS) $(WIRING_INC_FLAGS) $(ETL_CXX_FLAGS) -c $< -o $@
+	$(CXX) $(CXX_FLAGS) $(USER_LIBRARIES_INC_FLAGS) $(WIRING_INC_FLAGS) $(ETL_CXX_FLAGS) $< -o $@
 
 # compilation des sketch Arduino / Wiring
 $(BUILD_DIR)/%.sketch.$(VARIANT).o: $(BUILD_DIR)/%.sketch.cpp
-	$(CXX) $(CXX_FLAGS) $(USER_LIBRARIES_INC_FLAGS) $(WIRING_INC_FLAGS) $(ETL_CXX_FLAGS) -c $< -o $@
+	$(CXX) $(CXX_FLAGS) $(USER_LIBRARIES_INC_FLAGS) $(WIRING_INC_FLAGS) $(ETL_CXX_FLAGS) $< -o $@
 
 $(BUILD_DIR)/%.sketch.cpp: $(SKETCHES)/%.pde
 	echo "#include <Wiring.h>" > $@
@@ -144,3 +156,7 @@ $(BUILD_DIR)/%.sketch.cpp: $(SKETCHES)/%.pde
 $(BUILD_DIR)/%.sketch.cpp: $(SKETCHES)/%.ino
 	echo "#include <Wiring.h>" > $@
 	cat $< >> $@
+
+clean:
+	rm -fr $(BUILD_DIR) *.hex
+
