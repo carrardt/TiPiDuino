@@ -26,6 +26,8 @@
 
 namespace avrtl
 {
+	static constexpr uint16_t EEPROM_SIZE = 1024;
+	
 	// from timer ticks to microseconds
 	static constexpr uint32_t TIMER_CPU_RATIO = TIMER0PRESCALEFACTOR / (F_CPU / 1000000UL);
 
@@ -56,15 +58,22 @@ namespace avrtl
 
 	static void eeprom_gently_write_byte(uint8_t* ptr, uint8_t value)
 	{
-		if( eeprom_read_byte(ptr) != value )
+		uint32_t ptrval = (uint32_t)ptr;
+		if( ptrval < EEPROM_SIZE )
 		{
-			eeprom_write_byte(ptr,value);
+			if( eeprom_read_byte(ptr) != value )
+			{
+				eeprom_write_byte(ptr,value);
+			}
 		}
 	}
 
 	static void eeprom_gently_write_block(const uint8_t* src, uint8_t* ptr, uint16_t N)
 	{
-		for(;N;--N) eeprom_gently_write_byte(ptr++,*(src++));
+		for(int i=0;i<N;i++)
+		{
+			eeprom_gently_write_byte(ptr+i,src[i]);
+		}
 	}
 
 	static void DelayTimerTicks(uint32_t tickCount)
