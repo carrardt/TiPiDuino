@@ -113,6 +113,7 @@ void loop(void)
 
 		case RFSnifferEEPROM::COMMAND_MODE :
 			{
+				cout<<RFSnifferEEPROM::getMessageCount()<<" messages\n";
 				int16_t progId = RFSnifferEEPROM::getBootProgram();
 				auto progStream = RFSnifferEEPROM::getMessageStream(progId);
 				processCommands(&progStream);
@@ -224,18 +225,24 @@ int16_t processCommands(ByteStream* rawInput, int16_t* cmem)
 				rebootToOperationMode( readCommandIntgerValue(cmem,cin) );
 				break;
 
+			// set boot program id
+			case 'b':
+				RFSnifferEEPROM::setBootProgram( readCommandIntgerValue(cmem,cin) );
+				break;
+
 			// send (emit) a message
 			case 's':
 				{
 					int16_t mesgId = readCommandIntgerValue(cmem,cin);
 					RFSnifferEEPROM::MessageInfo mesg = RFSnifferEEPROM::getMessageInfo( mesgId );
-					cout << 'P' << mesg.protocolId<<'M'<<mesgId<<':'<<(int)mesg.nbytes<<'\n';
+					cout << 'P' << mesg.protocolId<<'M'<<mesgId<<'L'<<(int)mesg.nbytes<<'\n';
 					if( mesg.nbytes > 0 )
 					{
 						RFSnifferEEPROM::EEPROMStream progStream( mesg );
 						if( mesg.protocolId < RFSnifferEEPROM::EEPROM_MAX_PROTOCOLS )
 						{
-							// cout.printStreamHex(&progStream);
+							cout.printStreamHex(&progStream);
+							cout<<'\n';
 							auto proto = RFSnifferEEPROM::readProtocol( mesg.protocolId );
 							uint8_t buf[MAX_MESSAGE_BYTES];
 							eeprom_read_block(buf,mesg.eeprom_addr,mesg.nbytes);
@@ -308,14 +315,12 @@ int16_t processCommands(ByteStream* rawInput, int16_t* cmem)
 			// if protocol id is 0xFF, program will be executed at init when operating in program mode
 			case 'p':
 				{
-					int16_t pId = readCommandIntgerValue(cmem,cin); // protocolId
 					int16_t bufSize = readCommandIntgerValue(cmem,cin); // number of bytes to read
 					uint8_t buf[bufSize];
 					BufferStream progStream(buf,bufSize);
 					progStream.copy( rawInput );
 					progStream.rewind();
-					int mId = RFSnifferEEPROM::appendMessage(pId,&progStream);
-					if( pId == 0xFF ) { RFSnifferEEPROM::setBootProgram( mId ); }
+					int mId = RFSnifferEEPROM::appendMessage(RFSnifferEEPROM::PROGRAM_PROTOCOL_ID,&progStream);
 					cout<<"M"<<mId<<'\n';
 					progStream.rewind();
 					cout.stream->copy( &progStream );
