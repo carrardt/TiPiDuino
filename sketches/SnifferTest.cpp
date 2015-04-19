@@ -21,8 +21,8 @@ using namespace avrtl;
 // pinout
 #define RF_RECEIVE_PIN 9
 #define IR_RECEIVE_PIN 8
-#define RF_EMIT_PIN 11
-#define IR_EMIT_PIN 10
+#define RF_EMIT_PIN 10
+#define IR_EMIT_PIN 11
 #define LED_PIN 13
 #define SOFT_SERIAL_TX 12
 #define SERIAL_SPEED 9600
@@ -113,7 +113,7 @@ void loop(void)
 
 		case RFSnifferEEPROM::COMMAND_MODE :
 			{
-				cout<<RFSnifferEEPROM::getMessageCount()<<" messages\n";
+				//cout<<RFSnifferEEPROM::getMessageCount()<<" messages\n";
 				int16_t progId = RFSnifferEEPROM::getBootProgram();
 				auto progStream = RFSnifferEEPROM::getMessageStream(progId);
 				processCommands(&progStream);
@@ -127,7 +127,7 @@ void loop(void)
 				auto sniffer = make_sniffer(rx,sp,led,cout);
 				sniffer.learnProtocol();
 				int pId = RFSnifferEEPROM::saveProtocol(sp);
-				cout<<"P#"<<pId<<" saved\n";
+				cout<<'P'<<pId<<" saved\n";
 				blink(led,50);
 				RFSnifferEEPROM::setOperationMode( RFSnifferEEPROM::RECORD_PROTOCOL_0+pId );
 			}
@@ -147,7 +147,7 @@ void rebootToOperationMode(int op)
 
 void recordMessage(int pId)
 {
-	cout << "record P#"<<pId<<"\n" ;
+	//cout << "record P#"<<pId<<"\n" ;
 	uint8_t recordModeSeqIdx = 0;
 	uint8_t commandModeSeqIdx = 0;
 	uint8_t last_checksum = 0;
@@ -230,31 +230,44 @@ int16_t processCommands(ByteStream* rawInput, int16_t* cmem)
 				RFSnifferEEPROM::setBootProgram( readCommandIntgerValue(cmem,cin) );
 				break;
 
+			// query message content
+			case 'q':
+				{
+					int16_t mesgId = readCommandIntgerValue(cmem,cin);
+					RFSnifferEEPROM::MessageInfo mesg = RFSnifferEEPROM::getMessageInfo( mesgId );
+					cout << 'P' << mesg.protocolId<<'L'<<(int)mesg.nbytes<<'\n';
+					RFSnifferEEPROM::EEPROMStream progStream(mesg);
+					if( mesg.protocolId < RFSnifferEEPROM::EEPROM_MAX_PROTOCOLS )
+					{
+						cout.printStreamHex(&progStream);
+					}
+					else
+					{
+						cout.stream->copy(&progStream);
+					}
+					cout<<'\n';
+				}
+				break;
+			
+			// query protocol content
+			case 'Q':
+				{
+					int16_t pId = readCommandIntgerValue(cmem,cin);
+					auto proto = RFSnifferEEPROM::readProtocol( pId );
+					proto.toStream(cout);
+				}
+				break;
+
 			// send (emit) a message
 			case 's':
 				{
 					int16_t mesgId = readCommandIntgerValue(cmem,cin);
 					RFSnifferEEPROM::MessageInfo mesg = RFSnifferEEPROM::getMessageInfo( mesgId );
-					cout << 'P' << mesg.protocolId<<'M'<<mesgId<<'L'<<(int)mesg.nbytes<<'\n';
-					if( mesg.nbytes > 0 )
-					{
-						RFSnifferEEPROM::EEPROMStream progStream( mesg );
-						if( mesg.protocolId < RFSnifferEEPROM::EEPROM_MAX_PROTOCOLS )
-						{
-							cout.printStreamHex(&progStream);
-							cout<<'\n';
-							auto proto = RFSnifferEEPROM::readProtocol( mesg.protocolId );
-							uint8_t buf[MAX_MESSAGE_BYTES];
-							eeprom_read_block(buf,mesg.eeprom_addr,mesg.nbytes);
-							tx.SelectPin( proto.mediumRF() );
-							proto.writeMessage(buf,mesg.nbytes,tx);
-						}
-						else
-						{
-							cout.stream->copy(&progStream);
-							cout << '\n';
-						}
-					}
+					auto proto = RFSnifferEEPROM::readProtocol( mesg.protocolId );
+					uint8_t buf[mesg.nbytes];
+					eeprom_read_block(buf,mesg.eeprom_addr,mesg.nbytes);
+					tx.SelectPin( proto.mediumRF() );
+					proto.writeMessage(buf,mesg.nbytes,tx);
 				}
 				break;
 
@@ -321,10 +334,10 @@ int16_t processCommands(ByteStream* rawInput, int16_t* cmem)
 					progStream.copy( rawInput );
 					progStream.rewind();
 					int mId = RFSnifferEEPROM::appendMessage(RFSnifferEEPROM::PROGRAM_PROTOCOL_ID,&progStream);
-					cout<<"M"<<mId<<'\n';
+					/*cout<<"M"<<mId<<'\n';
 					progStream.rewind();
 					cout.stream->copy( &progStream );
-					cout<<'\n';
+					cout<<'\n';*/
 					writeCommandMemory( cmem, 0, mId );
 				}
 				break;

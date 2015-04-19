@@ -94,11 +94,14 @@ struct RFSnifferProtocol
 	template<typename OStreamT>
 	inline void toStream(OStreamT& out)
 	{
-		out <<'L';
-		for(int i=0;i<latchSeqLen;i++)
+		if(latchSeqLen>0)
 		{
-			if(i>0) out<<'-';
-			out.print(latchSeq[i],16);
+			out <<'L';
+			for(int i=0;i<latchSeqLen;i++)
+			{
+				if(i>0) out<<'-';
+				out.print(latchSeq[i],16);
+			}
 		}
 		out<<'G';
 		out.print(pulseGap,16);
