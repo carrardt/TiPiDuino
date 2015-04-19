@@ -231,7 +231,7 @@ struct LCD : public ByteStream
 	  }
 	}
 
-	virtual bool writeChar(char value)
+	virtual bool writeByte(uint8_t value)
 	{
 		if(m_lineFeed)
 		{
@@ -267,8 +267,8 @@ struct LCD : public ByteStream
 			if( m_bufSize < cols )
 			{
 				m_buffer[ m_bufSize++ ] = value;
+				sendByte(value);
 			}
-			sendByte(value);
 		}
 		return true;
 	}

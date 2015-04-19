@@ -5,27 +5,45 @@
 
 struct ByteStream
 {
-	virtual bool writeChar( char c ) { return writeByte((uint8_t)c); }
 	virtual bool writeByte( uint8_t x ) { return false; }
-	virtual char readChar() { return (char)readByte(); }
 	virtual uint8_t readByte() { return 0; }
-	virtual bool eof() const { return false; }
+	virtual bool eof() { return false; }
+	virtual bool rewind() { return false; }
+	virtual int16_t available() { return -1; }
+	
+	inline void copy( ByteStream* from )
+	{
+		while( !eof() && !from->eof() )
+		{
+			writeByte( from->readByte() );
+		}
+	}
 };
 
-struct BufferInputStream : public ByteStream
+struct BufferStream : public ByteStream
 {
-	inline BufferInputStream(const uint8_t* b, int s) : buf(b), size(s) {}
-	virtual bool eof() const { return size <= 0; }
-	virtual uint8_t readPtr( const uint8_t* p ) { return *p; }
+	inline BufferStream(uint8_t* b, uint16_t s) : m_buf(b), m_pos(0), m_size(s) {}
+
+	virtual bool eof() { return m_pos>=m_size; }
+	virtual bool rewind() { m_pos=0; return true; }
+	virtual int16_t available() { return m_size-m_pos; }
+
 	virtual uint8_t readByte()
 	{
-		if(size<=0) { return 0; }
-		--size;
-		return readPtr(buf++);
+		if( m_pos>=m_size ) { return 0; }
+		return m_buf[m_pos++];
 	}
-private:
-	const uint8_t* buf;
-	int size;
+	virtual bool writeByte( uint8_t x )
+	{
+		if( m_pos>=m_size ) { return false; }
+		m_buf[m_pos++] = x;
+		return true;
+	}
+
+protected:
+	uint8_t* m_buf;
+	uint16_t m_pos;
+	uint16_t m_size;
 };
 
 #endif

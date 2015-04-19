@@ -34,7 +34,7 @@ struct PrintStream
 		if( stream != 0 )
 		{
 			//if( x == '\n' ) { avrtl::DelayMicroseconds(300000); }
-			stream->writeChar( x );
+			stream->writeByte( x );
 		}
 	}
 	
@@ -53,7 +53,15 @@ struct PrintStream
 		uint32_t addr = (uint32_t)s;
 		print(addr,16,4);
 	}
-		
+
+	void printStreamHex(ByteStream* byteSream)
+	{
+		while( ! byteSream->eof() )
+		{
+			print( (uint16_t) byteSream->readByte(), 16, 2 );
+		}
+	}
+
 	void print(uint32_t x, int base=10, int ndigits=0) { print((int32_t)x,base,ndigits); }
 	void print(uint16_t x, int base=10, int ndigits=0) { print((int32_t)x,base,ndigits); }
 	void print(int16_t x, int base=10, int ndigits=0) { print((int32_t)x,base,ndigits); }

@@ -66,7 +66,8 @@ int saveProtocol(const RFSnifferProtocol& proto)
 	return i;
 }
 
-int appendMessage(int pId, ByteStream* stream, int nbytes)
+// Warning, stream has to be reliable and patient (not byte droping if reading to slowly)
+int appendMessage(int pId, ByteStream* stream)
 {
 	uint8_t* nextMsgAddr = EEPROM_CODES_ADDR;
 	int mId = -1;
@@ -75,19 +76,22 @@ int appendMessage(int pId, ByteStream* stream, int nbytes)
 		mId = mesgIdx;
 	});
 	++mId;
-	avrtl::eeprom_gently_write_byte( nextMsgAddr++, nbytes );
-	avrtl::eeprom_gently_write_byte( nextMsgAddr++, pId );
-	for(int i=0;i<nbytes;i++) avrtl::eeprom_gently_write_byte( nextMsgAddr++, stream->readByte() );
-	avrtl::eeprom_gently_write_byte( nextMsgAddr, 0 );
+	int16_t nbytes = stream->available();
+	if(nbytes<0 || nbytes>255) { return -1; }
+	EEPROMStream es(nextMsgAddr, nbytes);
+	es.writeByte( nbytes );
+	es.writeByte( pId );
+	es.copy( stream );
+	es.writeByte( 0 );
 	return mId;
 }
 
-int saveMessage(int pId, const uint8_t* buf, int nbytes)
+int saveMessage(int pId, uint8_t* buf, int nbytes)
 {
 	int mId = findRecordedMessage(pId,buf,nbytes);
 	if( mId!=-1) return mId;
-	BufferInputStream stream(buf,nbytes);
-	return appendMessage(pId,&stream,nbytes);
+	BufferStream stream(buf,nbytes);
+	return appendMessage(pId,&stream);
 }
 
 MessageInfo getMessageInfo(int mId)

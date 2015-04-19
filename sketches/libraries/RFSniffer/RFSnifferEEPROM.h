@@ -10,7 +10,7 @@ namespace RFSnifferEEPROM
 {
 
 // EEPROM address where to write detected protocol
-static constexpr uint16_t EEPROM_MAGIC_NUMBER = 0; //((uint16_t)(BUILD_TIMESTAMP & 0xFFFF));
+static constexpr uint16_t EEPROM_MAGIC_NUMBER = ((uint16_t)(BUILD_TIMESTAMP & 0xFFFF));
 static constexpr uint8_t EEPROM_MAX_PROTOCOLS = 4;
 
 static constexpr uint8_t* EEPROM_MAGIC_ADDR		= ((uint8_t*)0x0000);		// 2 bytes
@@ -35,17 +35,30 @@ struct MessageInfo
 	inline MessageInfo(): nbytes(0) {}
 };
 
-struct EEPROMInputStream : public BufferInputStream
+struct EEPROMStream : public BufferStream
 {
-	inline EEPROMInputStream(const uint8_t* b, int s) : BufferInputStream(b,s) {}
-	virtual uint8_t readPtr( const uint8_t* p ) { return eeprom_read_byte(p); }
+	inline EEPROMStream(uint8_t* p, uint16_t s) : BufferStream(p,s) {}
+	inline EEPROMStream(const MessageInfo& mi) : BufferStream(mi.eeprom_addr,mi.nbytes) {}
+	
+	virtual uint8_t readByte()
+	{
+		if( m_pos >= m_size ) { return 0; }
+		return eeprom_read_byte( m_buf + (m_pos++) );
+	}
+	
+	virtual bool writeByte( uint8_t x )
+	{
+		if( m_pos >= m_size ) { return false; }
+		avrtl::eeprom_gently_write_byte( m_buf + (m_pos++) , x );
+		return true;
+	}
 };
 
 void initEEPROM();
 int findRecordedMessage(int pId, const uint8_t* buf, int nbytes);
 int saveProtocol(const RFSnifferProtocol& proto);
-int appendMessage(int pId, ByteStream* stream, int nbytes);
-int saveMessage(int pId, const uint8_t* buf, int nbytes);
+int appendMessage(int pId, ByteStream* stream);
+int saveMessage(int pId, uint8_t* buf, int nbytes);
 MessageInfo getMessageInfo(int mId);
 uint8_t getOperationMode();
 void setOperationMode(uint8_t mode);
@@ -80,10 +93,9 @@ static inline void forEachMessageInEEPROM( FuncT afunc )
 	}
 }
 
-static inline EEPROMInputStream getMessageStream(int mId)
+static inline EEPROMStream getMessageStream(int mId)
 {
-	MessageInfo info = getMessageInfo(mId);
-	return EEPROMInputStream(info.eeprom_addr,info.nbytes);
+	return EEPROMStream( getMessageInfo(mId) );
 }
 
 static inline RFSnifferProtocol readProtocol(int pId)

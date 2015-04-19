@@ -94,16 +94,15 @@ struct RFSnifferProtocol
 	template<typename OStreamT>
 	inline void toStream(OStreamT& out)
 	{
-		if( latchSeqLen>0 )
+		out <<'L';
+		for(int i=0;i<latchSeqLen;i++)
 		{
-			out <<'L';
-			for(int i=0;i<latchSeqLen;i++)
-			{
-				out<<'-';
-				out.print(latchSeq[i],16);
-			}
-			out<<'\n';
+			if(i>0) out<<'-';
+			out.print(latchSeq[i],16);
 		}
+		out<<'G';
+		out.print(pulseGap,16);
+		out<<'\n';
 		out << ( mediumRF() ? 'R' : 'I' );		
 		out << ( pulseLevel() ? "H" : "L" );
 		out << (char) coding;

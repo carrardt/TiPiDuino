@@ -67,15 +67,6 @@ namespace avrtl
 		for(;N;--N) eeprom_gently_write_byte(ptr++,*(src++));
 	}
 
-	template<typename OStreamT>
-	static void printEEPROM(OStreamT& out, uint8_t* ptr, int nbytes)
-	{
-		for(int i=0;i<nbytes;++i)
-		{
-			out.print( (unsigned int) eeprom_read_byte(ptr+i), 16, 2 );
-		}
-	}
-
 	static void DelayTimerTicks(uint32_t tickCount)
 	{
 		uint8_t oldSREG = SREG;

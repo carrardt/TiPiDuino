@@ -25,7 +25,7 @@ using namespace avrtl;
 #define IR_EMIT_PIN 10
 #define LED_PIN 13
 #define SOFT_SERIAL_TX 12
-#define SERIAL_SPEED 19200
+#define SERIAL_SPEED 9600
 
 #ifdef LCD_CONSOLE
 #include "LCD.h"
@@ -229,14 +229,25 @@ int16_t processCommands(ByteStream* rawInput, int16_t* cmem)
 				{
 					int16_t mesgId = readCommandIntgerValue(cmem,cin);
 					RFSnifferEEPROM::MessageInfo mesg = RFSnifferEEPROM::getMessageInfo( mesgId );
-					cout << "P#" << mesg.protocolId<<":M#"<<mesgId<<'\n';
-					printEEPROM(cout,mesg.eeprom_addr,mesg.nbytes);
-					cout << '\n';
-					auto proto = RFSnifferEEPROM::readProtocol( mesg.protocolId );
-					uint8_t buf[MAX_MESSAGE_BYTES];
-					eeprom_read_block(buf,mesg.eeprom_addr,mesg.nbytes);
-					tx.SelectPin( proto.mediumRF() );
-					proto.writeMessage(buf,mesg.nbytes,tx);
+					cout << 'P' << mesg.protocolId<<'M'<<mesgId<<':'<<(int)mesg.nbytes<<'\n';
+					if( mesg.nbytes > 0 )
+					{
+						RFSnifferEEPROM::EEPROMStream progStream( mesg );
+						if( mesg.protocolId < RFSnifferEEPROM::EEPROM_MAX_PROTOCOLS )
+						{
+							// cout.printStreamHex(&progStream);
+							auto proto = RFSnifferEEPROM::readProtocol( mesg.protocolId );
+							uint8_t buf[MAX_MESSAGE_BYTES];
+							eeprom_read_block(buf,mesg.eeprom_addr,mesg.nbytes);
+							tx.SelectPin( proto.mediumRF() );
+							proto.writeMessage(buf,mesg.nbytes,tx);
+						}
+						else
+						{
+							cout.stream->copy(&progStream);
+							cout << '\n';
+						}
+					}
 				}
 				break;
 
@@ -291,7 +302,7 @@ int16_t processCommands(ByteStream* rawInput, int16_t* cmem)
 					writeCommandMemory(cmem,0,r);
 				}
 				break;
-			
+
 			// add a program/message to eeprom
 			// for programs, protocol id must be >= 0x80.
 			// if protocol id is 0xFF, program will be executed at init when operating in program mode
@@ -299,10 +310,16 @@ int16_t processCommands(ByteStream* rawInput, int16_t* cmem)
 				{
 					int16_t pId = readCommandIntgerValue(cmem,cin); // protocolId
 					int16_t bufSize = readCommandIntgerValue(cmem,cin); // number of bytes to read
-					int mId = RFSnifferEEPROM::appendMessage(pId,rawInput,bufSize);
+					uint8_t buf[bufSize];
+					BufferStream progStream(buf,bufSize);
+					progStream.copy( rawInput );
+					progStream.rewind();
+					int mId = RFSnifferEEPROM::appendMessage(pId,&progStream);
 					if( pId == 0xFF ) { RFSnifferEEPROM::setBootProgram( mId ); }
-					cout<<"prog#"<<mId<<'\n';
-					cout<<"boot#"<<RFSnifferEEPROM::getBootProgram()<<'\n';
+					cout<<"M"<<mId<<'\n';
+					progStream.rewind();
+					cout.stream->copy( &progStream );
+					cout<<'\n';
 					writeCommandMemory( cmem, 0, mId );
 				}
 				break;
@@ -312,11 +329,6 @@ int16_t processCommands(ByteStream* rawInput, int16_t* cmem)
 				{
 					int16_t progId = readCommandIntgerValue(cmem,cin);
 					auto progStream = RFSnifferEEPROM::getMessageStream(progId);
-					cout<<"len="<<progStream.size<<'\n';
-					while( !progStream.eof() ) { cout<< (char)progStream.readByte(); }
-					cout<<'\n';
-					blink(led);
-					progStream = RFSnifferEEPROM::getMessageStream(progId);
 					processCommands(&progStream,cmem);
 				}
 				break;
@@ -328,7 +340,7 @@ int16_t processCommands(ByteStream* rawInput, int16_t* cmem)
 					cout <<regIndex<<":"<< readCommandMemory(cmem,regIndex) << '\n';
 				}
 				break;
-	
+
 			// wait delay in milliseconds
 			case 'w':
 				{
@@ -346,10 +358,11 @@ int16_t processCommands(ByteStream* rawInput, int16_t* cmem)
 				{
 					int bufSize = readCommandIntgerValue(cmem,cin);
 					uint8_t buf[bufSize];
-					for(int i=0;i<bufSize;i++) { buf[i] = rawInput->readByte(); }
+					BufferStream bufInput(buf,bufSize);
+					bufInput.copy( rawInput );
 					while( readCommandMemory(cmem,0) != 0 )
 					{
-						BufferInputStream bufInput(buf,bufSize);
+						bufInput.rewind();
 						processCommands(&bufInput,cmem);
 					}
 				}
@@ -357,7 +370,7 @@ int16_t processCommands(ByteStream* rawInput, int16_t* cmem)
 
 			// comment
 			default:
-				while( rawInput->readChar()!='\n' );
+				while( !rawInput->eof() && rawInput->readByte()!='\n' );
 				break;
 		}
 	}

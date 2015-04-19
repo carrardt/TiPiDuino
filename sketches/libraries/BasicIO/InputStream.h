@@ -17,14 +17,14 @@ struct InputStream
 	
 	char readFirstNonSpace()
 	{
-		char x = stream->readChar();
-		while( isSpace(x) ) x = stream->readChar();
+		char x = stream->readByte();
+		while( isSpace(x) ) x = stream->readByte();
 		return x;
 	}
 	
 	InputStream& operator >> ( char& x )
 	{
-		x = stream->readChar();
+		x = stream->readByte();
 		return *this;
 	}
 	
@@ -34,7 +34,7 @@ struct InputStream
 		while( !isSpace(x) )
 		{
 			*(str++)=x;
-			x=stream->readChar();
+			x=stream->readByte();
 		}
 		return *this;
 	}
@@ -47,13 +47,13 @@ struct InputStream
 		if(x=='-' || x=='+')
 		{ 
 			s = x;
-			x = stream->readChar();
+			x = stream->readByte();
 		}
 		while( isDigit(x) )
 		{
 			n *= 10;
 			n += x-'0';
-			x = stream->readChar();
+			x = stream->readByte();
 		}
 		if(s=='-') n = -n;
 		return n;
