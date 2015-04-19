@@ -98,6 +98,7 @@ void setup()
 
 void recordMessage(int pId);
 int16_t processCommands(ByteStream* rawInput, int16_t* cmem=0);
+void rebootToOperationMode(int op);
 
 void loop(void)
 {
@@ -127,9 +128,8 @@ void loop(void)
 				auto sniffer = make_sniffer(rx,sp,led,cout);
 				sniffer.learnProtocol();
 				int pId = RFSnifferEEPROM::saveProtocol(sp);
-				cout<<'P'<<pId<<" saved\n";
-				blink(led,50);
-				RFSnifferEEPROM::setOperationMode( RFSnifferEEPROM::RECORD_PROTOCOL_0+pId );
+				sp.toStream(cout);
+				rebootToOperationMode( RFSnifferEEPROM::RECORD_PROTOCOL_0+pId );
 			}
 			break;
 
@@ -141,7 +141,7 @@ void loop(void)
 void rebootToOperationMode(int op)
 {
 	RFSnifferEEPROM::setOperationMode(op);
-	blink(led);
+	blink(led,50);
 	asm volatile ("  jmp 0");
 }
 
@@ -154,6 +154,8 @@ void recordMessage(int pId)
 	
 	auto sp = RFSnifferEEPROM::readProtocol(pId);
 	sp.toStream(cout);
+	rx.SetInput();
+	rx.SelectPin( sp.mediumRF() );
 	auto sniffer = make_sniffer(rx,sp,led,cout);
 	for(;;)
 	{
@@ -258,6 +260,27 @@ int16_t processCommands(ByteStream* rawInput, int16_t* cmem)
 				}
 				break;
 
+			// read and print a raw binary message
+			case 'R':
+				{
+					int protoId = readCommandIntgerValue(cmem,cin);
+					int nbytes = 0;
+					auto proto = RFSnifferEEPROM::readProtocol(protoId);
+					nbytes = (proto.messageBits+7)/8;
+					uint8_t buf[nbytes];
+					uint16_t gaps[proto.messageBits+proto.latchSeqLen];
+					rx.SelectPin( proto.mediumRF() );
+					while( proto.readMessageWithGaps(rx,buf,gaps) != proto.messageBits ) ;
+					BufferStream bufStream(buf,nbytes);
+					cout.printStreamHex(&bufStream);
+					for(int i=0;i<(proto.messageBits+proto.latchSeqLen);i++)
+					{
+						if((i%3)==0) { cout<<'\n'; avrtl::DelayMicroseconds(1000000UL); }
+						cout<<gaps[i]<<' ';
+					}
+				}
+				break;
+
 			// send (emit) a message
 			case 's':
 				{
@@ -294,15 +317,13 @@ int16_t processCommands(ByteStream* rawInput, int16_t* cmem)
 				{
 					int16_t mId;
 					{
-						uint8_t buf[MAX_MESSAGE_BYTES];
 						int protoId = readCommandIntgerValue(cmem,cin);
 						int nbytes = 0;
-						{
-							auto proto = RFSnifferEEPROM::readProtocol(protoId);
-							tx.SelectPin( proto.mediumRF() );
-							while( proto.readMessage(rx,buf) != proto.messageBits ) ;
-							nbytes = (proto.messageBits+7)/8;
-						}
+						auto proto = RFSnifferEEPROM::readProtocol(protoId);
+						nbytes = (proto.messageBits+7)/8;
+						uint8_t buf[nbytes];
+						rx.SelectPin( proto.mediumRF() );
+						while( proto.readMessage(rx,buf) != proto.messageBits ) ;
 						mId = RFSnifferEEPROM::findRecordedMessage(protoId,buf,nbytes);
 					}
 					if( mId != -1 )

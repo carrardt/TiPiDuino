@@ -275,35 +275,37 @@ struct RFSnifferProtocol
 	{
 		tx = ! pulseLevel();
 		avrtl::DelayMicroseconds(MAX_PULSE_LEN);
-		for(uint8_t i=0;i<latchSeqLen;i++)
+		for(int r=0;r<nMessageRepeats;r++)
 		{
-			tx = pulseLevel();
-			avrtl::DelayMicroseconds( latchSeq[i] );
-			tx = ! pulseLevel();
-			avrtl::DelayMicroseconds( getLatchGap(i) );
-		}
-		
-		const bool manchester = (coding == CODING_MANCHESTER);
-		for(uint8_t i=0;i<len;i++)
-		{
-			for(uint8_t j=0;j<8;j++)
+			for(uint8_t i=0;i<latchSeqLen;i++)
 			{
+				avrtl::DelayMicroseconds( getLatchGap(i) );
 				tx = pulseLevel();
-				uint8_t b = ( buf[i] >> j ) & 0x01 ;
-				avrtl::DelayMicroseconds( bitSymbols[b] );
+				avrtl::DelayMicroseconds( latchSeq[i] );
 				tx = ! pulseLevel();
-				avrtl::DelayMicroseconds( getBitGap(b) );
-				if( manchester )
+			}
+			
+			const bool manchester = (coding == CODING_MANCHESTER);
+			for(uint8_t i=0;i<len;i++)
+			{
+				for(uint8_t j=0;j<8;j++)
 				{
+					uint8_t b = ( buf[i] >> j ) & 0x01 ;
+					avrtl::DelayMicroseconds( getBitGap(b) );
 					tx = pulseLevel();
-					b ^= 0x01;
 					avrtl::DelayMicroseconds( bitSymbols[b] );
 					tx = ! pulseLevel();
-					avrtl::DelayMicroseconds( getBitGap(b) );
+					if( manchester )
+					{
+						b ^= 0x01;
+						avrtl::DelayMicroseconds( getBitGap(b) );
+						tx = pulseLevel();
+						avrtl::DelayMicroseconds( bitSymbols[b] );
+						tx = ! pulseLevel();
+					}
 				}
 			}
 		}
-		tx = ! pulseLevel();
 	}
 
 	static uint8_t defaultFlags;
