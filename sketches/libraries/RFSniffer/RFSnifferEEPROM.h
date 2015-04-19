@@ -8,10 +8,18 @@
 
 namespace RFSnifferEEPROM
 {
-
 // EEPROM address where to write detected protocol
 static constexpr uint16_t EEPROM_MAGIC_NUMBER = ((uint16_t)(BUILD_TIMESTAMP & 0xFFFF));
+
 static constexpr uint8_t EEPROM_MAX_PROTOCOLS = 4;
+static constexpr uint8_t PROGRAM_PROTOCOL_ID = 0xFF;
+static constexpr uint8_t EMPTY_BOOT_PROGRAM_ID = 0xFF;
+static constexpr uint8_t LEARN_NEW_PROTOCOL = 0xFF;
+static constexpr uint8_t RECORD_PROTOCOL_0  = 0x00;
+static constexpr uint8_t RECORD_PROTOCOL_1  = 0x01;
+static constexpr uint8_t RECORD_PROTOCOL_2  = 0x02;
+static constexpr uint8_t RECORD_PROTOCOL_3  = 0x03;
+static constexpr uint8_t COMMAND_MODE       = 0x10;
 
 static constexpr uint8_t* EEPROM_MAGIC_ADDR		= ((uint8_t*)0x0000);		// 2 bytes
 static constexpr uint8_t* EEPROM_INITPROG_ADDR 	= (EEPROM_MAGIC_ADDR+2);	// 1 byte
@@ -20,12 +28,6 @@ static constexpr uint8_t* EEPROM_OPERATION_ADDR	= (EEPROM_FLAGS_ADDR+1);	// 1 by
 static constexpr uint8_t* EEPROM_PROTOCOLS_ADDR = (EEPROM_OPERATION_ADDR+1);	// 4 * sizeof(RFSnifferProtocol)
 static constexpr uint8_t* EEPROM_CODES_ADDR		= (EEPROM_PROTOCOLS_ADDR+EEPROM_MAX_PROTOCOLS*sizeof(RFSnifferProtocol));
 
-static constexpr uint8_t LEARN_NEW_PROTOCOL = 0xFF;
-static constexpr uint8_t RECORD_PROTOCOL_0  = 0x00;
-static constexpr uint8_t RECORD_PROTOCOL_1  = 0x01;
-static constexpr uint8_t RECORD_PROTOCOL_2  = 0x02;
-static constexpr uint8_t RECORD_PROTOCOL_3  = 0x03;
-static constexpr uint8_t COMMAND_MODE       = 0x10;
 
 struct MessageInfo
 {
@@ -45,7 +47,7 @@ struct EEPROMStream : public BufferStream
 		if( m_pos >= m_size ) { return 0; }
 		return eeprom_read_byte( m_buf + (m_pos++) );
 	}
-	
+
 	virtual bool writeByte( uint8_t x )
 	{
 		if( m_pos >= m_size ) { return false; }
@@ -54,6 +56,7 @@ struct EEPROMStream : public BufferStream
 	}
 };
 
+void resetEEPROM();
 void initEEPROM();
 int findRecordedMessage(int pId, const uint8_t* buf, int nbytes);
 int saveProtocol(const RFSnifferProtocol& proto);
@@ -91,6 +94,16 @@ static inline void forEachMessageInEEPROM( FuncT afunc )
 		_ptr += _len;
 		++ _mesgIdx;
 	}
+}
+
+static inline uint16_t getMessageCount()
+{
+	int mId = -1;
+	forEachMessageInEEPROM( [&](int mesgIdx, int protocolIdx, int len, uint8_t* ptr)
+		{
+			mId = mesgIdx;
+		} );
+	return mId+1;
 }
 
 static inline EEPROMStream getMessageStream(int mId)

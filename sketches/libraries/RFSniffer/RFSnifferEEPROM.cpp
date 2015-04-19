@@ -9,24 +9,29 @@
 namespace RFSnifferEEPROM
 {
 
+// reset EEPROM state
+void resetEEPROM()
+{
+	uint16_t magic = EEPROM_MAGIC_NUMBER;
+	avrtl::eeprom_gently_write_block((uint8_t*)&magic,EEPROM_MAGIC_ADDR,sizeof(magic));
+	setOperationMode( LEARN_NEW_PROTOCOL );
+	setBootProgram( EMPTY_BOOT_PROGRAM_ID );
+	for(int i=0;i<EEPROM_MAX_PROTOCOLS;i++)
+	{
+		RFSnifferProtocol sp;
+		sp.setValid(false);
+		sp.toEEPROM( EEPROM_PROTOCOLS_ADDR+i*sizeof(RFSnifferProtocol) );
+	}
+	avrtl::eeprom_gently_write_byte(EEPROM_CODES_ADDR,0);
+}
+
 void initEEPROM()
 {
 	uint16_t magic = 0;
 	eeprom_read_block(&magic,EEPROM_MAGIC_ADDR,sizeof(magic));
 	if( EEPROM_MAGIC_NUMBER!=0 && magic!=EEPROM_MAGIC_NUMBER )
 	{
-		// reset EEPROM state
-		magic = EEPROM_MAGIC_NUMBER;
-		avrtl::eeprom_gently_write_block((uint8_t*)&magic,EEPROM_MAGIC_ADDR,sizeof(magic));
-		setOperationMode(LEARN_NEW_PROTOCOL);
-		setBootProgram(0xFF);
-		for(int i=0;i<EEPROM_MAX_PROTOCOLS;i++)
-		{
-			RFSnifferProtocol sp;
-			sp.setValid(false);
-			sp.toEEPROM( EEPROM_PROTOCOLS_ADDR+i*sizeof(RFSnifferProtocol) );
-		}
-		avrtl::eeprom_gently_write_byte(EEPROM_CODES_ADDR,0);
+		resetEEPROM();
 	}
 	else
 	{
@@ -50,8 +55,7 @@ int findRecordedMessage(int pId, const uint8_t* buf, int nbytes)
 				while(i<len && eeprom_read_byte(ptr+i)==buf[i]) ++i;
 				if(i==len) mesgFoundIdx=mesgIdx;
 			}
-		}
-		);
+		} );
 	return mesgFoundIdx;
 }
 
@@ -78,7 +82,8 @@ int appendMessage(int pId, ByteStream* stream)
 	++mId;
 	int16_t nbytes = stream->available();
 	if(nbytes<0 || nbytes>255) { return -1; }
-	EEPROMStream es(nextMsgAddr, nbytes);
+	// we write the message + 3 bytes: length, protocolId, <MESSAGE>, 0
+	EEPROMStream es(nextMsgAddr, nbytes+3); 
 	es.writeByte( nbytes );
 	es.writeByte( pId );
 	es.copy( stream );
