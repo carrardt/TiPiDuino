@@ -123,8 +123,14 @@ struct RFSnifferProtocol
 		out<<'\n';
 	}
 
-	inline uint16_t getLatchGap(uint8_t l) const { return pulseGap; }
-	inline uint16_t getBitGap(bool bvalue) const { return pulseGap; }
+	inline uint16_t getLatchGap(uint8_t l) const
+	{
+		return pulseGap;
+	}
+	inline uint16_t getBitGap(bool bvalue) const
+	{
+		return pulseGap;
+	}
 
 	static bool decodeManchester(uint8_t* buf, int nbits)
 	{
@@ -261,6 +267,7 @@ struct RFSnifferProtocol
 			buf[byte] |= b;
 			if( (j%8)==7 ) { ++byte;  }
 		}
+		for(;in_gaps!=gaps;in_gaps++) { *in_gaps *= avrtl::TIMER_CPU_RATIO; }
 		if( coding == CODING_MANCHESTER )
 		{
 			if( ! decodeManchester(buf,bitsToRead) ) return 0;
@@ -273,39 +280,62 @@ struct RFSnifferProtocol
 	template<typename TxPinT>
 	void writeMessage(const uint8_t* buf, uint8_t len, TxPinT& tx)
 	{
-		tx = ! pulseLevel();
-		avrtl::DelayMicroseconds(MAX_PULSE_LEN);
+		const bool manchester = (coding == CODING_MANCHESTER);
+		
 		for(int r=0;r<nMessageRepeats;r++)
 		{
 			for(uint8_t i=0;i<latchSeqLen;i++)
 			{
-				avrtl::DelayMicroseconds( getLatchGap(i) );
-				tx = pulseLevel();
-				avrtl::DelayMicroseconds( latchSeq[i] );
 				tx = ! pulseLevel();
+				avrtl::DelayMicroseconds( getLatchGap(i) + 50 );
+				tx = pulseLevel();
+				avrtl::DelayMicroseconds( latchSeq[i] - 50 );
 			}
-			
-			const bool manchester = (coding == CODING_MANCHESTER);
+
 			for(uint8_t i=0;i<len;i++)
 			{
-				for(uint8_t j=0;j<8;j++)
+				uint8_t curbyte = buf[i];
+				for(int8_t j=0;j<8;j++)
 				{
-					uint8_t b = ( buf[i] >> j ) & 0x01 ;
-					avrtl::DelayMicroseconds( getBitGap(b) );
-					tx = pulseLevel();
-					avrtl::DelayMicroseconds( bitSymbols[b] );
 					tx = ! pulseLevel();
+					bool b = ( (curbyte&0x80) != 0 );
+					avrtl::DelayMicroseconds( getBitGap(b)  + 50 );
+					curbyte <<= 1;
+					tx = pulseLevel();
+					avrtl::DelayMicroseconds( bitSymbols[b] - 50 );
 					if( manchester )
 					{
-						b ^= 0x01;
-						avrtl::DelayMicroseconds( getBitGap(b) );
-						tx = pulseLevel();
-						avrtl::DelayMicroseconds( bitSymbols[b] );
 						tx = ! pulseLevel();
+						b = !b;
+						avrtl::DelayMicroseconds( getBitGap(b)  + 50 );
+						tx = pulseLevel();
+						avrtl::DelayMicroseconds( bitSymbols[b] - 50 );
 					}
 				}
 			}
 		}
+		tx = ! pulseLevel();
+		avrtl::DelayMicroseconds(10000UL);
+		tx = 0;
+	}
+
+	uint16_t messageTotalPulses() const
+	{
+		int bitsToRead = messageBits;
+		if(coding==CODING_MANCHESTER) bitsToRead*=2;
+		return latchSeqLen+bitsToRead;
+	}
+
+	uint16_t messageBytes() const
+	{
+		return (messageBits+7)/8;
+	}
+
+	uint16_t messageReadBufferSize() const
+	{
+		int bitsToRead = messageBits;
+		if(coding==CODING_MANCHESTER) bitsToRead*=2;
+		return (bitsToRead+7)/8;
 	}
 
 	static uint8_t defaultFlags;

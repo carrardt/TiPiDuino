@@ -87,6 +87,10 @@ void setup()
 	// try to read a previously analysed protocol from EEPROM
 	RFSnifferEEPROM::initEEPROM();
 
+	// keep emitting pins quiet
+	tx.SelectAllPins();
+	tx = 0;
+
 	// permet de selectionner la bonne entree
 	{
 		RFSnifferProtocol sp;
@@ -114,10 +118,14 @@ void loop(void)
 
 		case RFSnifferEEPROM::COMMAND_MODE :
 			{
-				//cout<<RFSnifferEEPROM::getMessageCount()<<" messages\n";
 				int16_t progId = RFSnifferEEPROM::getBootProgram();
-				auto progStream = RFSnifferEEPROM::getMessageStream(progId);
-				processCommands(&progStream);
+				if(progId!=0xFF)
+				{
+					cout<<"boot "<<progId<<'\n';
+					auto progStream = RFSnifferEEPROM::getMessageStream(progId);
+					processCommands(&progStream);
+				}
+				cout<<"ready\n";
 				processCommands(&hwserial);
 			}
 			break;
@@ -141,17 +149,19 @@ void loop(void)
 void rebootToOperationMode(int op)
 {
 	RFSnifferEEPROM::setOperationMode(op);
-	blink(led,50);
+	blink(led);
 	asm volatile ("  jmp 0");
 }
 
 void recordMessage(int pId)
 {
-	//cout << "record P#"<<pId<<"\n" ;
+	// in case the remote doesn't work, reset will get you back to command mode
+	RFSnifferEEPROM::setOperationMode( RFSnifferEEPROM::COMMAND_MODE );
+
 	uint8_t recordModeSeqIdx = 0;
 	uint8_t commandModeSeqIdx = 0;
 	uint8_t last_checksum = 0;
-	
+
 	auto sp = RFSnifferEEPROM::readProtocol(pId);
 	sp.toStream(cout);
 	rx.SetInput();
@@ -180,7 +190,6 @@ void recordMessage(int pId)
 			{
 				rebootToOperationMode(RFSnifferEEPROM::COMMAND_MODE);
 			}
-			
 		}
 	}
 }
@@ -266,18 +275,27 @@ int16_t processCommands(ByteStream* rawInput, int16_t* cmem)
 					int protoId = readCommandIntgerValue(cmem,cin);
 					int nbytes = 0;
 					auto proto = RFSnifferEEPROM::readProtocol(protoId);
-					nbytes = (proto.messageBits+7)/8;
-					uint8_t buf[nbytes];
-					uint16_t gaps[proto.messageBits+proto.latchSeqLen];
-					rx.SelectPin( proto.mediumRF() );
-					while( proto.readMessageWithGaps(rx,buf,gaps) != proto.messageBits ) ;
-					BufferStream bufStream(buf,nbytes);
-					cout.printStreamHex(&bufStream);
-					for(int i=0;i<(proto.messageBits+proto.latchSeqLen);i++)
+					int bitsToRead = proto.messageBits;
+					int nPulses = proto.messageTotalPulses();
+					uint16_t gaps[nPulses];
 					{
-						if((i%3)==0) { cout<<'\n'; avrtl::DelayMicroseconds(1000000UL); }
-						cout<<gaps[i]<<' ';
+						nbytes = proto.messageReadBufferSize();
+						uint8_t buf[nbytes];
+						rx.SelectPin( proto.mediumRF() );
+						int br=0;
+						while( (br=proto.readMessageWithGaps(rx,buf,gaps)) == 0 ) ;
+						if(proto.nMessageRepeats>1) { br=proto.readMessageWithGaps(rx,buf,gaps); }
+						BufferStream bufStream(buf,proto.messageBytes());
+						cout.printStreamHex(&bufStream);
+						cout<<'\n';
 					}
+					uint16_t minPulse=MAX_PULSE_LEN, maxPulse=0;
+					for(int i=0;i<nPulses;i++)
+					{
+						if( gaps[i] < minPulse) minPulse=gaps[i];
+						else if( gaps[i] > maxPulse) maxPulse=gaps[i];
+					}
+					cout<<minPulse<<' '<<maxPulse<<'\n';
 				}
 				break;
 

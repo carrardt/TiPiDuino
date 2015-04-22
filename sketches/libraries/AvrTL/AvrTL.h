@@ -262,7 +262,6 @@ struct AvrPin : public BasePinT
 		while( (te-ts)<timeout && BasePinT::Get()==lvl ) { UPDATE_CLOCK_COUNTER(); te=CLOCK_ELAPSED(); }
 		
 		SREG=oldSREG;
-		
 		if( gap != 0 ) { *gap = ts; }
 		if( (te-ts) >= timeout ) { return 0; }
 		else { return (te-ts) * TIMER_CPU_RATIO; }

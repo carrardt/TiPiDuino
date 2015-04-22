@@ -408,8 +408,10 @@ struct RFSniffer
 				}
 				if(signalOk)
 				{
+					// go to next stage (clean record with latch detection)
 					++stage;
-					if( sp.latchSeqLen == 0 ) ++stage;
+					// in case we have no latch, skip next stage
+					if( sp.latchSeqLen == 0 ) { ++stage; }
 					stageChanged=true;
 					sp.toStream(cout);
 					blink(led);
@@ -453,14 +455,13 @@ struct RFSniffer
 					{
 						uint16_t symbols[MAX_SYMBOLS];
 						uint8_t symcount[MAX_SYMBOLS];
-						for(int i=0;i<nPulses;i++) { gaps[i] *= avrtl::TIMER_CPU_RATIO; }
 						int nSymbols = classifySymbols(gaps,nPulses,symbols,symcount);
-						if( nSymbols >= 1 ) { sp.pulseGap = symbols[0]; }
+						if( nSymbols >= 1 ) { sp.pulseGap = symbols[nSymbols-1]; }
 						else { sp.pulseGap = sp.bitSymbols[1]; }
 						/*for(int i=0;i<nSymbols;i++)
 						{
 							cout<<symbols[i]<<':'<<symcount[i]<<'\n';
-							avrtl::DelayMicroseconds(1000000UL);
+							avrtl::DelayMicroseconds(3000000UL);
 						}*/
 					}
 				}

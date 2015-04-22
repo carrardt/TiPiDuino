@@ -14,7 +14,7 @@ void resetEEPROM()
 {
 	uint16_t magic = EEPROM_MAGIC_NUMBER;
 	avrtl::eeprom_gently_write_block((uint8_t*)&magic,EEPROM_MAGIC_ADDR,sizeof(magic));
-	setOperationMode( LEARN_NEW_PROTOCOL );
+	setOperationMode( COMMAND_MODE );
 	setBootProgram( EMPTY_BOOT_PROGRAM_ID );
 	for(int i=0;i<EEPROM_MAX_PROTOCOLS;i++)
 	{
