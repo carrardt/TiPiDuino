@@ -20,7 +20,7 @@ void resetEEPROM()
 	{
 		RFSnifferProtocol sp;
 		sp.setValid(false);
-		sp.toEEPROM( EEPROM_PROTOCOLS_ADDR+i*sizeof(RFSnifferProtocol) );
+		avrtl::eeprom_gently_write(sp,EEPROM_PROTOCOLS_ADDR+i*sizeof(RFSnifferProtocol));
 	}
 	avrtl::eeprom_gently_write_byte(EEPROM_CODES_ADDR,0);
 }
@@ -65,7 +65,7 @@ int saveProtocol(const RFSnifferProtocol& proto)
 	forEachProtocolInEEPROM( [&](int pId, const RFSnifferProtocol& p) { if(i==-1 && !p.isValid()) i=pId; } );
 	if( i != -1 )
 	{
-		proto.toEEPROM( EEPROM_PROTOCOLS_ADDR+i*sizeof(RFSnifferProtocol) );
+		avrtl::eeprom_gently_write(proto,EEPROM_PROTOCOLS_ADDR+i*sizeof(RFSnifferProtocol));
 	}
 	return i;
 }

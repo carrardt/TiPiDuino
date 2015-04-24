@@ -1,31 +1,27 @@
 #include <AvrTL.h>
-#include <SerialConsole.h>
+#include <AvrTLPin.h>
+#include <AvrTLSignal.h>
 #include <PrintStream.h>
+#include <HWSerialIO.h>
 
 using namespace avrtl;
 
 #define LED_PIN 13
 
-//constexpr auto led = pin(&PINB,&PORTB,&DDRB,5);
-/*
-constexpr auto led = pin( portInputRegister(digitalPinToPort(LED_PIN))
-						, portOutputRegister(digitalPinToPort(LED_PIN))
-						, portModeRegister(digitalPinToPort(LED_PIN))
-						,digitalPinToBit(LED_PIN) );
-*/
-static constexpr auto led = pin(LED_PIN);
-SerialConsole serialConsole;
-PrintStream<SerialConsole> cout(serialConsole);
+static constexpr auto led = StaticPin<LED_PIN>();
+HWSerialIO hwserial;
+PrintStream cout;
 
 void setup()
 {
 	led.SetOutput(); //pinMode(LED_PIN,OUTPUT);
-	serialConsole.begin(9600);
+	hwserial.begin(9600);
+	cout.begin(&hwserial);
 }
 
 void loop()
 {
-	cout<<"Hello World ;)"<<endl;
+	cout<<"Hello World ;)\n";
 	for(int j=0;j<5;j++)
 	{
 		for(int i=0;i<6;i++)

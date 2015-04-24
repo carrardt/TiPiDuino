@@ -5,9 +5,9 @@
 
 using namespace avrtl;
 
-static auto led = pin(13);
-static auto rx = pin(7);
-static auto tx = pin(8);
+static auto led = StaticPin<13>();
+static auto rx = StaticPin<7>();
+static auto tx = StaticPin<8>();
 
 static auto serialIO = make_softserial<19200>(rx,tx);
 PrintStream cout;

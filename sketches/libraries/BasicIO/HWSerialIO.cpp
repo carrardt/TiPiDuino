@@ -3,6 +3,8 @@
 volatile uint8_t HWSerialIO::Tx_byte = 0;
 volatile uint8_t HWSerialIO::Rx_byte = 0;
 
+const char* HWSerialIO::endline() const { return "\n\r"; }
+
 void HWSerialIO::begin(uint32_t baud)
 {
   uint16_t ubrrValue;

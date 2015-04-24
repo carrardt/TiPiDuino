@@ -4,12 +4,12 @@
 #include "RFSnifferProtocol.h"
 #include "ByteStream.h"
 #include <avr/eeprom.h>
-#include "AvrTL.h"
+#include "AvrTLEEPROM.h"
 
 namespace RFSnifferEEPROM
 {
 // EEPROM address where to write detected protocol
-static constexpr uint16_t EEPROM_MAGIC_NUMBER = ((uint16_t)(BUILD_TIMESTAMP & 0xFFFF));
+static constexpr uint16_t EEPROM_MAGIC_NUMBER = 0; //((uint16_t)(BUILD_TIMESTAMP & 0xFFFF));
 
 static constexpr uint8_t EEPROM_MAX_PROTOCOLS = 4;
 static constexpr uint8_t PROGRAM_PROTOCOL_ID = 0xFF;
@@ -27,7 +27,6 @@ static constexpr uint8_t* EEPROM_FLAGS_ADDR 	= (EEPROM_INITPROG_ADDR+1);	// 1 by
 static constexpr uint8_t* EEPROM_OPERATION_ADDR	= (EEPROM_FLAGS_ADDR+1);	// 1 byte
 static constexpr uint8_t* EEPROM_PROTOCOLS_ADDR = (EEPROM_OPERATION_ADDR+1);	// 4 * sizeof(RFSnifferProtocol)
 static constexpr uint8_t* EEPROM_CODES_ADDR		= (EEPROM_PROTOCOLS_ADDR+EEPROM_MAX_PROTOCOLS*sizeof(RFSnifferProtocol));
-
 
 struct MessageInfo
 {
@@ -68,16 +67,21 @@ void setOperationMode(uint8_t mode);
 void setBootProgram(uint8_t mesgId);
 uint8_t getBootProgram();
 
+static inline RFSnifferProtocol readProtocol(int pId)
+{
+	RFSnifferProtocol p;
+	avrtl::eeprom_read(p,EEPROM_PROTOCOLS_ADDR+pId*sizeof(RFSnifferProtocol));
+	if( !p.isValid() ) { p.init(); }
+	return p;
+}
+
 template<typename FuncT>
 static inline void forEachProtocolInEEPROM( FuncT afunc )
 {
-	uint8_t* protPtr = EEPROM_PROTOCOLS_ADDR;
 	for(int i=0;i<EEPROM_MAX_PROTOCOLS;i++)
 	{
-		RFSnifferProtocol p;
-		p.fromEEPROM( protPtr );
+		RFSnifferProtocol p = readProtocol(i);
 		afunc (i,p);
-		protPtr += sizeof(RFSnifferProtocol);
 	}
 }
 
@@ -109,13 +113,6 @@ static inline uint16_t getMessageCount()
 static inline EEPROMStream getMessageStream(int mId)
 {
 	return EEPROMStream( getMessageInfo(mId) );
-}
-
-static inline RFSnifferProtocol readProtocol(int pId)
-{
-	RFSnifferProtocol sp;
-	sp.fromEEPROM(EEPROM_PROTOCOLS_ADDR+pId*sizeof(RFSnifferProtocol));
-	return sp;
 }
 
 

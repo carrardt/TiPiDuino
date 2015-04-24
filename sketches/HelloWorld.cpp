@@ -1,4 +1,5 @@
 #include <AvrTL.h>
+#include <AvrTLPin.h>
 #include <LCD.h>
 #include <HWSerialIO.h>
 #include <PrintStream.h>
@@ -10,13 +11,13 @@ LCD<LCD_PINS> lcd;
 HWSerialIO serialIO;
 PrintStream lcdOut;
 PrintStream serialOut;
-static auto led = AvrPin<13>();
+static auto led = StaticPin<13>();
 
 void setup()
 {
 	lcd.begin();
 	lcdOut.begin( &lcd );
-	serialConsole.begin(9600);
+	serialIO.begin(9600);
 	serialOut.begin( &serialIO );
 	led.SetOutput();
 }

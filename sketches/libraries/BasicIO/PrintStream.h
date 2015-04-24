@@ -4,23 +4,27 @@
 #include <ByteStream.h>
 #include <AvrTL.h>
 
-static constexpr auto endl = '\n';
+
+struct EndLineT {};
+#define endl EndLineT()
+//static constexpr EndLineT endl;
 
 struct PrintStream
 {
 	PrintStream() : stream(0) {}
-	
+
 	void begin(ByteStream* _s)
 	{
 		stream = _s;
 	}
-	
+
 	PrintStream& operator << ( const char& x ) { print( x ); return *this; }
 	PrintStream& operator << ( const int16_t& x ) { print( x ); return *this; }
 	PrintStream& operator << ( const uint16_t& x ) { print( x ); return *this; }
 	PrintStream& operator << ( const int32_t& x ) { print( x ); return *this; }
 	PrintStream& operator << ( const uint32_t& x ) { print( x ); return *this; }
 	PrintStream& operator << ( const char* x ) { print( x ); return *this; }
+	PrintStream& operator << ( const EndLineT& x ) { print( x ); return *this; }
 
 	template<typename T>
 	void println( const T& x )
@@ -28,6 +32,7 @@ struct PrintStream
 		print(x);
 		print(endl);
 	}
+
 
 	void print( char x )
 	{ 
@@ -48,6 +53,11 @@ struct PrintStream
 		}
 	}
 
+	void print( const EndLineT& )
+	{
+		if( stream != 0 ) { print( stream->endline() ); }
+	}
+	
 	void print( void* s )
 	{
 		uint32_t addr = (uint32_t)s;

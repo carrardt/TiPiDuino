@@ -3,20 +3,21 @@
 
 #include "RFSnifferConstants.h"
 #include "RFSnifferProtocol.h"
-#include "AvrTL.h"
+#include "AvrTLSignal.h"
+#include "PrintStream.h"
 
 /*
  * TODO: improve pulse length encoding, using TIMER0PRESCALER value
  */
 
-template<typename RXPinT, typename LedPinT, typename OutputStreamT>
+template<typename RXPinT, typename LedPinT>
 struct RFSniffer
 {
 	static constexpr uint16_t MIN_MESSAGE_PULSES = 32;
 	static constexpr uint16_t ENTROPY_DETECTION_PULSES = 32;
 	static constexpr uint16_t MAX_PULSES = 384;
-	
-	RFSniffer(RXPinT& _rx, RFSnifferProtocol& _sp, LedPinT& _led, OutputStreamT& _out)
+
+	RFSniffer(RXPinT& _rx, RFSnifferProtocol& _sp, LedPinT& _led, PrintStream& _out)
 		: rx(_rx)
 		, sp(_sp)
 		, led(_led)
@@ -32,7 +33,7 @@ struct RFSniffer
 		uint8_t nSymbolsRead = 0;
 		while(nSymbolsInBuffer<NSymbols && nSymbolsRead<SeqLen)
 		{
-			long p = rx.PulseIn(pulseLevel,MAX_PULSE_LEN);
+			long p = avrtl::PulseIn(rx,pulseLevel,MAX_PULSE_LEN);
 			if( p < MIN_PULSE_LEN ) return nSymbolsRead;
 			uint8_t j=NSymbols;
 			for(int s=0;s<nSymbolsInBuffer;++s)
@@ -49,7 +50,7 @@ struct RFSniffer
 		}
 		while( nSymbolsRead < SeqLen )
 		{
-			long p = rx.PulseIn(pulseLevel,MAX_PULSE_LEN);
+			long p = avrtl::PulseIn(rx,pulseLevel,MAX_PULSE_LEN);
 			if( p < MIN_PULSE_LEN ) return nSymbolsRead;
 			uint8_t j = NSymbols;
 			for(int s=0;s<NSymbols;++s)
@@ -71,11 +72,11 @@ struct RFSniffer
 	  int n=0;
 	  for(;n<minLatchCount;++n)
 	  {
-		  buf[n] = rx.PulseIn(pulseLevel,MAX_PULSE_LEN);
+		  buf[n] = avrtl::PulseIn(rx,pulseLevel,MAX_PULSE_LEN);
 		  if( buf[n]<minLatchLen || buf[n]>=MAX_PULSE_LEN ) return n;
 	  }
 	  do {
-		buf[n++] = rx.PulseIn(pulseLevel,MAX_PULSE_LEN);
+		buf[n++] = avrtl::PulseIn(rx,pulseLevel,MAX_PULSE_LEN);
 	  }
 	  while( buf[n-1]>MIN_PULSE_LEN && buf[n-1]<=MAX_PULSE_LEN && n<bufSize);
 	  if(n<bufSize) { --n; }
@@ -87,7 +88,7 @@ struct RFSniffer
 	{
 		for(uint8_t i=0;i<nlacthes;i++)
 		{
-			long p = rx.PulseIn(pulseLevel,MAX_PULSE_LEN);
+			long p = avrtl::PulseIn(rx,pulseLevel,MAX_PULSE_LEN);
 			buf[i] = p;
 			uint16_t l = sequence[i];
 			uint16_t relerr = l / PULSE_ERR_RATIO;
@@ -96,7 +97,7 @@ struct RFSniffer
 		int n = nlacthes;
 	    do
 	    {
-			buf[n++] = rx.PulseIn(pulseLevel,MAX_PULSE_LEN);
+			buf[n++] = avrtl::PulseIn(rx,pulseLevel,MAX_PULSE_LEN);
 	    }
 	    while( buf[n-1]>MIN_PULSE_LEN && buf[n-1]<=MAX_PULSE_LEN && n<bufSize);
 		if(n<bufSize) { --n; }
@@ -115,7 +116,7 @@ struct RFSniffer
 
 #define CURSOR_DIST(a,b) (((bufSize+b)-a)%bufSize)
 
-		l = rx.PulseIn(pulseLevel,MAX_PULSE_LEN);
+		l = avrtl::PulseIn(rx,pulseLevel,MAX_PULSE_LEN);
 		if( l < MIN_PULSE_LEN ) return 0;
 		buf[curs] = l;	
 		curs=(curs+1)%bufSize;
@@ -127,7 +128,7 @@ struct RFSniffer
 
 			// read a valid pulse,
 			do {
-				l = rx.PulseIn(pulseLevel,MAX_PULSE_LEN);
+				l = avrtl::PulseIn(rx,pulseLevel,MAX_PULSE_LEN);
 			} while( l < MIN_PULSE_LEN ) ;
 			
 			// store the pulse
@@ -144,7 +145,7 @@ struct RFSniffer
 		// now wait until we have a long enough binary sequence
 		while( CURSOR_DIST(fop0,curs) < binarySeqLen )
 		{
-			l = rx.PulseIn(pulseLevel,MAX_PULSE_LEN);
+			l = avrtl::PulseIn(rx,pulseLevel,MAX_PULSE_LEN);
 			if( l < MIN_PULSE_LEN ) return 0;
 			buf[curs] = l;
 			re = l / PULSE_ERR_RATIO;
@@ -163,7 +164,7 @@ struct RFSniffer
 
 		while( curs != fop0 )
 		{
-			l = rx.PulseIn(pulseLevel,MAX_PULSE_LEN);
+			l = avrtl::PulseIn(rx,pulseLevel,MAX_PULSE_LEN);
 			if( l < MIN_PULSE_LEN )
 			{
 				int recordSize = CURSOR_DIST(fop0,curs);
@@ -367,7 +368,7 @@ struct RFSniffer
 		{
 			if( stageChanged )
 			{
-				cout<<stageLabel[stage]<<' '<<(sp.mediumRF()?"RF":"IR")<<'/'<<(sp.pulseLevel()?"Hi":"Lo")<<'\n';
+				cout<<stageLabel[stage]<<' '<<(sp.mediumRF()?"RF":"IR")<<'/'<<(sp.pulseLevel()?"Hi":"Lo")<<endl;
 				stageChanged=false;
 			}
 			// detect and record a signal
@@ -460,7 +461,7 @@ struct RFSniffer
 						else { sp.pulseGap = sp.bitSymbols[1]; }
 						/*for(int i=0;i<nSymbols;i++)
 						{
-							cout<<symbols[i]<<':'<<symcount[i]<<'\n';
+							cout<<symbols[i]<<':'<<symcount[i]<<endl;
 							avrtl::DelayMicroseconds(3000000UL);
 						}*/
 					}
@@ -469,7 +470,7 @@ struct RFSniffer
 				{
 					uint32_t retries=0;
 					uint8_t signal2[nbytes];
-					cout<<"press again\n";
+					cout<<"press again"<<endl;
 					do
 					{
 						br = sp.readMessage(rx,signal2);
@@ -483,7 +484,7 @@ struct RFSniffer
 				}
 				else
 				{
-					cout << "Err: "<<br<<'/'<<bitsToRead<<'\n';
+					cout << "Err: "<<br<<'/'<<bitsToRead<<endl;
 					blink(led);
 					stage=0;
 					stageChanged=true;
@@ -494,14 +495,14 @@ struct RFSniffer
 
 	RXPinT& rx;
 	LedPinT& led;
-	OutputStreamT& cout;
+	PrintStream& cout;
 	RFSnifferProtocol& sp;
 };
 
-template<typename RXPinT, typename LedPinT, typename OStreamT>
-static RFSniffer<RXPinT,LedPinT,OStreamT> make_sniffer(RXPinT& rx, RFSnifferProtocol& sp, LedPinT& led, OStreamT& out) 
+template<typename RXPinT, typename LedPinT>
+static RFSniffer<RXPinT,LedPinT> make_sniffer(RXPinT& rx, RFSnifferProtocol& sp, LedPinT& led, PrintStream& out) 
 {
-	return RFSniffer<RXPinT,LedPinT,OStreamT>(rx,sp,led,out);
+	return RFSniffer<RXPinT,LedPinT>(rx,sp,led,out);
 }
 
 #endif

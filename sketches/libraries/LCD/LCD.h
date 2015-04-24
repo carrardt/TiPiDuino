@@ -1,8 +1,10 @@
 #ifndef _Template_LiquidCrystal_h
 #define _Template_LiquidCrystal_h
 
+#include "AvrTLPin.h"
+#include "AvrTLSignal.h"
+#include <ByteStream.h>
 #include <inttypes.h>
-#include "AvrTL.h"
 
 // commands
 #define LCD_CLEARDISPLAY 0x01
@@ -64,20 +66,18 @@
 // handles Read/Write mode with optional rw pin
 // if no pin is connected (pin = -1) nothing happens
 
-#include <ByteStream.h>
-
 template<int _rs, int _en, int _d0, int _d1, int _d2, int _d3,int _cols=16, int _lines=2, int _dotSize=LCD_5x8DOTS>
 struct LCD : public ByteStream
 {
 	static constexpr int cols = _cols;
 	static constexpr int lines = _lines;
 	static constexpr int dotSize = _dotSize;
-	avrtl::AvrPin<StaticPin<_rs> > rs;
-	avrtl::AvrPin<StaticPin<_en> > en;
-	avrtl::AvrPin<StaticPin<_d0> > d0;
-	avrtl::AvrPin<StaticPin<_d1> > d1;
-	avrtl::AvrPin<StaticPin<_d2> > d2;
-	avrtl::AvrPin<StaticPin<_d3> > d3;
+	avrtl::StaticPin<_rs> rs;
+	avrtl::StaticPin<_en> en;
+	avrtl::StaticPin<_d0> d0;
+	avrtl::StaticPin<_d1> d1;
+	avrtl::StaticPin<_d2> d2;
+	avrtl::StaticPin<_d3> d3;
 
 	void pulseEnable() 
 	{

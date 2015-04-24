@@ -71,7 +71,9 @@ WIRING_OBJS_DIRS=$(sort $(dir $(WIRING_OBJS)))
 # User libraries
 USER_LIBNAME=User-$(VARIANT)
 USER_LIB=$(BUILD_DIR)/lib$(USER_LIBNAME).a
-#USER_SKETCHES=$(wildcard $(SKETCHES)/*.cpp $(SKETCHES)/*.ino)
+USER_SKETCHES_SRC=
+USER_SKETCHES_TARGETS=$(patsubst $(SKETCHES)/%.cpp,%.hex,$(wildcard $(SKETCHES)/*.cpp))
+USER_SKETCHES_TARGETS+=$(patsubst $(SKETCHES)/%.ino,%.hex,$(wildcard $(SKETCHES)/*.ino))
 #USER_BINARIES=
 USER_LIBRARIES_DIR=$(SKETCHES)/libraries
 USER_LIBRARIES_SRC_C=$(shell find $(USER_LIBRARIES_DIR) -name "*.c")
@@ -88,6 +90,8 @@ ETL_CXX_FLAGS=
 
 # include previously generated dependencies
 include $(shell find $(BUILD_DIR) -name "*.d")
+
+all: $(USER_SKETCHES_TARGETS)
 
 wiring: $(WIRING_SRC_DIR) $(WIRING_LIB)
 user: $(USER_LIB)

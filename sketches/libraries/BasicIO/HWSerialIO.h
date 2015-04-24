@@ -13,6 +13,7 @@
 struct HWSerialIO : public ByteStream
 {
 	static void begin(uint32_t baud=9600);
+	virtual const char* endline() const;
 	virtual bool writeByte( uint8_t x );
 	virtual uint8_t readByte();
 	

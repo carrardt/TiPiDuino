@@ -10,7 +10,8 @@ struct ByteStream
 	virtual bool eof() { return false; }
 	virtual bool rewind() { return false; }
 	virtual int16_t available() { return -1; }
-	
+	virtual const char* endline() const { return "\n"; }
+
 	inline void copy( ByteStream* from )
 	{
 		while( !eof() && !from->eof() )

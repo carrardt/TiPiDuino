@@ -14,6 +14,7 @@ struct InputStream
 	
 	static bool isSpace(char x) { return x==' ' || x=='\t' || x=='\n' || x=='\r'; }
 	static bool isDigit(char x) { return x>='0' && x<='9'; }
+	static bool isHexDigit(char x) { return (x>='0' && x<='9') || (x>='A' && x<='F'); }
 	
 	char readFirstNonSpace()
 	{
@@ -39,7 +40,7 @@ struct InputStream
 		return *this;
 	}
 
-	int32_t readDec32()
+	int32_t readInteger()
 	{
 		int32_t n=0;
 		char s='+';
@@ -49,20 +50,38 @@ struct InputStream
 			s = x;
 			x = stream->readByte();
 		}
-		while( isDigit(x) )
+		if( isDigit(x) )
 		{
-			n *= 10;
-			n += x-'0';
+			n = x-'0';
 			x = stream->readByte();
+			if( n==0 && x=='x' )
+			{
+				x = stream->readByte();
+				while( isHexDigit(x) )
+				{
+					n *= 16;
+					n += isDigit(x) ? (x-'0') : (10+x-'A');
+					x = stream->readByte();
+				}
+			}
+			else
+			{
+				while( isDigit(x) )
+				{
+					n *= 10;
+					n += x-'0';
+					x = stream->readByte();
+				}
+			}
 		}
 		if(s=='-') n = -n;
 		return n;
 	}
 
-	InputStream& operator >> ( int32_t& n ) { n = readDec32(); return *this; }
-	InputStream& operator >> ( uint32_t& n ) { n = readDec32(); return *this; }
-	InputStream& operator >> ( int16_t& n ) { n = readDec32(); return *this; }
-	InputStream& operator >> ( uint16_t& n ) { n = readDec32(); return *this; }
+	InputStream& operator >> ( int32_t& n ) { n = readInteger(); return *this; }
+	InputStream& operator >> ( uint32_t& n ) { n = readInteger(); return *this; }
+	InputStream& operator >> ( int16_t& n ) { n = readInteger(); return *this; }
+	InputStream& operator >> ( uint16_t& n ) { n = readInteger(); return *this; }
 //	InputStream& operator >> ( int8_t& n ) { n = readDec32(); return *this; }
 //	InputStream& operator >> ( uint8_t& n ) { n = readDec32(); return *this; }
 
