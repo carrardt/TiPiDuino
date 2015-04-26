@@ -48,7 +48,7 @@ namespace avrtl
 		uint8_t ClearMask() const { return ~mask; }
 		
 		uint8_t SetAllMask() const { return (1<<pin1_bit) | (1<<pin2_bit); }
-		uint8_t ClearAllMask() const { return ~mask; }
+		uint8_t ClearAllMask() const { return ~SetAllMask(); }
 		
 		void SetOutput() const { *ddr_addr |= SetAllMask(); }
 		void SetInput() const { *ddr_addr &= ClearAllMask(); }

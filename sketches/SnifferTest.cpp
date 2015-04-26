@@ -12,7 +12,7 @@
 using namespace avrtl;
 
 // what to use as a console to prin message
-//#define LCD_CONSOLE 1
+#define LCD_CONSOLE 1
 //#define SOFT_SERIAL_CONSOLE 1
 
 // Sequence for learning a new protocol
@@ -27,7 +27,7 @@ using namespace avrtl;
 #define RF_EMIT_PIN 10
 #define IR_EMIT_PIN 11
 #define LED_PIN 13
-#define SOFT_SERIAL_TX 12
+//#define SOFT_SERIAL_TX 12
 #define SERIAL_SPEED 9600
 
 #ifdef LCD_CONSOLE
@@ -43,7 +43,8 @@ static auto serialIO = make_softserial<SERIAL_SPEED>(serial_rx,serial_tx);
 
 HWSerialIO hwserial; // pins 0,1
 static auto rx = DualPin<IR_RECEIVE_PIN,RF_RECEIVE_PIN>();
-static auto tx = DualPin<IR_EMIT_PIN,RF_EMIT_PIN>();
+static auto rf_tx = StaticPin<RF_EMIT_PIN>();
+static auto ir_tx = StaticPin<IR_EMIT_PIN>();
 static auto led = StaticPin<LED_PIN>();
 static PrintStream cout;
 
@@ -51,8 +52,9 @@ void setup()
 {
 	// setup pin mode
 	rx.SetInput();
-	tx.SetOutput();
-	led.SetOutput();
+	rf_tx.SetOutput(); rf_tx=0;
+	ir_tx.SetOutput(); ir_tx=0;
+	led.SetOutput(); led=0;
 
 	hwserial.begin(SERIAL_SPEED);
 
@@ -69,10 +71,6 @@ void setup()
 
 	// try to read a previously analysed protocol from EEPROM
 	RFSnifferEEPROM::initEEPROM();
-
-	// keep emitting pins quiet
-	tx.SelectAllPins();
-	tx = 0;
 
 	// permet de selectionner la bonne entree
 	{
@@ -101,7 +99,7 @@ void loop(void)
 		case RFSnifferEEPROM::COMMAND_MODE :
 			{
 				int16_t progId = RFSnifferEEPROM::getBootProgram();
-				auto interpreter = make_rfsniffer_interpreter(tx,rx,cout);
+				auto interpreter = make_rfsniffer_interpreter(rx,rf_tx,ir_tx,cout);
 				if(progId!=0xFF)
 				{
 					cout<<"boot "<<progId<<endl;

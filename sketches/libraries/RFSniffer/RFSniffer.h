@@ -29,11 +29,13 @@ struct RFSniffer
 	template<uint8_t NSymbols, uint8_t SeqLen>
 	inline uint8_t detectEntropyDrop(uint16_t* buf, bool pulseLevel)
 	{
+		SCOPED_SIGNAL_PROCESSING;
+		
 		uint8_t nSymbolsInBuffer = 0;
 		uint8_t nSymbolsRead = 0;
 		while(nSymbolsInBuffer<NSymbols && nSymbolsRead<SeqLen)
 		{
-			long p = avrtl::PulseIn(rx,pulseLevel,MAX_PULSE_LEN);
+			long p = avrtl::PulseInFast(rx,pulseLevel,MAX_PULSE_LEN);
 			if( p < MIN_PULSE_LEN ) return nSymbolsRead;
 			uint8_t j=NSymbols;
 			for(int s=0;s<nSymbolsInBuffer;++s)
@@ -50,7 +52,7 @@ struct RFSniffer
 		}
 		while( nSymbolsRead < SeqLen )
 		{
-			long p = avrtl::PulseIn(rx,pulseLevel,MAX_PULSE_LEN);
+			long p = avrtl::PulseInFast(rx,pulseLevel,MAX_PULSE_LEN);
 			if( p < MIN_PULSE_LEN ) return nSymbolsRead;
 			uint8_t j = NSymbols;
 			for(int s=0;s<NSymbols;++s)
@@ -69,14 +71,16 @@ struct RFSniffer
 	template<uint16_t bufSize, uint16_t minLatchLen, uint8_t minLatchCount>
 	int recordSignalLatchDetect(uint16_t * buf,bool pulseLevel)
 	{
+	  SCOPED_SIGNAL_PROCESSING;
+	  
 	  int n=0;
 	  for(;n<minLatchCount;++n)
 	  {
-		  buf[n] = avrtl::PulseIn(rx,pulseLevel,MAX_PULSE_LEN);
+		  buf[n] = avrtl::PulseInFast(rx,pulseLevel,MAX_PULSE_LEN);
 		  if( buf[n]<minLatchLen || buf[n]>=MAX_PULSE_LEN ) return n;
 	  }
 	  do {
-		buf[n++] = avrtl::PulseIn(rx,pulseLevel,MAX_PULSE_LEN);
+		buf[n++] = avrtl::PulseInFast(rx,pulseLevel,MAX_PULSE_LEN);
 	  }
 	  while( buf[n-1]>MIN_PULSE_LEN && buf[n-1]<=MAX_PULSE_LEN && n<bufSize);
 	  if(n<bufSize) { --n; }
@@ -86,9 +90,11 @@ struct RFSniffer
 	template<uint16_t bufSize>
 	int recordSignalLatchSequenceDetect(uint16_t * buf,bool pulseLevel,const int nlacthes, const uint16_t* sequence)
 	{
+		SCOPED_SIGNAL_PROCESSING;
+
 		for(uint8_t i=0;i<nlacthes;i++)
 		{
-			long p = avrtl::PulseIn(rx,pulseLevel,MAX_PULSE_LEN);
+			long p = avrtl::PulseInFast(rx,pulseLevel,MAX_PULSE_LEN);
 			buf[i] = p;
 			uint16_t l = sequence[i];
 			uint16_t relerr = l / PULSE_ERR_RATIO;
@@ -97,7 +103,7 @@ struct RFSniffer
 		int n = nlacthes;
 	    do
 	    {
-			buf[n++] = avrtl::PulseIn(rx,pulseLevel,MAX_PULSE_LEN);
+			buf[n++] = avrtl::PulseInFast(rx,pulseLevel,MAX_PULSE_LEN);
 	    }
 	    while( buf[n-1]>MIN_PULSE_LEN && buf[n-1]<=MAX_PULSE_LEN && n<bufSize);
 		if(n<bufSize) { --n; }
@@ -108,6 +114,8 @@ struct RFSniffer
 	template<uint16_t bufSize, uint16_t binarySeqLen>
 	int recordSignalBinaryEntropyDetect(uint16_t * buf, bool pulseLevel, uint16_t& P1)
 	{
+		SCOPED_SIGNAL_PROCESSING;
+
 		uint16_t fop0 = 0; // first occurence position
 		uint16_t fop1 = 0; // first occurence position
 		uint16_t curs = 0; // circular buffer cursor
@@ -116,7 +124,7 @@ struct RFSniffer
 
 #define CURSOR_DIST(a,b) (((bufSize+b)-a)%bufSize)
 
-		l = avrtl::PulseIn(rx,pulseLevel,MAX_PULSE_LEN);
+		l = avrtl::PulseInFast(rx,pulseLevel,MAX_PULSE_LEN);
 		if( l < MIN_PULSE_LEN ) return 0;
 		buf[curs] = l;	
 		curs=(curs+1)%bufSize;
@@ -128,7 +136,7 @@ struct RFSniffer
 
 			// read a valid pulse,
 			do {
-				l = avrtl::PulseIn(rx,pulseLevel,MAX_PULSE_LEN);
+				l = avrtl::PulseInFast(rx,pulseLevel,MAX_PULSE_LEN);
 			} while( l < MIN_PULSE_LEN ) ;
 			
 			// store the pulse
@@ -145,7 +153,7 @@ struct RFSniffer
 		// now wait until we have a long enough binary sequence
 		while( CURSOR_DIST(fop0,curs) < binarySeqLen )
 		{
-			l = avrtl::PulseIn(rx,pulseLevel,MAX_PULSE_LEN);
+			l = avrtl::PulseInFast(rx,pulseLevel,MAX_PULSE_LEN);
 			if( l < MIN_PULSE_LEN ) return 0;
 			buf[curs] = l;
 			re = l / PULSE_ERR_RATIO;
@@ -164,7 +172,7 @@ struct RFSniffer
 
 		while( curs != fop0 )
 		{
-			l = avrtl::PulseIn(rx,pulseLevel,MAX_PULSE_LEN);
+			l = avrtl::PulseInFast(rx,pulseLevel,MAX_PULSE_LEN);
 			if( l < MIN_PULSE_LEN )
 			{
 				int recordSize = CURSOR_DIST(fop0,curs);
@@ -248,6 +256,10 @@ struct RFSniffer
 			{
 				if( symcount[i] > symcount[si1] ) si1=i;
 			}
+		}
+		for(int i=0;i<nSymbols;i++)
+		{
+			cout<<i<<':'<<symbols[i]<<endl;
 		}
 		
 		// assume the shortest pulse codes 0, the longest codes 1
@@ -368,7 +380,9 @@ struct RFSniffer
 		{
 			if( stageChanged )
 			{
-				cout<<stageLabel[stage]<<' '<<(sp.mediumRF()?"RF":"IR")<<'/'<<(sp.pulseLevel()?"Hi":"Lo")<<endl;
+				cout<<stageLabel[stage]<<endl;
+				blink(led);
+				sp.toStream(cout);
 				stageChanged=false;
 			}
 			// detect and record a signal
@@ -388,10 +402,10 @@ struct RFSniffer
 							long re0 = sp.bitSymbols[0] / PULSE_ERR_RATIO;
 							long re1 = sp.bitSymbols[1] / PULSE_ERR_RATIO;
 							int P0Bit=2, P1Bit=2;
-							
+
 							if( identicalPulses(P0,sp.bitSymbols[0]) ) P0Bit=0;
 							else if( identicalPulses(P0,sp.bitSymbols[1]) ) P0Bit=1;
-							
+
 							if( identicalPulses(P1,sp.bitSymbols[0]) ) P1Bit=0;
 							else if( identicalPulses(P1,sp.bitSymbols[1]) ) P1Bit=1;
 
@@ -412,10 +426,9 @@ struct RFSniffer
 					// go to next stage (clean record with latch detection)
 					++stage;
 					// in case we have no latch, skip next stage
+					// TODO: latch are not detected when message is not repeated
 					if( sp.latchSeqLen == 0 ) { ++stage; }
 					stageChanged=true;
-					sp.toStream(cout);
-					blink(led);
 				}
 			}
 			// make a new record with a latch detection for record content robustness
@@ -435,8 +448,6 @@ struct RFSniffer
 				{
 					++stage;
 					stageChanged=true;
-					sp.toStream(cout);
-					blink(led);
 				}
 			}
 			// signal content analysis
@@ -457,13 +468,15 @@ struct RFSniffer
 						uint16_t symbols[MAX_SYMBOLS];
 						uint8_t symcount[MAX_SYMBOLS];
 						int nSymbols = classifySymbols(gaps,nPulses,symbols,symcount);
-						if( nSymbols >= 1 ) { sp.pulseGap = symbols[nSymbols-1]; }
-						else { sp.pulseGap = sp.bitSymbols[1]; }
-						/*for(int i=0;i<nSymbols;i++)
+						if( nSymbols >= 1 )
 						{
-							cout<<symbols[i]<<':'<<symcount[i]<<endl;
-							avrtl::DelayMicroseconds(3000000UL);
-						}*/
+							sp.latchGap = symbols[0];
+							sp.bitGap = symbols[nSymbols-1];
+						}
+						else
+						{
+							sp.bitGap = sp.bitSymbols[1];
+						}
 					}
 				}
 				if( br == sp.messageBits )
@@ -485,7 +498,6 @@ struct RFSniffer
 				else
 				{
 					cout << "Err: "<<br<<'/'<<bitsToRead<<endl;
-					blink(led);
 					stage=0;
 					stageChanged=true;
 				}

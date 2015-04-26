@@ -32,11 +32,13 @@ void setup()
 
 void loop()
 {
+	SCOPED_SIGNAL_PROCESSING; // allows use of xxxFast methods in AvrTLSignal.h inside current block
+	
 	for(int i=0;i<64;i++)
 	{
-		avrtl::pulsePWM<38000>( tx, 65536UL/3, 2000 );
+		avrtl::pulsePWMFast<38000>( tx, 65536UL/3, 2000 );
 		tx = 0;
-		avrtl::DelayMicroseconds(2000);
+		avrtl::DelayMicrosecondsFast(2000);
 	}
-	avrtl::DelayMicroseconds(200000);
+	avrtl::DelayMicrosecondsFast(200000);
 }

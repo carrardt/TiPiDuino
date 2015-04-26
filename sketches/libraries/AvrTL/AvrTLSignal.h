@@ -9,45 +9,77 @@ namespace avrtl
 {
 	static constexpr uint32_t timerPrescaler = 8;
 	static constexpr uint32_t timerFreqKhz = ( F_CPU / timerPrescaler ) / 1024;
+	extern uint8_t saved_SREG;
+	extern uint8_t saved_TCCR0B;
 	
-	static inline uint32_t ticksToMicroseconds(uint32_t nTicks)
+#define INIT_CLOCK_COUNTER() 	uint8_t _t=TCNT0,_t0=_t; int32_t _m=-_t0
+#define INIT_CLOCK_COUNTER16() 	uint8_t _t=TCNT0,_t0=_t; int16_t _m=-_t0
+#define UPDATE_CLOCK_COUNTER() 	do{ uint8_t _t2=TCNT0; if(_t2<_t)_m+=256; _t=_t2; }while(0)
+#define CLOCK_ELAPSED() 		(_m+_t)
+
+	static constexpr uint32_t ticksToMicroseconds(uint32_t nTicks)
 	{
 		return (nTicks * 1024) / timerFreqKhz;
 	}
-	
-	static inline uint32_t microsecondsToTicks(uint32_t us)
+
+	static constexpr uint32_t microsecondsToTicks(uint32_t us)
 	{
 		return (us * timerFreqKhz) / 1024;
 	}
 
-	static void DelayTimerTicks(uint32_t tickCount)
+	static constexpr uint16_t pwmval(float dutyCyclesFraction)
 	{
-		uint8_t oldSREG = SREG;
-		cli();
-		
-		uint32_t m=0;
-		uint8_t t=TCNT0, t0=t;
-		
-#define UPDATE_CLOCK_COUNTER() do{ uint8_t t2=TCNT0; if(t2<t) ++m; t=t2; }while(0)
-#define CLOCK_ELAPSED() ((m*256+t)-t0)
+		return 65535.75f * dutyCyclesFraction;
+	}
 
+	struct SignalProcessingMode
+	{
+		bool active;
+		inline SignalProcessingMode() : active(saved_TCCR0B==0)
+		{
+			if(active)
+			{
+				saved_SREG = SREG;
+				cli();
+				saved_TCCR0B = TCCR0B;
+				// Sets the timer prescale factor to 8;
+				TCCR0B = (TCCR0B & 0b11111000) | 0b010;
+			}
+		}
+		inline ~SignalProcessingMode()
+		{
+			if(active)
+			{
+				TCCR0B = saved_TCCR0B;
+				SREG = saved_SREG;
+				saved_TCCR0B = 0;
+			}
+		}
+	};
+#define SCOPED_SIGNAL_PROCESSING avrtl::SignalProcessingMode __scopedSignalProcessingMode
+
+	static void DelayTimerTicksFast(uint32_t tickCount)
+	{
+		INIT_CLOCK_COUNTER();
 		UPDATE_CLOCK_COUNTER();
 		while( CLOCK_ELAPSED() < tickCount ) { UPDATE_CLOCK_COUNTER(); }
-
-#undef UPDATE_CLOCK_COUNTER
-#undef CLOCK_ELAPSED
-
-		SREG = oldSREG;
 	}
 
-	static void DelayMicroseconds(uint32_t timeout)
+	static void DelayMicrosecondsFast(uint32_t timeout)
 	{
-		DelayTimerTicks( microsecondsToTicks(timeout) );
+		DelayTimerTicksFast( microsecondsToTicks(timeout) );
 	}
 	
+	static void DelayMicroseconds(uint32_t timeout)
+	{
+		SCOPED_SIGNAL_PROCESSING;
+		DelayTimerTicksFast( microsecondsToTicks(timeout) );
+	}
+
 	template<typename PinT>
 	static void blink(PinT& led, int N=20)
 	{
+		SCOPED_SIGNAL_PROCESSING;
 		for(int j=1;j<=N;j++)
 		{
 			led = j&1;
@@ -55,114 +87,158 @@ namespace avrtl
 		}
 	}
 
-	// Freq: frequency in Hz
-	// value: fraction (in the range [0;65535]) of the period where the level is high
-	template<uint32_t Freq, typename PinT>
-	static inline void pulsePWM(PinT& tx, uint16_t value, uint32_t duration)
+	// in ticks, not in microSeconds
+	template<uint16_t CycleTicks, uint16_t HighPeriodTicks>
+	static inline void pulsePWMFastTicks(auto tx, uint16_t nCycles)
 	{
-		uint32_t periodTicks = F_CPU / ( Freq * timerPrescaler );
-		uint32_t highPeriod = ( periodTicks * value ) >> 16;
-		uint32_t lowPeriod = periodTicks - highPeriod;
-		
+		INIT_CLOCK_COUNTER16();
+		tx.Set(true); // start signal ASAP, do initial computation during high state
+		UPDATE_CLOCK_COUNTER();
+		uint16_t lowPeriod = CycleTicks - HighPeriodTicks;
+		uint16_t nextSwitchTime = 0;		
+		for(;nCycles;--nCycles)
+		{
+			tx.Set(true);
+			nextSwitchTime += HighPeriodTicks;
+			uint16_t wallClock;
+			do {
+				UPDATE_CLOCK_COUNTER();
+				wallClock = CLOCK_ELAPSED();
+			} while( wallClock<nextSwitchTime );
+			tx.Set(false);
+			nextSwitchTime += lowPeriod;
+			do {
+				UPDATE_CLOCK_COUNTER();
+				wallClock = CLOCK_ELAPSED();
+			} while( wallClock<nextSwitchTime );
+		}
+		//tx.Set(false);
+	}
+
+	template<uint16_t CycleUSec, uint16_t HighPeriodUSec>
+	static inline void pulsePWMFast(auto tx, uint16_t durationUSec)
+	{
+		pulsePWMFastTicks<microsecondsToTicks(CycleUSec),microsecondsToTicks(HighPeriodUSec)>( durationUSec / CycleUSec );
+	}
+	
+	template<uint16_t CycleUSec,  uint16_t HighPeriodUSec>
+	static inline void pulsePWM(auto tx,uint16_t duration)
+	{
+		SCOPED_SIGNAL_PROCESSING;
+		pulsePWMFast<CycleUSec,HighPeriodUSec>( tx, duration );
+	}
+
+	static inline void pulseFast(auto tx, bool value, uint32_t duration)
+	{
+		INIT_CLOCK_COUNTER();
+		tx.Set(value); // start signal ASAP, do initial computation during high state
 		duration = microsecondsToTicks(duration);
-		
-		uint8_t oldSREG = SREG;
-		cli();
+		uint32_t wallClock;
+		do {
+			UPDATE_CLOCK_COUNTER();
+			wallClock = CLOCK_ELAPSED();
+		} while( wallClock < duration );
+		tx.Set(!value);
+	}
 
-		uint32_t switchTime = periodTicks;
-		uint32_t m=0;
-		uint8_t t=TCNT0, t0=t;
+	static inline void pulse(auto tx, bool value, uint32_t duration)
+	{
+		SCOPED_SIGNAL_PROCESSING;
+		pulseFast( tx, value, duration );
+	}
 
-		#define UPDATE_CLOCK_COUNTER() do{ uint8_t t2=TCNT0; if(t2<t) ++m; t=t2; }while(0)
-		#define CLOCK_ELAPSED() ((m*256+t)-t0)
+	template<typename PinT>
+	static inline void setLineFlatFast(PinT& tx, bool state, uint32_t duration)
+	{
+		INIT_CLOCK_COUNTER();
+		tx.Set(state); // start signal ASAP, do initial computation during high state
+		duration = microsecondsToTicks(duration);
+		uint32_t wallClock;
+		do {
+			UPDATE_CLOCK_COUNTER();
+			wallClock = CLOCK_ELAPSED();
+		} while( wallClock < duration );
+	}
+
+	template<uint16_t freq, uint16_t pwmValue, typename PinT>
+	static inline void setLinePWMFast(PinT& tx, bool state, uint32_t duration)
+	{
+		static constexpr uint16_t periodus = 1000000UL/38000UL;
+		static constexpr uint16_t cycleTicks = F_CPU/(avrtl::timerPrescaler*freq);
+		static constexpr uint16_t highTicks = ( ((uint32_t)cycleTicks)*((uint32_t)pwmValue) ) >> 16;
+		if(state)
+		{
+			pulsePWMFastTicks<cycleTicks,highTicks>( tx, duration/periodus );
+		}
+		else
+		{
+			setLineFlatFast(tx,false,duration);
+		}
+	}
+
+	template<typename PinT>
+	static uint32_t PulseInFast(PinT& p, bool lvl, uint32_t timeout, uint16_t* gap=0) 
+	{
+		INIT_CLOCK_COUNTER();
+		timeout = microsecondsToTicks(timeout);
 
 		UPDATE_CLOCK_COUNTER();
-		bool lvl = false;
-		tx.Set(lvl);
 		uint32_t ts = CLOCK_ELAPSED();
-		while( ts < duration )
-		{
-			UPDATE_CLOCK_COUNTER();
-			ts = CLOCK_ELAPSED();
-			while( ts<switchTime ) { UPDATE_CLOCK_COUNTER(); ts=CLOCK_ELAPSED(); }
-			lvl = !lvl;
-			tx.Set(lvl);
-			switchTime += periodTicks;
-			UPDATE_CLOCK_COUNTER();
-			ts = CLOCK_ELAPSED();
-		}
+		while( ts<timeout && p.Get()!=lvl ) { UPDATE_CLOCK_COUNTER(); ts=CLOCK_ELAPSED(); }
+		if( ts >= timeout ) { return 0; }
+
+		UPDATE_CLOCK_COUNTER();
+		uint32_t te = CLOCK_ELAPSED();
+		while( (te-ts)<timeout && p.Get()==lvl ) { UPDATE_CLOCK_COUNTER(); te=CLOCK_ELAPSED(); }
 		
-		SREG=oldSREG;
+		if( gap != 0 ) { *gap = ts; }
+		if( (te-ts) >= timeout ) { return 0; }
+		else { return ticksToMicroseconds(te-ts); }
 	}
 
 	template<typename PinT>
 	static uint32_t PulseIn(PinT& p, bool lvl, uint32_t timeout, uint16_t* gap=0) 
 	{
-		timeout = microsecondsToTicks(timeout);
-
-		uint8_t oldSREG = SREG;
-		cli();
-		
-		uint32_t m=0;
-		uint8_t t=TCNT0, t0=t;
-		
-		#define UPDATE_CLOCK_COUNTER() do{ uint8_t t2=TCNT0; if(t2<t) ++m; t=t2; }while(0)
-		#define CLOCK_ELAPSED() ((m*256+t)-t0)
-
-		UPDATE_CLOCK_COUNTER();
-		uint32_t ts = CLOCK_ELAPSED();
-		while( ts<timeout && p.Get()!=lvl ) { UPDATE_CLOCK_COUNTER(); ts=CLOCK_ELAPSED(); }
-		if( ts >= timeout ) { SREG=oldSREG; return 0; }
-		
-		UPDATE_CLOCK_COUNTER();
-		uint32_t te = CLOCK_ELAPSED();
-		while( (te-ts)<timeout && p.Get()==lvl ) { UPDATE_CLOCK_COUNTER(); te=CLOCK_ELAPSED(); }
-		
-		SREG=oldSREG;
-		if( gap != 0 ) { *gap = ts; }
-		if( (te-ts) >= timeout ) { return 0; }
-		else { return ticksToMicroseconds(te-ts); }
-
-		#undef UPDATE_CLOCK_COUNTER
-		#undef CLOCK_ELAPSED
+		SCOPED_SIGNAL_PROCESSING;
+		return PulseInFast( p, lvl, timeout, gap );
 	}
 
 	template<typename PinT>
-	static uint16_t RecordSignal(PinT& p, uint32_t timeout, uint16_t nSamples, uint16_t* signal) 
+	static uint16_t RecordSignalFast(PinT& p, uint32_t timeout, uint16_t nSamples, uint16_t* signal) 
 	{
 		timeout = microsecondsToTicks(timeout);
+		uint32_t te = 0;
+		int32_t ts = 0;
+		int i=0;
 		bool lvl = p.Get();
-
-		uint8_t oldSREG = SREG;
-		cli();
-		uint32_t m=0;
-		uint8_t t=TCNT0, t0=t;
-
-#define UPDATE_CLOCK_COUNTER() do{ uint8_t t2=TCNT0; if(t2<t){ ++m; } t=t2; }while(0)
-#define CLOCK_ELAPSED() ((m*256+t)-t0)
-
+		INIT_CLOCK_COUNTER();
 		UPDATE_CLOCK_COUNTER();
-		uint32_t te = CLOCK_ELAPSED();
-		for(int i=0;i<nSamples;i++)
+		for(;i<nSamples && te<timeout;i++)
 		{
-			uint32_t ts = te;
-			while( te<timeout && p.Get()!=lvl ) { UPDATE_CLOCK_COUNTER(); te=CLOCK_ELAPSED(); }
-			if( te >= timeout )
-			{
-				SREG=oldSREG;
-				return i;
-			}
 			UPDATE_CLOCK_COUNTER();
-			signal[i] = te-ts;
+			te=CLOCK_ELAPSED();
+			while( te<timeout && p.Get()==lvl ) { UPDATE_CLOCK_COUNTER(); te=CLOCK_ELAPSED(); }
+			ts = te-ts;
+			if( ts>65535 ) signal[i] = 65535;
+			else signal[i] = ts;
 			lvl = !lvl;
+			ts = te;
 		}
-		SREG=oldSREG;
-		return nSamples;
+		if(te>=timeout) return i;
+		else return nSamples;
+	}
+	
+	template<typename PinT>
+	static uint16_t RecordSignal(PinT& p, uint32_t timeout, uint16_t nSamples, uint16_t* signal, bool& startLevel) 
+	{
+		SCOPED_SIGNAL_PROCESSING;
+		uint16_t r = RecordSignalFast( p, timeout, nSamples, signal, startLevel );
+		return r;
+	}
 
 #undef UPDATE_CLOCK_COUNTER
 #undef CLOCK_ELAPSED
-	}
-	
+#undef INIT_CLOCK_COUNTER
 }
 
 #endif

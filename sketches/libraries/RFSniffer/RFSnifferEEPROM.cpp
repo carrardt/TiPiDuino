@@ -40,7 +40,16 @@ void initEEPROM()
 	}
 	if( getOperationMode() == LEARN_NEW_PROTOCOL )
 	{
-		avrtl::eeprom_gently_write_byte(EEPROM_FLAGS_ADDR, (RFSnifferProtocol::defaultFlags+1) & RFSnifferProtocol::RESET_MODIFIY_FLAGS_MASK );
+		uint8_t nextFlags;
+		if( (RFSnifferProtocol::defaultFlags & RFSnifferProtocol::RF_FLAG) == 0 )
+		{
+			nextFlags = RFSnifferProtocol::RF_FLAG | RFSnifferProtocol::LOW_LEVEL_FLAG | RFSnifferProtocol::MODULATION_NONE;
+		}
+		else
+		{
+			nextFlags = RFSnifferProtocol::IR_FLAG | RFSnifferProtocol::HIGH_LEVEL_FLAG | RFSnifferProtocol::MODULATION_38KHZ;
+		}
+		avrtl::eeprom_gently_write_byte(EEPROM_FLAGS_ADDR,nextFlags);
 	}
 }
 

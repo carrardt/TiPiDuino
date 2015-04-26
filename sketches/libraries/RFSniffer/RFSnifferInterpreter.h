@@ -10,14 +10,19 @@
 #include <stdint.h>
 
 
-template<typename TxPinT, typename RxPinT>
+template<typename RxPinT, typename RFTxPinT, typename IRTxPinT>
 struct RFSnifferInterpreter
 {
-	TxPinT& tx;
+	RFTxPinT& rf_tx;
+	IRTxPinT& ir_tx;
 	RxPinT& rx;
 	PrintStream& cout;
 
-	inline RFSnifferInterpreter(TxPinT& _tx, RxPinT& _rx, PrintStream& _out) : rx(_rx), tx(_tx), cout(_out) {}
+	inline RFSnifferInterpreter(RxPinT& _rx, RFTxPinT& _rftx, IRTxPinT& _irtx, PrintStream& _out)
+		: rx(_rx)
+		, rf_tx(_rftx)
+		, ir_tx(_irtx)
+		, cout(_out) {}
 
 	static int16_t readCommandMemory(const int16_t* cmem, int regIndex)
 	{
@@ -54,6 +59,11 @@ struct RFSnifferInterpreter
 				// exit
 				case 'x':
 					return readCommandMemory(cmem,0);
+
+				// reset EEPROM
+				case 'z':
+					RFSnifferEEPROM::resetEEPROM();
+					break;
 
 				// reboot in another operation mode
 				case 'o':
@@ -135,24 +145,63 @@ struct RFSnifferInterpreter
 						bool RFMode = readCommandIntgerValue(cmem,cin);
 						uint16_t buf[nSamples];
 						rx.SelectPin( RFMode );
-						nSamples = RecordSignal(rx,timeout*1000UL,nSamples,buf);
-						for(int i=0;i<nSamples;i++)
+						uint16_t rSamples = 0;
+						bool lvl = rx.Get();
 						{
-							cout<<i<<':'<<avrtl::ticksToMicroseconds(buf[i])<<endl;
+							SCOPED_SIGNAL_PROCESSING;
+							do {
+								rSamples = RecordSignalFast(rx,timeout*1000UL,nSamples,buf);
+							} while( rSamples < 2 );
+						}
+						for(int i=0;i<rSamples;i++)
+						{
+							cout<<i<<':'<< lvl <<':' <<avrtl::ticksToMicroseconds(buf[i])<<endl;
+							lvl = !lvl;
 						}
 					}
 					break;
-					
+
 				// send (emit) a message
 				case 's':
 					{
+						SCOPED_SIGNAL_PROCESSING;
+
 						int16_t mesgId = readCommandIntgerValue(cmem,cin);
 						RFSnifferEEPROM::MessageInfo mesg = RFSnifferEEPROM::getMessageInfo( mesgId );
 						auto proto = RFSnifferEEPROM::readProtocol( mesg.protocolId );
 						uint8_t buf[mesg.nbytes];
 						eeprom_read_block(buf,mesg.eeprom_addr,mesg.nbytes);
-						tx.SelectPin( proto.mediumRF() );
-						proto.writeMessage(buf,mesg.nbytes,tx);
+						if( proto.latchSeqLen == 0 )
+						{
+							proto.latchSeqLen = 1;
+							proto.latchSeq[0] = 5000UL;
+							proto.latchGap = 10000UL;
+						}
+						if( proto.mediumRF() )
+						{
+							proto.writeMessageFast(buf,mesg.nbytes,[&](bool l,uint32_t t)
+								{ avrtl::setLineFlatFast(rf_tx,l,t); } );
+							rf_tx = 0;
+						}
+						else
+						{
+							switch( proto.pulseModulation() )
+							{
+								case RFSnifferProtocol::MODULATION_36KHZ:
+									proto.writeMessageFast(buf,mesg.nbytes,[&](bool l,uint32_t t)
+										{ avrtl::setLinePWMFast<36000,avrtl::pwmval(0.33)>(ir_tx,!l,t); } );
+									break;
+								case RFSnifferProtocol::MODULATION_38KHZ:
+									proto.writeMessageFast(buf,mesg.nbytes,[&](bool l,uint32_t t)
+										{ avrtl::setLinePWMFast<38000,avrtl::pwmval(0.33)>(ir_tx,!l,t); } );
+									break;
+								case RFSnifferProtocol::MODULATION_40KHZ:
+									proto.writeMessageFast(buf,mesg.nbytes,[&](bool l,uint32_t t)
+										{ avrtl::setLinePWMFast<40000,avrtl::pwmval(0.33)>(ir_tx,!l,t); } );
+									break;
+							}
+							ir_tx = 0;
+						}
 					}
 					break;
 
@@ -276,10 +325,11 @@ struct RFSnifferInterpreter
 
 };
 
-template<typename TxPinT, typename RxPinT>
-static inline RFSnifferInterpreter<TxPinT,RxPinT> make_rfsniffer_interpreter(TxPinT& tx, RxPinT& rx, PrintStream& out)
+template<typename RxPinT, typename RFTxPinT, typename IRTxPinT>
+static inline RFSnifferInterpreter<RxPinT,RFTxPinT,IRTxPinT>
+make_rfsniffer_interpreter(RxPinT& _rx, RFTxPinT& _rftx, IRTxPinT& _irtx, PrintStream& _out)
 {
-	return RFSnifferInterpreter<TxPinT,RxPinT>(tx,rx,out);
+	return RFSnifferInterpreter<RxPinT,RFTxPinT,IRTxPinT>(_rx,_rftx,_irtx,_out);
 }
 
 #endif

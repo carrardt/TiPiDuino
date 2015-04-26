@@ -6,10 +6,10 @@
 int main(void)
 {
 	// Sets the timer prescale factor to 64;
-	// TCCR0B = (TCCR0B & 0b11111000) | 0b011;
-
-	// Sets the timer prescale factor to 8;
-	TCCR0B = (TCCR0B & 0b11111000) | 0b010;
+	// for compatibility with Wiring/Arduino
+	TCCR0B = (TCCR0B & 0b11111000) | 0b011;
+	// TCCR1B = 0; // disabled
+	// TCCR2B = 0; // disabled;
 
 	// start interrupts
 	sei();

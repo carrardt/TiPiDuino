@@ -14,7 +14,7 @@ struct RFSnifferProtocol
 	static constexpr uint8_t IR_FLAG = 0x00;
 	static constexpr uint8_t RF_FLAG = 0x02;
 
-	static constexpr uint8_t MODULATION_MASK       = 0x1C;
+	static constexpr uint8_t MODULATION_MASK  = 0x1C;
 	static constexpr uint8_t MODULATION_NONE  = 0x00;
 	static constexpr uint8_t MODULATION_36KHZ = 0x04;
 	static constexpr uint8_t MODULATION_38KHZ = 0x08;
@@ -35,7 +35,8 @@ struct RFSnifferProtocol
 		bitSymbols[1] = 0;
 		for(int i=0;i<MAX_LATCH_SEQ_LEN;i++) latchSeq[i]=0;
 		nMessageRepeats = 0;
-		pulseGap = 255;
+		latchGap = 8192;
+		bitGap = 512;
 		coding = CODING_UNKNOWN;
 		flags = RFSnifferProtocol::defaultFlags;
 	}
@@ -106,7 +107,19 @@ struct RFSnifferProtocol
 			}
 		}
 		out<<'G';
-		out.print(pulseGap,16);
+		out.print(latchGap,16);
+		out<<'-';
+		out.print(bitGap,16);
+		if(pulseModulation()!=MODULATION_NONE)
+		{
+			out<<'K';
+			switch( pulseModulation() )
+			{
+				case MODULATION_36KHZ: out<<"36"; break;
+				case MODULATION_38KHZ: out<<"38"; break;
+				case MODULATION_40KHZ: out<<"40"; break;
+			}
+		}
 		out<<endl;
 		out << ( mediumRF() ? 'R' : 'I' );		
 		out << ( pulseLevel() ? "H" : "L" );
@@ -127,11 +140,11 @@ struct RFSnifferProtocol
 
 	inline uint16_t getLatchGap(uint8_t l) const
 	{
-		return pulseGap;
+		return latchGap;
 	}
 	inline uint16_t getBitGap(bool bvalue) const
 	{
-		return pulseGap;
+		return bitGap;
 	}
 
 	static bool decodeManchester(uint8_t* buf, int nbits)
@@ -162,6 +175,8 @@ struct RFSnifferProtocol
 	template<typename RxPinT>
 	int readMessage(RxPinT& rx, uint8_t* buf)
 	{
+		SCOPED_SIGNAL_PROCESSING;
+		
 		const uint16_t b0 = bitSymbols[0];
 		const uint16_t b1 = bitSymbols[1];
 		const uint16_t b0_tol = b0 / PULSE_ERR_RATIO;
@@ -177,7 +192,7 @@ struct RFSnifferProtocol
 		{
 			for(uint8_t i=0;i<latchSeqLen;)
 			{
-				long p = avrtl::PulseIn(rx,lvl,MAX_PULSE_LEN);
+				long p = avrtl::PulseInFast(rx,lvl,MAX_PULSE_LEN);
 				uint16_t l = latchSeq[i];
 				uint16_t relerr = l / PULSE_ERR_RATIO;
 				if( avrtl::abs(p-l) > relerr ) i=0;
@@ -189,7 +204,7 @@ struct RFSnifferProtocol
 			bool badBit;
 			do
 			{
-				long p = avrtl::PulseIn(rx,lvl,MAX_PULSE_LEN);
+				long p = avrtl::PulseInFast(rx,lvl,MAX_PULSE_LEN);
 				buf[byte] = 0;
 				badBit = false;
 				if( avrtl::abs(p-b1) <= b1_tol ) buf[byte] = 1;
@@ -201,7 +216,7 @@ struct RFSnifferProtocol
 		for(;j<bitsToRead;j++)
 		{
 			if(j%8==0) buf[byte]=0;
-			long p = avrtl::PulseIn(rx,lvl,MAX_PULSE_LEN);
+			long p = avrtl::PulseInFast(rx,lvl,MAX_PULSE_LEN);
 			uint8_t b = 0;
 			if( avrtl::abs(p-b1) <= b1_tol ) b = 1;
 			else if( avrtl::abs(p-b0) > b0_tol ) return 0;
@@ -220,6 +235,8 @@ struct RFSnifferProtocol
 	template<typename RxPinT>
 	int readMessageWithGaps(RxPinT& rx, uint8_t* buf, uint16_t* in_gaps)
 	{
+		SCOPED_SIGNAL_PROCESSING;
+
 		const uint16_t b0 = bitSymbols[0];
 		const uint16_t b1 = bitSymbols[1];
 		const uint16_t b0_tol = b0 / PULSE_ERR_RATIO;
@@ -236,7 +253,7 @@ struct RFSnifferProtocol
 		{
 			for(uint8_t i=0;i<latchSeqLen;)
 			{
-				long p = avrtl::PulseIn(rx,lvl,MAX_PULSE_LEN,gaps++);
+				long p = avrtl::PulseInFast(rx,lvl,MAX_PULSE_LEN,gaps++);
 				uint16_t l = latchSeq[i];
 				uint16_t relerr = l / PULSE_ERR_RATIO;
 				if( avrtl::abs(p-l) > relerr ) { i=0; gaps=in_gaps; }
@@ -248,7 +265,7 @@ struct RFSnifferProtocol
 			bool badBit;
 			do
 			{
-				long p = avrtl::PulseIn(rx,lvl,MAX_PULSE_LEN,gaps);
+				long p = avrtl::PulseInFast(rx,lvl,MAX_PULSE_LEN,gaps);
 				buf[byte] = 0;
 				badBit = false;
 				if( avrtl::abs(p-b1) <= b1_tol ) buf[byte] = 1;
@@ -261,7 +278,7 @@ struct RFSnifferProtocol
 		for(;j<bitsToRead;j++)
 		{
 			if(j%8==0) buf[byte]=0;
-			long p = avrtl::PulseIn(rx,lvl,MAX_PULSE_LEN,gaps++);
+			long p = avrtl::PulseInFast(rx,lvl,MAX_PULSE_LEN,gaps++);
 			uint8_t b = 0;
 			if( avrtl::abs(p-b1) <= b1_tol ) b = 1;
 			else if( avrtl::abs(p-b0) > b0_tol ) return 0;
@@ -278,19 +295,16 @@ struct RFSnifferProtocol
 		else { return bitsToRead; }
 	}
 
-	template<typename TxPinT>
-	void writeMessage(const uint8_t* buf, uint8_t len, TxPinT& tx)
+	void writeMessageFast(const uint8_t* buf, uint8_t len, auto lineState)
 	{
 		const bool manchester = (coding == CODING_MANCHESTER);
-		
+
 		for(int r=0;r<nMessageRepeats;r++)
 		{
 			for(uint8_t i=0;i<latchSeqLen;i++)
 			{
-				tx = ! pulseLevel();
-				avrtl::DelayMicroseconds( getLatchGap(i) + 50 );
-				tx = pulseLevel();
-				avrtl::DelayMicroseconds( latchSeq[i] - 50 );
+				lineState( ! pulseLevel(), getLatchGap(i) );
+				lineState( pulseLevel(), latchSeq[i] );
 			}
 
 			for(uint8_t i=0;i<len;i++)
@@ -298,26 +312,26 @@ struct RFSnifferProtocol
 				uint8_t curbyte = buf[i];
 				for(int8_t j=0;j<8;j++)
 				{
-					tx = ! pulseLevel();
 					bool b = ( (curbyte&0x80) != 0 );
-					avrtl::DelayMicroseconds( getBitGap(b)  + 50 );
+					lineState( ! pulseLevel(), getBitGap(b) );
 					curbyte <<= 1;
-					tx = pulseLevel();
-					avrtl::DelayMicroseconds( bitSymbols[b] - 50 );
+					lineState( pulseLevel(), bitSymbols[b] );
 					if( manchester )
 					{
-						tx = ! pulseLevel();
 						b = !b;
-						avrtl::DelayMicroseconds( getBitGap(b)  + 50 );
-						tx = pulseLevel();
-						avrtl::DelayMicroseconds( bitSymbols[b] - 50 );
+						lineState( ! pulseLevel(), getBitGap(b) );
+						lineState( pulseLevel(), bitSymbols[b] );
 					}
 				}
 			}
 		}
-		tx = ! pulseLevel();
-		avrtl::DelayMicroseconds(10000UL);
-		tx = 0;
+		lineState( ! pulseLevel() , 10000UL );
+	}
+	
+	void writeMessage(const uint8_t* buf, uint8_t len, auto lineState )
+	{
+		SCOPED_SIGNAL_PROCESSING;
+		writeMessageFast(buf,len,lineState);
 	}
 
 	uint16_t messageTotalPulses() const
@@ -341,9 +355,10 @@ struct RFSnifferProtocol
 
 	static uint8_t defaultFlags;
 
-	uint16_t bitSymbols[2];
+	uint16_t latchGap;
 	uint16_t latchSeq[MAX_LATCH_SEQ_LEN];
-	uint16_t pulseGap;
+	uint16_t bitGap;
+	uint16_t bitSymbols[2];
 	uint16_t messageBits;
 	uint8_t latchSeqLen;
 	uint8_t nMessageRepeats;
