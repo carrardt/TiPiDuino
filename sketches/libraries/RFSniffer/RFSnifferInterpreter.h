@@ -107,36 +107,6 @@ struct RFSnifferInterpreter
 					}
 					break;
 
-				// read and print a raw binary message
-				case 'R':
-					{
-						int protoId = readCommandIntgerValue(cmem,cin);
-						int nbytes = 0;
-						auto proto = RFSnifferEEPROM::readProtocol(protoId);
-						int bitsToRead = proto.messageBits;
-						int nPulses = proto.messageTotalPulses();
-						uint16_t gaps[nPulses];
-						{
-							nbytes = proto.messageReadBufferSize();
-							uint8_t buf[nbytes];
-							rx.SelectPin( proto.mediumRF() );
-							int br=0;
-							while( (br=proto.readMessageWithGaps(rx,buf,gaps)) == 0 ) ;
-							if(proto.nMessageRepeats>1) { br=proto.readMessageWithGaps(rx,buf,gaps); }
-							BufferStream bufStream(buf,proto.messageBytes());
-							cout.printStreamHex(&bufStream);
-							cout<<endl;
-						}
-						uint16_t minPulse=MAX_PULSE_LEN, maxPulse=0;
-						for(int i=0;i<nPulses;i++)
-						{
-							if( gaps[i] < minPulse) minPulse=gaps[i];
-							else if( gaps[i] > maxPulse) maxPulse=gaps[i];
-						}
-						cout<<minPulse<<' '<<maxPulse<<endl;
-					}
-					break;
-
 				// record a raw binary signal
 				case 'S':
 					{
@@ -174,8 +144,8 @@ struct RFSnifferInterpreter
 						if( proto.latchSeqLen == 0 )
 						{
 							proto.latchSeqLen = 1;
-							proto.latchSeq[0] = 5000UL;
-							proto.latchGap = 10000UL;
+							proto.latchSeq[0] = 1850;
+							proto.latchGap = 3650;
 						}
 						if( proto.mediumRF() )
 						{

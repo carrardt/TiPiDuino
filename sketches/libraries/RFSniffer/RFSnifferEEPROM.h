@@ -103,11 +103,15 @@ static inline void forEachMessageInEEPROM( FuncT afunc )
 static inline uint16_t getMessageCount()
 {
 	int mId = -1;
-	forEachMessageInEEPROM( [&](int mesgIdx, int protocolIdx, int len, uint8_t* ptr)
-		{
-			mId = mesgIdx;
-		} );
+	forEachMessageInEEPROM( [&](int m,int,int,uint8_t*) { mId=m; } );
 	return mId+1;
+}
+
+static inline uint16_t getProtocolCount()
+{
+	int c = 0;
+	forEachProtocolInEEPROM( [&](int, const RFSnifferProtocol& p) { if( p.isValid() ) ++c; } );
+	return c;
 }
 
 static inline EEPROMStream getMessageStream(int mId)

@@ -78,7 +78,8 @@ void setup()
 		rx.SelectPin( sp.mediumRF() );
 	}
 
-	cout<<"* Mega Sniffer *"<<endl;
+	// cout<<"* Mega Sniffer *"<<endl;
+	cout<<"Mesg:"<<RFSnifferEEPROM::getMessageCount()<<" Prot:"<<RFSnifferEEPROM::getProtocolCount()<<endl;
 }
 
 void recordMessage(int pId);

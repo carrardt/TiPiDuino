@@ -257,10 +257,6 @@ struct RFSniffer
 				if( symcount[i] > symcount[si1] ) si1=i;
 			}
 		}
-		for(int i=0;i<nSymbols;i++)
-		{
-			cout<<i<<':'<<symbols[i]<<endl;
-		}
 		
 		// assume the shortest pulse codes 0, the longest codes 1
 		if( symbols[si0] > symbols[si1] ) { int t=si0; si0=si1; si1=t; }

@@ -108,8 +108,11 @@ struct RFSnifferProtocol
 		}
 		out<<'G';
 		out.print(latchGap,16);
-		out<<'-';
-		out.print(bitGap,16);
+		if(bitGap!=latchGap)
+		{
+			out<<'-';
+			out.print(bitGap,16);
+		}
 		if(pulseModulation()!=MODULATION_NONE)
 		{
 			out<<'K';
@@ -303,8 +306,8 @@ struct RFSnifferProtocol
 		{
 			for(uint8_t i=0;i<latchSeqLen;i++)
 			{
-				lineState( ! pulseLevel(), getLatchGap(i) );
-				lineState( pulseLevel(), latchSeq[i] );
+				lineState( ! pulseLevel(), getLatchGap(i) + 50 );
+				lineState( pulseLevel(), latchSeq[i] - 50 );
 			}
 
 			for(uint8_t i=0;i<len;i++)
@@ -313,14 +316,14 @@ struct RFSnifferProtocol
 				for(int8_t j=0;j<8;j++)
 				{
 					bool b = ( (curbyte&0x80) != 0 );
-					lineState( ! pulseLevel(), getBitGap(b) );
+					lineState( ! pulseLevel(), getBitGap(b) + 50 );
 					curbyte <<= 1;
-					lineState( pulseLevel(), bitSymbols[b] );
+					lineState( pulseLevel(), bitSymbols[b] - 50 );
 					if( manchester )
 					{
 						b = !b;
-						lineState( ! pulseLevel(), getBitGap(b) );
-						lineState( pulseLevel(), bitSymbols[b] );
+						lineState( ! pulseLevel(), getBitGap(b) + 50 );
+						lineState( pulseLevel(), bitSymbols[b] - 50 );
 					}
 				}
 			}
