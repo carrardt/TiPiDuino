@@ -141,12 +141,12 @@ struct RFSnifferInterpreter
 						auto proto = RFSnifferEEPROM::readProtocol( mesg.protocolId );
 						uint8_t buf[mesg.nbytes];
 						eeprom_read_block(buf,mesg.eeprom_addr,mesg.nbytes);
-						if( proto.latchSeqLen == 0 )
+						/*if( proto.latchSeqLen == 0 )
 						{
 							proto.latchSeqLen = 1;
 							proto.latchSeq[0] = 1850;
 							proto.latchGap = 3650;
-						}
+						}*/
 						if( proto.mediumRF() )
 						{
 							proto.writeMessageFast(buf,mesg.nbytes,[&](bool l,uint32_t t)

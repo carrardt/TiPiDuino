@@ -23,7 +23,7 @@ struct RFSniffer
 		, led(_led)
 		, cout(_out)
 		{}
-		
+
 	// detect SeqLen consecutive similar symbols (at most NSymbols different symbols)
 	// buf size must be at least NSymbols
 	template<uint8_t NSymbols, uint8_t SeqLen>
@@ -98,7 +98,7 @@ struct RFSniffer
 			buf[i] = p;
 			uint16_t l = sequence[i];
 			uint16_t relerr = l / PULSE_ERR_RATIO;
-			if( avrtl::abs(p-l) > relerr ) return 0;
+			if( avrtl::abs(p-l) > relerr ) return (i+1);
 		}
 		int n = nlacthes;
 	    do
@@ -123,6 +123,9 @@ struct RFSniffer
 		int32_t l;
 
 #define CURSOR_DIST(a,b) (((bufSize+b)-a)%bufSize)
+
+		// wait for a clean state
+		while( rx == pulseLevel );
 
 		l = avrtl::PulseInFast(rx,pulseLevel,MAX_PULSE_LEN);
 		if( l < MIN_PULSE_LEN ) return 0;
@@ -369,8 +372,10 @@ struct RFSniffer
 	void learnProtocol()
 	{
 		static const char* stageLabel[3] = {"detect","analyse","verify"};
-		bool stageChanged=true;
+		bool stageChanged = true;
+		int maxRecoveredLatches = MAX_LATCH_SEQ_LEN;
 		int stage=0;
+		uint32_t stage1MaxTime=0;
 		sp.init();
 		while( ! sp.isValid() )
 		{
@@ -420,22 +425,59 @@ struct RFSniffer
 				if(signalOk)
 				{
 					// go to next stage (clean record with latch detection)
-					++stage;
-					// in case we have no latch, skip next stage
+					stage = 1;
+					stage1MaxTime = 10000000UL;
+					// in case we have no latch, skip next stage,
+					// unless we can recover a latch sequence from the recorded signal garbage
 					// TODO: latch are not detected when message is not repeated
-					if( sp.latchSeqLen == 0 ) { ++stage; }
+					if( sp.latchSeqLen == 0 )
+					{
+						stage = 2;
+						// we have a last hope to find a latch in the data left in the record buffer
+						if( maxRecoveredLatches>0 && npulses<MAX_PULSES )
+						{
+							uint16_t longestSymbol = sp.bitSymbols[0];
+							if( sp.bitSymbols[1] > longestSymbol ) longestSymbol = sp.bitSymbols[1];
+							uint16_t i = MAX_PULSES-1;
+							uint16_t nl = 0;
+							while( i>=npulses && nl<MAX_LATCH_SEQ_LEN && buf[i]>longestSymbol && buf[i]<MAX_PULSE_LEN) { --i; ++nl; }
+							if( nl > 0 )
+							{
+								if( nl > maxRecoveredLatches ) nl = maxRecoveredLatches;
+								cout<<"recover "<<nl<<" latch"<<endl;
+								i = MAX_PULSES-nl;
+								sp.latchSeqLen = 0;
+								while(sp.latchSeqLen<nl)
+								{
+									sp.latchSeq[sp.latchSeqLen] = buf[i+sp.latchSeqLen];
+									++ sp.latchSeqLen;
+								}
+								stage = 1;
+								-- maxRecoveredLatches;
+							}
+						}
+					}
 					stageChanged=true;
 				}
 			}
 			// make a new record with a latch detection for record content robustness
+			// TODO: add a detection timeout (5-10s) after which we get back to stage 0
+			// 		 and set a flag to disable latch recovery when analysis failed to find one (typically when message is not repeated)
 			else if( stage == 1 )
 			{
 				bool signalOk = false;
+				uint32_t recordTime = stage1MaxTime;
 				if( sp.latchSeqLen > 0 )
 				{
 					uint16_t buf[MAX_PULSES];
+					recordTime = 0;
 					int npulses = recordSignalLatchSequenceDetect<MAX_PULSES>(buf,sp.pulseLevel(),sp.latchSeqLen,sp.latchSeq);
-					if( npulses >= MIN_MESSAGE_PULSES )
+					for(uint16_t i=0;i<npulses;i++)
+					{
+						if( buf[i] == 0 ) recordTime+= MAX_PULSE_LEN;
+						else recordTime += buf[i];
+					}
+					if( npulses >= (sp.latchSeqLen+MIN_MESSAGE_PULSES) )
 					{
 						signalOk = analyseSignal(buf,npulses);
 					}
@@ -444,6 +486,22 @@ struct RFSniffer
 				{
 					++stage;
 					stageChanged=true;
+				}
+				else
+				{
+					if( stage1MaxTime <= recordTime )
+					{
+						cout<<"failed, retry"<<endl;
+						blink(led);
+						stage = 0;
+						sp.init();
+						stageChanged=true;
+					}
+					else
+					{
+						stage1MaxTime -= recordTime;
+						//cout<<stage1MaxTime<<endl;
+					}
 				}
 			}
 			// signal content analysis
