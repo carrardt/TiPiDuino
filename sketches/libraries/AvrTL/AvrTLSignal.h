@@ -8,7 +8,7 @@
 namespace avrtl
 {
 	static constexpr uint32_t timerPrescaler = 8;
-	static constexpr uint32_t timerFreqKhz = ( F_CPU / timerPrescaler ) / 1024;
+	static constexpr uint32_t clockMhz = F_CPU / 1000000UL;
 	extern uint8_t saved_SREG;
 	extern uint8_t saved_TCCR0B;
 	
@@ -19,12 +19,12 @@ namespace avrtl
 
 	static constexpr uint32_t ticksToMicroseconds(uint32_t nTicks)
 	{
-		return (nTicks * 1024) / timerFreqKhz;
+		return ( nTicks * timerPrescaler ) / clockMhz;
 	}
 
 	static constexpr uint32_t microsecondsToTicks(uint32_t us)
 	{
-		return (us * timerFreqKhz) / 1024;
+		return ( us * clockMhz ) / timerPrescaler;
 	}
 
 	static constexpr uint16_t pwmval(float dutyCyclesFraction)
@@ -118,7 +118,7 @@ namespace avrtl
 	template<uint16_t CycleUSec, uint16_t HighPeriodUSec>
 	static inline void pulsePWMFast(auto tx, uint16_t durationUSec)
 	{
-		pulsePWMFastTicks<microsecondsToTicks(CycleUSec),microsecondsToTicks(HighPeriodUSec)>( durationUSec / CycleUSec );
+		pulsePWMFastTicks<microsecondsToTicks(CycleUSec),microsecondsToTicks(HighPeriodUSec)>( tx, durationUSec / CycleUSec );
 	}
 	
 	template<uint16_t CycleUSec,  uint16_t HighPeriodUSec>

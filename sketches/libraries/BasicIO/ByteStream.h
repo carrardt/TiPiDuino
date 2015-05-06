@@ -21,6 +21,21 @@ struct ByteStream
 	}
 };
 
+struct TeeStream : public ByteStream
+{
+	inline TeeStream() : s1(0), s2(0) {}
+	inline void begin(ByteStream* _s1, ByteStream* _s2) { s1=_s1; s2=_s2; }
+	virtual bool writeByte( uint8_t x ) { return s1->writeByte(x) && s2->writeByte(x); }
+	virtual uint8_t readByte() { return s1->readByte(); }
+	virtual bool eof() { return s1->eof() ; }
+	virtual bool rewind() { return s1->rewind(); }
+	virtual int16_t available() { return s1->available(); }
+	virtual const char* endline() const { return s1->endline(); }
+	
+	ByteStream* s1;
+	ByteStream* s2;
+};
+
 struct BufferStream : public ByteStream
 {
 	inline BufferStream(uint8_t* b, uint16_t s) : m_buf(b), m_pos(0), m_size(s) {}

@@ -59,6 +59,7 @@ void resetEEPROM();
 void initEEPROM();
 int findRecordedMessage(int pId, const uint8_t* buf, int nbytes);
 int saveProtocol(const RFSnifferProtocol& proto);
+void removeProtocol(int pId);
 int appendMessage(int pId, ByteStream* stream);
 int saveMessage(int pId, uint8_t* buf, int nbytes);
 MessageInfo getMessageInfo(int mId);

@@ -22,11 +22,12 @@ FAMILY=Arduino
 BOARD=ArduinoDuemilanove
 
 # cross compiler
-CC=avr-gcc
-CXX=avr-g++
-AR=avr-ar
-STRIP=avr-strip
-OBJCOPY=avr-objcopy
+AVRGCCROOT=/usr/local/avr
+CC=$(AVRGCCROOT)/bin/avr-gcc
+CXX=$(AVRGCCROOT)/bin/avr-g++
+AR=$(AVRGCCROOT)/bin/avr-ar
+STRIP=$(AVRGCCROOT)/bin/avr-strip
+OBJCOPY=$(AVRGCCROOT)/bin/avr-objcopy
 
 # flash tool
 AVRDUDE=avrdude
@@ -96,6 +97,9 @@ all: $(USER_SKETCHES_TARGETS)
 wiring: $(WIRING_SRC_DIR) $(WIRING_LIB)
 user: $(USER_LIB)
 #exemples: $(WIRING_EXEMPLES)
+
+%.dude:
+	$(AVRDUDE) -c $(PROTOCOL) -p $(MCU) -P $(SERIALPORT) -b $(UPLOADBR) -D -U flash:w:`basename $@ .dude`.hex:i 
 
 %.flash: %.hex
 	$(AVRDUDE) -c $(PROTOCOL) -p $(MCU) -P $(SERIALPORT) -b $(UPLOADBR) -D -U flash:w:$<:i 

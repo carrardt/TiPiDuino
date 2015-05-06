@@ -47,6 +47,7 @@ static auto rf_tx = StaticPin<RF_EMIT_PIN>();
 static auto ir_tx = StaticPin<IR_EMIT_PIN>();
 static auto led = StaticPin<LED_PIN>();
 static PrintStream cout;
+TeeStream tstream;
 
 void setup()
 {
@@ -61,7 +62,8 @@ void setup()
 	// setup output to serial line or LCD display
 #ifdef LCD_CONSOLE
 	lcd.begin();
-	cout.begin(&lcd);
+	tstream.begin(&hwserial,&lcd);
+	cout.begin(&tstream);
 #elif defined(SOFT_SERIAL_CONSOLE)
 	serialIO.begin();
 	cout.begin(&serialIO);

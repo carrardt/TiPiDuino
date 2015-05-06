@@ -36,7 +36,7 @@ void loop()
 	
 	for(int i=0;i<64;i++)
 	{
-		avrtl::pulsePWMFast<38000>( tx, 65536UL/3, 2000 );
+		avrtl::setLinePWMFast<38000,avrtl::pwmval(0.5)>(tx,true,2000);
 		tx = 0;
 		avrtl::DelayMicrosecondsFast(2000);
 	}

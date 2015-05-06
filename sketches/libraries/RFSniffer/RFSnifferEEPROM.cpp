@@ -122,6 +122,23 @@ MessageInfo getMessageInfo(int mId)
 	return info;
 }
 
+void removeProtocol(int pId)
+{
+	MessageInfo info;
+	forEachMessageInEEPROM( [&](int mesgIdx, int protocolIdx, int len, uint8_t* ptr) {
+		if( protocolIdx == pId )
+		{
+			avrtl::eeprom_gently_write_byte(ptr-2,0x0);
+		}
+	});
+	if( pId>=0 && pId<EEPROM_MAX_PROTOCOLS)
+	{
+		RFSnifferProtocol proto = readProtocol(pId);
+		proto.setValid(false);
+		avrtl::eeprom_gently_write(proto,EEPROM_PROTOCOLS_ADDR+pId*sizeof(RFSnifferProtocol));
+	}
+}
+
 uint8_t getOperationMode()
 {
 	return eeprom_read_byte(EEPROM_OPERATION_ADDR);

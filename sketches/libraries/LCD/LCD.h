@@ -233,6 +233,8 @@ struct LCD : public ByteStream
 
 	virtual bool writeByte(uint8_t value)
 	{
+		if( value == '\r' ) return true;
+		
 		if(m_lineFeed)
 		{
 			if( lines == 1 )
@@ -257,10 +259,6 @@ struct LCD : public ByteStream
 		if( value == '\n' )
 		{
 			m_lineFeed = true;
-		}
-		else if( value == '\r' )
-		{
-			// ignore it
 		}
 		else
 		{

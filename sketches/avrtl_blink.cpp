@@ -21,20 +21,16 @@ void setup()
 
 void loop()
 {
+	SCOPED_SIGNAL_PROCESSING;
 	for(int j=0;j<10;j++)
 	{
 		for(int i=0;i<10;i++)
 		{
-			led1 = true;
-			DelayMicroseconds(100000UL*j);
+			for(int k=0;k<100;k++) pulsePWMFast<100,25>(led1,(uint16_t)(1000*j));
 			led1 = false;
-			led2 = true;
-			DelayMicroseconds(100000UL*j);
+			for(int k=0;k<100;k++) pulsePWMFast<100,25>(led2,(uint16_t)(1000*j));
 			led2 = false;
-			led3 = true;
-			DelayMicroseconds(100000UL*j);
-			led1 = false;
-			led2 = false;
+			for(int k=0;k<100;k++) pulsePWMFast<100,25>(led3,(uint16_t)(1000*j));
 			led3 = false;
 		}
 	}
