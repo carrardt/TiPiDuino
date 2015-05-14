@@ -73,13 +73,81 @@ static const EGLint tracking_egl_config_attribs[] =
    EGL_NONE
 };
 
+typedef struct
+{
+	GLuint width, height; // dimensions
+	GLuint format; // texture internal format
+	GLuint tex; // color texture
+	GLuint drb; // depth renderbuffer
+	GLuint fb; // frame buffer object
+} FBOTexture;
+
+static FBOTexture mask_fbo;
+
+static int init_fbo(FBOTexture* fbo, GLint colorFormat, GLint depthFormat, GLint w, GLint h)
+{
+   fbo->format = colorFormat;
+   fbo->width = w;
+   fbo->height = h;
+
+   glGenFramebuffers(1, & fbo->fb);
+
+   glGenTextures(1, & fbo->tex );
+   glBindTexture(GL_TEXTURE_2D, fbo->tex);
+   glTexImage2D(GL_TEXTURE_2D, 0, fbo->format, fbo->width, fbo->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+
+   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+   glBindTexture(GL_TEXTURE_2D, 0);
+
+	if( depthFormat != GL_NONE )
+	{
+	   // Create a texture to hold the depth buffer
+		glGenTextures(1, &(fbo->drb) );
+		glBindTexture(GL_TEXTURE_2D, fbo->drb);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT,
+				fbo->width, fbo->height,
+				0, depthFormat, GL_UNSIGNED_SHORT, NULL);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glBindTexture(GL_TEXTURE_2D, 0);        
+	}
+	else
+	{
+		fbo->drb = 0;
+	}
+
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo->fb);
+
+    // Associate the textures with the FBO.
+
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+                    GL_TEXTURE_2D, fbo->tex, 0);
+
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
+                    GL_TEXTURE_2D, fbo->drb, 0);
+
+	GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+	glBindFramebuffer(GL_FRAMEBUFFER,0);
+	
+    if ( status == GL_FRAMEBUFFER_COMPLETE ) return 0;
+    else return 1;
+}
+
 static int tracking_init(RASPITEX_STATE *state)
 {
    int rc;
     state->egl_config_attribs = tracking_egl_config_attribs;
     rc = raspitexutil_gl_init_2_0(state);
     if (rc != 0)
-       goto end;
+    {
+		vcos_log_error("unable to init GLES2\n");
+		return rc;
+	}
 
 	memset(&tracking_shader,0,sizeof(RASPITEXUTIL_SHADER_PROGRAM_T));
 	tracking_shader.vertex_source = readFile("masking_vs.glsl");
@@ -102,26 +170,33 @@ static int tracking_init(RASPITEX_STATE *state)
     {
 		GLCHK(glUniform1f(tracking_shader.uniform_locations[2], 1.0 / state->height)); // tex height
 	}
-end:
+	
+	rc = init_fbo(&mask_fbo,GL_RGBA,GL_NONE,state->width,state->height);
+    if (rc != 0)
+    {
+		vcos_log_error("FBO failed\n");
+		return rc;
+	}
+	
     return rc;
 }
 
+
 static int tracking_redraw(RASPITEX_STATE *raspitex_state)
 {
+	
+	
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     GLCHK(glUseProgram(tracking_shader.program));
     GLCHK(glActiveTexture(GL_TEXTURE0));
-    GLCHK(glEnableVertexAttribArray(tracking_shader.attribute_locations[0]));
-    GLCHK(glVertexAttribPointer(tracking_shader.attribute_locations[0],
-             2, GL_FLOAT, GL_FALSE, 0, varray));
-
-    // Y plane
     GLCHK(glBindTexture(GL_TEXTURE_EXTERNAL_OES, raspitex_state->texture));
-    //GLCHK(glVertexAttrib2f(tracking_shader.attribute_locations[1], -1.0f, 1.0f));
-    GLCHK(glDrawArrays(GL_TRIANGLES, 0, 6));
 
+    GLCHK(glEnableVertexAttribArray(tracking_shader.attribute_locations[0]));
+    GLCHK(glVertexAttribPointer(tracking_shader.attribute_locations[0], 2, GL_FLOAT, GL_FALSE, 0, varray));
+    GLCHK(glDrawArrays(GL_TRIANGLES, 0, 6));
     GLCHK(glDisableVertexAttribArray(tracking_shader.attribute_locations[0]));
+    
     GLCHK(glUseProgram(0));
     return 0;
 }

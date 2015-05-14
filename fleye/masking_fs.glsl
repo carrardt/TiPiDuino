@@ -13,8 +13,8 @@ float greenMask(vec2 tcoord)
 
 	float redblue = max( pn.x, pn.z );
 	float greenRatio = pn.y / redblue;
-	//if( psq > 0.001 && greenRatio>1.5 ) return 1.0-(1.0/greenRatio);
-	if( psq > 0.001 && greenRatio>2.0 ) return 1.0;
+	if( psq > 0.01 && greenRatio>1.0 ) return 1.0-(1.0/greenRatio);
+	//if( psq > 0.001 && greenRatio>2.0 ) return 1.0;
 	else return 0.0;
 }
 
@@ -32,18 +32,18 @@ vec3 rgblut(float x)
 	}
 }
 
-#define KS 3
-#define HK 1.0
+#define KS 1
+#define HK 0.0
 
 void main(void)
 {
 	float s = 1.0;
 	for(int y=0;y<KS;y++)
 	{
-		float Yd = inv_height * 2.0 * ( float(y) - HK );
+		float Yd = inv_height * (  float(y) - HK + 0.5 );
 		for(int x=0;x<KS;x++)
 		{
-			float Xd = inv_width * 2.0 * ( float(x) - HK );
+			float Xd = inv_width * ( float(x) - HK + 0.5 );
 			s *= greenMask( texcoord + vec2(Xd,Yd) );
 		}
 	}

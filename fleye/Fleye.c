@@ -26,24 +26,8 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-/**
- * \file RaspiStill.c
- * Command line program to capture a still frame and encode it to file.
- * Also optionally display a preview/viewfinder of current camera input.
- *
- * \date 31 Jan 2013
- * \Author: James Hughes
- *
- * Description
- *
- * 3 components are created; camera, preview and JPG encoder.
- * Camera component has three ports, preview, video and stills.
- * This program connects preview and stills to the preview and jpg
- * encoder. Using mmal we don't need to worry about buffers between these
- * components, but we do need to handle buffers from the encoder, which
- * are simply written straight to the file in the requisite buffer callback.
- *
- * We use the RaspiCamControl code to handle the specific camera settings.
+/*
+ * -w 648 -h 486 -p 0,0,648,486 -ex fixedfps
  */
 
 // We use some GNU extensions (asprintf, basename)
