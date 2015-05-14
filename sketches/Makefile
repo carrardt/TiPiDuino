@@ -98,6 +98,9 @@ wiring: $(WIRING_SRC_DIR) $(WIRING_LIB)
 user: $(USER_LIB)
 #exemples: $(WIRING_EXEMPLES)
 
+console:
+	cu -t -h -s 9600 -l $(SERIALPORT)
+
 %.dude:
 	$(AVRDUDE) -c $(PROTOCOL) -p $(MCU) -P $(SERIALPORT) -b $(UPLOADBR) -D -U flash:w:`basename $@ .dude`.hex:i 
 

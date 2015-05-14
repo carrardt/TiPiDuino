@@ -40,11 +40,11 @@ struct InputStream
 		return *this;
 	}
 
-	int32_t readInteger()
+	int32_t readInteger(char x='\0')
 	{
 		int32_t n=0;
 		char s='+';
-		char x = readFirstNonSpace();
+		if( x == '\0' ) { x = readFirstNonSpace(); }
 		if(x=='-' || x=='+')
 		{ 
 			s = x;

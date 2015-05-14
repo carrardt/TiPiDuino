@@ -6,6 +6,7 @@
 #include <avr/eeprom.h>
 #include "AvrTLEEPROM.h"
 
+
 namespace RFSnifferEEPROM
 {
 // EEPROM address where to write detected protocol
@@ -20,6 +21,7 @@ static constexpr uint8_t RECORD_PROTOCOL_1  = 0x01;
 static constexpr uint8_t RECORD_PROTOCOL_2  = 0x02;
 static constexpr uint8_t RECORD_PROTOCOL_3  = 0x03;
 static constexpr uint8_t COMMAND_MODE       = 0x10;
+static constexpr uint8_t DEFAULT_OPERATING_MODE = COMMAND_MODE;
 
 static constexpr uint8_t* EEPROM_MAGIC_ADDR		= ((uint8_t*)0x0000);		// 2 bytes
 static constexpr uint8_t* EEPROM_INITPROG_ADDR 	= (EEPROM_MAGIC_ADDR+2);	// 1 byte

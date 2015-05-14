@@ -46,12 +46,12 @@ struct BufferStream : public ByteStream
 
 	virtual uint8_t readByte()
 	{
-		if( m_pos>=m_size ) { return 0; }
+		if( eof() ) { return 0; }
 		return m_buf[m_pos++];
 	}
 	virtual bool writeByte( uint8_t x )
 	{
-		if( m_pos>=m_size ) { return false; }
+		if( eof() ) { return false; }
 		m_buf[m_pos++] = x;
 		return true;
 	}
