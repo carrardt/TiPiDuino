@@ -1,7 +1,7 @@
 #extension GL_OES_EGL_image_external : require
 uniform samplerExternalOES tex;
-uniform float inv_width;
-uniform float inv_height;
+uniform float xstep;
+uniform float ystep;
 
 varying vec2 texcoord;
 
@@ -18,39 +18,38 @@ float greenMask(vec2 tcoord)
 	else return 0.0;
 }
 
-vec3 rgblut(float x)
-{
-	if( x <= 0.5 )
-	{
-		x = x * 2.0;
-		return vec3(x,x,1.0);
-	}
-	else
-	{
-		x = (1.0-x)*2.0;
-		return vec3(1.0,x,x);
-	}
-}
-
-#define KS 1
-#define HK 0.0
+// sampling matrix :
+// A B C D
+// E F G H
+// I J K L
+// M N O P
+// we're computing values for F,G,J and K
+// stored as R,G,B,A of final color
 
 void main(void)
 {
-	float s = 1.0;
-	for(int y=0;y<KS;y++)
-	{
-		float Yd = inv_height * (  float(y) - HK + 0.5 );
-		for(int x=0;x<KS;x++)
-		{
-			float Xd = inv_width * ( float(x) - HK + 0.5 );
-			s *= greenMask( texcoord + vec2(Xd,Yd) );
-		}
-	}
+	float A = greenMask( texcoord + vec2( -xstep	, -ystep ) );
+	float B = greenMask( texcoord + vec2( 0.0		, -ystep ) );
+	float C = greenMask( texcoord + vec2( xstep		, -ystep ) );
+	float D = greenMask( texcoord + vec2( xstep*2.0	, -ystep ) );
 	
-	/*if( s > 0 ) s=1.0;
-	else s=0.0;*/
-	//s *= 4.0;
-	vec3 col = rgblut(s);
-    gl_FragColor = vec4(col.x,col.y,col.z,1.0);
+	float E = greenMask( texcoord + vec2( -xstep	, 0.0 ) );
+	float F = greenMask( texcoord + vec2( 0.0		, 0.0 ) );
+	float G = greenMask( texcoord + vec2( xstep		, 0.0 ) );
+	float H = greenMask( texcoord + vec2( xstep*2.0	, 0.0 ) );
+	
+	float I = greenMask( texcoord + vec2( -xstep	, ystep ) );
+	float J = greenMask( texcoord + vec2( 0.0		, ystep ) );
+	float K = greenMask( texcoord + vec2( xstep		, ystep) );
+	float L = greenMask( texcoord + vec2( xstep*2.0	, ystep ) );
+	
+	float M = greenMask( texcoord + vec2( -xstep	, ystep*2.0 ) );
+	float N = greenMask( texcoord + vec2( 0.0		, ystep*2.0 ) );
+	float O = greenMask( texcoord + vec2( xstep		, ystep*2.0 ) );
+	float P = greenMask( texcoord + vec2( xstep*2.0	, ystep*2.0 ) );
+	
+    gl_FragColor.x = A*B*C*E*F*G*I*J*K;
+    gl_FragColor.y = B*C*D*F*G*H*J*K*L;
+    gl_FragColor.z = E*F*G*I*J*K*M*N*O;
+    gl_FragColor.w = F*G*H*J*K*L*N*O*P;
 }

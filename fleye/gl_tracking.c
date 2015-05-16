@@ -53,9 +53,8 @@ static char* readFile(const char* fileName)
 	return buf;
 }
 
-/* Draw a scaled quad showing the the entire texture with the
- * origin defined as an attribute */
-static RASPITEXUTIL_SHADER_PROGRAM_T tracking_shader;
+static RASPITEXUTIL_SHADER_PROGRAM_T masking_shader;
+static RASPITEXUTIL_SHADER_PROGRAM_T postproc_shader;
 
 static GLfloat varray[] =
 {
@@ -149,34 +148,42 @@ static int tracking_init(RASPITEX_STATE *state)
 		return rc;
 	}
 
-	memset(&tracking_shader,0,sizeof(RASPITEXUTIL_SHADER_PROGRAM_T));
-	tracking_shader.vertex_source = readFile("masking_vs.glsl");
-	tracking_shader.fragment_source = readFile("masking_fs.glsl");
-	tracking_shader.attribute_names[0] = "vertex";
-	tracking_shader.uniform_names[0] = "tex";
-	tracking_shader.uniform_names[1] = "inv_width";
-	tracking_shader.uniform_names[2] = "inv_height";
-	
-	//vcos_log_trace(tracking_shader.fragment_source);
-	
-    rc = raspitexutil_build_shader_program(&tracking_shader);
-    GLCHK(glUseProgram(tracking_shader.program));
-    GLCHK(glUniform1i(tracking_shader.uniform_locations[0], 0)); // tex unit
-    if( tracking_shader.uniform_locations[1] != -1 )
+	memset(&masking_shader,0,sizeof(RASPITEXUTIL_SHADER_PROGRAM_T));
+	masking_shader.vertex_source = readFile("masking_vs.glsl");
+	masking_shader.fragment_source = readFile("masking_fs.glsl");
+	masking_shader.attribute_names[0] = "vertex";
+	masking_shader.uniform_names[0] = "tex";
+	masking_shader.uniform_names[1] = "xstep";
+	masking_shader.uniform_names[2] = "ystep";
+    rc = raspitexutil_build_shader_program(&masking_shader);
+    GLCHK(glUseProgram(masking_shader.program));
+    GLCHK(glUniform1i(masking_shader.uniform_locations[0], 0)); // tex unit
+    if( masking_shader.uniform_locations[1] != -1 )
     {
-		GLCHK(glUniform1f(tracking_shader.uniform_locations[1], 1.0 / state->width));
+		GLCHK(glUniform1f(masking_shader.uniform_locations[1], 1.0 / state->width));
 	}
-    if( tracking_shader.uniform_locations[2] != -1 )
+    if( masking_shader.uniform_locations[2] != -1 )
     {
-		GLCHK(glUniform1f(tracking_shader.uniform_locations[2], 1.0 / state->height)); // tex height
+		GLCHK(glUniform1f(masking_shader.uniform_locations[2], 1.0 / state->height)); // tex height
 	}
 	
-	rc = init_fbo(&mask_fbo,GL_RGBA,GL_NONE,state->width,state->height);
+	memset(&postproc_shader,0,sizeof(RASPITEXUTIL_SHADER_PROGRAM_T));
+	postproc_shader.vertex_source = readFile("masking_vs.glsl");
+	postproc_shader.fragment_source = readFile("postproc_fs.glsl");
+	postproc_shader.attribute_names[0] = "vertex";
+	postproc_shader.uniform_names[0] = "tex";
+    rc = raspitexutil_build_shader_program(&postproc_shader);
+    GLCHK(glUseProgram(postproc_shader.program));
+    GLCHK(glUniform1i(postproc_shader.uniform_locations[0], 0)); // tex unit
+	
+	rc = init_fbo(&mask_fbo,GL_RGBA,GL_NONE,state->width/2,state->height/2);
     if (rc != 0)
     {
 		vcos_log_error("FBO failed\n");
 		return rc;
 	}
+	
+	glDisable(GL_DEPTH_TEST);
 	
     return rc;
 }
@@ -184,19 +191,32 @@ static int tracking_init(RASPITEX_STATE *state)
 
 static int tracking_redraw(RASPITEX_STATE *raspitex_state)
 {
+	glBindFramebuffer(GL_FRAMEBUFFER, mask_fbo.fb);
 	
-	
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    //glClear(GL_COLOR_BUFFER_BIT /*| GL_DEPTH_BUFFER_BIT*/);
 
-    GLCHK(glUseProgram(tracking_shader.program));
+    GLCHK(glUseProgram(masking_shader.program));
     GLCHK(glActiveTexture(GL_TEXTURE0));
     GLCHK(glBindTexture(GL_TEXTURE_EXTERNAL_OES, raspitex_state->texture));
 
-    GLCHK(glEnableVertexAttribArray(tracking_shader.attribute_locations[0]));
-    GLCHK(glVertexAttribPointer(tracking_shader.attribute_locations[0], 2, GL_FLOAT, GL_FALSE, 0, varray));
+    GLCHK(glEnableVertexAttribArray(masking_shader.attribute_locations[0]));
+    GLCHK(glVertexAttribPointer(masking_shader.attribute_locations[0], 2, GL_FLOAT, GL_FALSE, 0, varray));
     GLCHK(glDrawArrays(GL_TRIANGLES, 0, 6));
-    GLCHK(glDisableVertexAttribArray(tracking_shader.attribute_locations[0]));
+    GLCHK(glDisableVertexAttribArray(masking_shader.attribute_locations[0]));
     
+    glFinish();
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    GLCHK(glUseProgram(postproc_shader.program));
+    GLCHK(glActiveTexture(GL_TEXTURE0));
+    GLCHK(glBindTexture(GL_TEXTURE_EXTERNAL_OES,0));
+    GLCHK(glBindTexture(GL_TEXTURE_2D, mask_fbo.tex));
+
+    GLCHK(glEnableVertexAttribArray(masking_shader.attribute_locations[0]));
+    GLCHK(glVertexAttribPointer(masking_shader.attribute_locations[0], 2, GL_FLOAT, GL_FALSE, 0, varray));
+    GLCHK(glDrawArrays(GL_TRIANGLES, 0, 6));
+    GLCHK(glDisableVertexAttribArray(masking_shader.attribute_locations[0]));
+    
+    GLCHK(glBindTexture(GL_TEXTURE_2D,0));
     GLCHK(glUseProgram(0));
     return 0;
 }
