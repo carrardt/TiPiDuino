@@ -182,8 +182,8 @@ static void default_status(RASPISTILL_STATE *state)
       return;
    }
 
-   state->width = 1280;
-   state->height = 720;
+   state->width = 2592/2;
+   state->height = 1944/2;
    state->verbose = 0;
    state->camera_component = NULL;
    state->encoder_component = NULL;

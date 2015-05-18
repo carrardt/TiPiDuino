@@ -83,8 +83,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * See also: http://www.khronos.org/registry/gles/extensions/OES/OES_EGL_image_external.txt
  */
 
-#define DEFAULT_WIDTH   1280
-#define DEFAULT_HEIGHT  720
+#define DEFAULT_WIDTH   (2592/2)
+#define DEFAULT_HEIGHT  (1944/2)
 
 /**
  * Parse a possible command pair - command and parameter
