@@ -14,8 +14,8 @@ float greenMask(vec2 tcoord)
 	float redblue = max( pn.x, pn.z );
 	float greenRatio = pn.y / redblue;
 	//if( psq > 0.2 ) return 1.0;
-	if( psq > 0.01 && greenRatio>1.0 ) return 1.0-(1.0/greenRatio);
-	//if( psq > 0.001 && greenRatio>2.0 ) return 1.0;
+	//if( psq > 0.001 && greenRatio>1.0 ) return 1.0-(1.0/greenRatio);
+	if( psq > 0.002 && greenRatio>=2.0 ) return 1.0;
 	else return 0.0;
 }
 
@@ -29,20 +29,20 @@ float greenMask(vec2 tcoord)
 
 void main(void)
 {
-	float A = greenMask( texcoord + vec2( -xstep	, -ystep ) );
+	/*float A = greenMask( texcoord + vec2( -xstep	, -ystep ) );
 	float B = greenMask( texcoord + vec2( 0.0		, -ystep ) );
 	float C = greenMask( texcoord + vec2( xstep		, -ystep ) );
 	float D = greenMask( texcoord + vec2( xstep*2.0	, -ystep ) );
 	
 	float E = greenMask( texcoord + vec2( -xstep	, 0.0 ) );
-	float F = greenMask( texcoord + vec2( 0.0		, 0.0 ) );
+	*/float F = greenMask( texcoord + vec2( 0.0		, 0.0 ) );
 	float G = greenMask( texcoord + vec2( xstep		, 0.0 ) );
-	float H = greenMask( texcoord + vec2( xstep*2.0	, 0.0 ) );
+	/*float H = greenMask( texcoord + vec2( xstep*2.0	, 0.0 ) );
 	
 	float I = greenMask( texcoord + vec2( -xstep	, ystep ) );
-	float J = greenMask( texcoord + vec2( 0.0		, ystep ) );
+	*/float J = greenMask( texcoord + vec2( 0.0		, ystep ) );
 	float K = greenMask( texcoord + vec2( xstep		, ystep) );
-	float L = greenMask( texcoord + vec2( xstep*2.0	, ystep ) );
+	/*float L = greenMask( texcoord + vec2( xstep*2.0	, ystep ) );
 	
 	float M = greenMask( texcoord + vec2( -xstep	, ystep*2.0 ) );
 	float N = greenMask( texcoord + vec2( 0.0		, ystep*2.0 ) );
@@ -54,10 +54,8 @@ void main(void)
     gl_FragColor.z = E*F*G*I*J*K*M*N*O;
     gl_FragColor.w = F*G*H*J*K*L*N*O*P;
 
-/*
-    gl_FragColor.x = F;
+    */gl_FragColor.x = F;
     gl_FragColor.y = G;
     gl_FragColor.z = J;
     gl_FragColor.w = K;
-*/
 }

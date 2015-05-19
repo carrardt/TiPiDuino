@@ -27,7 +27,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 /*
- * -w 648 -h 486 -p 0,0,648,486 -ex fixedfps
+ * fleye -v -ex fixedfps -w 648 -h 486 -p 0,0,648,486
+ * fleye -v -ex fixedfps -w 1296 -h 972 -p 0,0,1296,972
  */
 
 // We use some GNU extensions (asprintf, basename)
