@@ -4,6 +4,7 @@ uniform float xsize;
 uniform float ysize;
 uniform float xsize_inv;
 uniform float ysize_inv;
+uniform float ccmd_inv;
 
 vec3 rgblut(float x)
 {
@@ -21,6 +22,7 @@ vec3 rgblut(float x)
 
 void main(void)
 {	
+	const float inv64 = 1.0/64.0;
 	// unpack rgba packed values
 	int winx = int( texcoord.x * xsize );
 	int hwinx = winx/2;
@@ -40,5 +42,7 @@ void main(void)
 	vec4 S = texture2D(tex, texcoord );
 
 	float s = dot( S, vec4(nxp*nyp,xp*nyp,nxp*yp,xp*yp) );
-    gl_FragColor = vec4( rgblut(s), 1.0 );
+	if( s < inv64 ) gl_FragColor = vec4(0.0,0.0,0.0,1.0);
+	else if(s>(1.0-inv64)) gl_FragColor = vec4( 0.0,1.0,0.0, 1.0 );
+	else gl_FragColor = vec4( rgblut(s*64.0*ccmd_inv), 1.0 );
 }

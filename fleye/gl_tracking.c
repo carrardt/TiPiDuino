@@ -32,6 +32,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 
+int tracking_ccmd = 4;
+
 static char* readShader(const char* fileName)
 {
 	char filePath[256];
@@ -62,11 +64,11 @@ typedef struct
 	GLuint fb; // frame buffer object
 } FBOTexture;
 
-static FBOTexture mask_fbo;
+static FBOTexture fbo[2];
 static FBOTexture window_fbo;
 
 static RASPITEXUTIL_SHADER_PROGRAM_T masking_shader;
-//static RASPITEXUTIL_SHADER_PROGRAM_T dist_shader;
+static RASPITEXUTIL_SHADER_PROGRAM_T dist_shader;
 static RASPITEXUTIL_SHADER_PROGRAM_T draw_shader;
 
 static GLfloat varray[] =
@@ -147,15 +149,15 @@ static int create_fbo(FBOTexture* fbo, GLint colorFormat, GLint depthFormat, GLi
     else return 1;
 }
 
-static int create_shader(RASPITEXUTIL_SHADER_PROGRAM_T* shader, const char* vsFile, const char* fsFile, const char* uniforms[])
+static int create_shader(RASPITEXUTIL_SHADER_PROGRAM_T* shader, const char* fsFile, const char* uniforms[])
 {
 	int i;
 	// generate score values corresponding to color matching of target
 	memset(shader,0,sizeof(RASPITEXUTIL_SHADER_PROGRAM_T));
-	shader->vertex_source = readShader(vsFile);
-	shader->fragment_source = readShader(fsFile);
+	shader->vertex_source = readShader("common_vs");
 	shader->attribute_names[0] = "vertex";
 	shader->attribute_names[1] = "tcoord";
+	shader->fragment_source = readShader(fsFile);
 	for(i=0;uniforms[i]!=0;++i)
 	{
 		shader->uniform_names[i] = uniforms[i];
@@ -188,7 +190,7 @@ static int shader_uniform1f(RASPITEXUTIL_SHADER_PROGRAM_T* shader, int i, GLfloa
 
 static int tracking_init(RASPITEX_STATE *state)
 {
-   int rc;
+   int i,rc;
     state->egl_config_attribs = tracking_egl_config_attribs;
     rc = raspitexutil_gl_init_2_0(state);
     if (rc != 0)
@@ -214,38 +216,44 @@ static int tracking_init(RASPITEX_STATE *state)
 
 	// generate score values corresponding to color matching of target
 	{
-		static const char* uniform[] = { "tex", "xstep", "ystep", 0 };
-		create_shader(&masking_shader,"masking_vs","masking_fs",uniform);
+		const char* uniform[] = { "tex", "xstep", "ystep", 0 };
+		create_shader(&masking_shader,"masking_fs",uniform);
 		shader_uniform1i(&masking_shader,0, 0);
 		shader_uniform1f(&masking_shader,1, 1.0 / state->width);
 		shader_uniform1f(&masking_shader,2, 1.0 / state->height);
 	}
 	
-	// read score values
+	// update distance to connected component border
 	{
-		static const char* uniform[] = { "tex", "xsize", "ysize","xsize_inv","ysize_inv", 0 };
-		create_shader(&draw_shader,"masking_vs","draw_fs",uniform);
+		const char* uniform[] = { "tex", "xstep", "ystep", 0 };
+		create_shader(&dist_shader,"updateDistance_fs",uniform);
+		shader_uniform1i(&dist_shader,0, 0);
+		shader_uniform1f(&dist_shader,1, 2.0 / state->width);
+		shader_uniform1f(&dist_shader,2, 2.0 / state->height);
+	}
+
+	// draw score values
+	{
+		const char* uniform[] = { "tex", "xsize", "ysize","xsize_inv","ysize_inv","ccmd_inv", 0 };
+		create_shader(&draw_shader,"draw_fs",uniform);
 		shader_uniform1i(&draw_shader,0, 0);
 		shader_uniform1f(&draw_shader,1, state->width);
 		shader_uniform1f(&draw_shader,2, state->height);
 		shader_uniform1f(&draw_shader,3, 1.0 / state->width);
 		shader_uniform1f(&draw_shader,4, 1.0 / state->height);
+		shader_uniform1f(&draw_shader,5, 1.0 / tracking_ccmd);
 	}
 
-	rc = create_fbo(&mask_fbo,GL_RGBA,GL_NONE,state->width/2,state->height/2);
-    if (rc != 0)
-    {
-		vcos_log_error("FBO failed\n");
-		return rc;
+	for(i=0;i<2;i++)
+	{
+		rc = create_fbo(&fbo[i],GL_RGBA,GL_NONE,state->width/2,state->height/2);
+		if (rc != 0)
+		{
+			vcos_log_error("FBO failed\n");
+			return rc;
+		}
 	}
-/*
-	rc = create_fbo(&dist_fbo,GL_RGBA,GL_NONE,state->width/2,state->height/2);
-    if (rc != 0)
-    {
-		vcos_log_error("FBO failed\n");
-		return rc;
-	}
-*/
+
 	glDisable(GL_DEPTH_TEST);
 	
     return rc;
@@ -277,15 +285,24 @@ static void apply_shader_pass(RASPITEXUTIL_SHADER_PROGRAM_T* shader, GLenum srcT
     GLCHK(glFinish());
 }
 
-static int tracking_redraw(RASPITEX_STATE *raspitex_state)
+static int tracking_redraw(RASPITEX_STATE *state)
 {
+	int fboIndex = 0;
+	int i;
     //glClear(GL_COLOR_BUFFER_BIT /*| GL_DEPTH_BUFFER_BIT*/);
     GLCHK(glActiveTexture(GL_TEXTURE0));
 
-	apply_shader_pass(&masking_shader,GL_TEXTURE_EXTERNAL_OES,raspitex_state->texture,&mask_fbo);
-	
-	apply_shader_pass(&draw_shader,GL_TEXTURE_2D,mask_fbo.tex,&window_fbo);
-    
+	apply_shader_pass(&masking_shader,GL_TEXTURE_EXTERNAL_OES,state->texture,&fbo[fboIndex]);
+
+	for(i=0;i<tracking_ccmd;i++)
+	{
+		GLuint inputTexture = fbo[fboIndex].tex;
+		fboIndex = (fboIndex+1)%2;
+		apply_shader_pass(&dist_shader,GL_TEXTURE_2D,inputTexture,&fbo[fboIndex]);
+	}
+
+	apply_shader_pass(&draw_shader,GL_TEXTURE_2D,fbo[fboIndex].tex,&window_fbo);
+
     GLCHK(glUseProgram(0));
     return 0;
 }

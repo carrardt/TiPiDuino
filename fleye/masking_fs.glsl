@@ -15,7 +15,7 @@ float greenMask(vec2 tcoord)
 	float greenRatio = pn.y / redblue;
 	//if( psq > 0.2 ) return 1.0;
 	//if( psq > 0.1 && greenRatio>1.0 ) return 1.0-(1.0/greenRatio);
-	if( psq > 0.1 && greenRatio>=2.0 ) return 1.0;
+	if( psq > 0.01 && greenRatio>=2.0 ) return 1.0;
 	else return 0.0;
 }
 
@@ -33,5 +33,4 @@ void main(void)
     gl_FragColor.y = greenMask( texcoord + vec2( xstep		, 0.0 ) );
     gl_FragColor.z = greenMask( texcoord + vec2( 0.0		, ystep ) );
     gl_FragColor.w = greenMask( texcoord + vec2( xstep		, ystep) );
-
 }

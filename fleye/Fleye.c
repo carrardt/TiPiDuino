@@ -315,7 +315,7 @@ static int parse_cmdline(int argc, const char **argv, RASPISTILL_STATE *state)
             valid = 0;
          break;
       }
-
+      
       default:
       {
          // Try parsing for any image specific parameters

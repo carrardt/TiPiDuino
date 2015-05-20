@@ -92,9 +92,17 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * @param arg2 Parameter (could be NULL)
  * @return How many parameters were used, 0,1,2
  */
+extern int tracking_ccmd;
 int raspitex_parse_cmdline(RASPITEX_STATE *state,
       const char *arg1, const char *arg2)
 {
+	printf("raspitex_parse_cmdline %s %s\n",arg1,arg2);
+	if( strcmp(arg1,"-ccmd")==0 )
+	{
+		tracking_ccmd = atoi(arg2);
+		return 2;
+	}
+	
    return 0;
 }
 
