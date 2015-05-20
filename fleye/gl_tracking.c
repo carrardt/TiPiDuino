@@ -32,10 +32,10 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 
-static char* readFile(const char* fileName)
+static char* readShader(const char* fileName)
 {
 	char filePath[256];
-	snprintf(filePath,255,"%s/%s",GLSL_SRC_DIR,fileName);
+	snprintf(filePath,255,"%s/%s.glsl",GLSL_SRC_DIR,fileName);
 	FILE* fp=fopen(filePath,"rb");
 	if(fp==0)
 	{
@@ -63,7 +63,7 @@ typedef struct
 } FBOTexture;
 
 static FBOTexture mask_fbo;
-static FBOTexture dist_fbo;
+static FBOTexture window_fbo;
 
 static RASPITEXUTIL_SHADER_PROGRAM_T masking_shader;
 //static RASPITEXUTIL_SHADER_PROGRAM_T dist_shader;
@@ -147,6 +147,44 @@ static int create_fbo(FBOTexture* fbo, GLint colorFormat, GLint depthFormat, GLi
     else return 1;
 }
 
+static int create_shader(RASPITEXUTIL_SHADER_PROGRAM_T* shader, const char* vsFile, const char* fsFile, const char* uniforms[])
+{
+	int i;
+	// generate score values corresponding to color matching of target
+	memset(shader,0,sizeof(RASPITEXUTIL_SHADER_PROGRAM_T));
+	shader->vertex_source = readShader(vsFile);
+	shader->fragment_source = readShader(fsFile);
+	shader->attribute_names[0] = "vertex";
+	shader->attribute_names[1] = "tcoord";
+	for(i=0;uniforms[i]!=0;++i)
+	{
+		shader->uniform_names[i] = uniforms[i];
+	}
+    int rc = raspitexutil_build_shader_program(shader);
+	return rc;
+}
+
+static int shader_uniform1i(RASPITEXUTIL_SHADER_PROGRAM_T* shader, int i, GLint value)
+{
+    GLCHK(glUseProgram(shader->program));
+    if( shader->uniform_locations[i]!=-1 )
+    {
+		GLCHK(glUniform1i(shader->uniform_locations[i], value));
+		return 0;
+	}
+	else { return -1; }
+}
+
+static int shader_uniform1f(RASPITEXUTIL_SHADER_PROGRAM_T* shader, int i, GLfloat value)
+{
+    GLCHK(glUseProgram(shader->program));
+    if( shader->uniform_locations[i]!=-1 )
+    {
+		GLCHK(glUniform1f(shader->uniform_locations[i], value));
+		return 0;
+	}
+	else { return -1; }
+}
 
 static int tracking_init(RASPITEX_STATE *state)
 {
@@ -159,43 +197,41 @@ static int tracking_init(RASPITEX_STATE *state)
 		return rc;
 	}
 
+	window_fbo.tex = 0;
+	window_fbo.fb = 0;
+	window_fbo.format = GL_NONE;
+	window_fbo.drb = 0;
+	window_fbo.width = state->width;
+	window_fbo.height = state->height;
+
    glBindTexture(GL_TEXTURE_EXTERNAL_OES, state->texture);
    glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
    glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-   glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-   glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+   glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+   glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
    glBindTexture(GL_TEXTURE_EXTERNAL_OES,0);
 
+
 	// generate score values corresponding to color matching of target
-	memset(&masking_shader,0,sizeof(RASPITEXUTIL_SHADER_PROGRAM_T));
-	masking_shader.vertex_source = readFile("masking_vs.glsl");
-	masking_shader.fragment_source = readFile("masking_fs.glsl");
-	masking_shader.attribute_names[0] = "vertex";
-	masking_shader.attribute_names[1] = "tcoord";
-	masking_shader.uniform_names[0] = "tex";
-	masking_shader.uniform_names[1] = "xstep";
-	masking_shader.uniform_names[2] = "ystep";
-    rc = raspitexutil_build_shader_program(&masking_shader);
-    GLCHK(glUseProgram(masking_shader.program));
-    GLCHK(glUniform1i(masking_shader.uniform_locations[0], 0)); // tex unit
-    GLCHK(glUniform1f(masking_shader.uniform_locations[1], 1.0 / state->width));
-	GLCHK(glUniform1f(masking_shader.uniform_locations[2], 1.0 / state->height)); 
+	{
+		static const char* uniform[] = { "tex", "xstep", "ystep", 0 };
+		create_shader(&masking_shader,"masking_vs","masking_fs",uniform);
+		shader_uniform1i(&masking_shader,0, 0);
+		shader_uniform1f(&masking_shader,1, 1.0 / state->width);
+		shader_uniform1f(&masking_shader,2, 1.0 / state->height);
+	}
 	
 	// read score values
-	memset(&draw_shader,0,sizeof(RASPITEXUTIL_SHADER_PROGRAM_T));
-	draw_shader.vertex_source = readFile("masking_vs.glsl");
-	draw_shader.fragment_source = readFile("draw_fs.glsl");
-	draw_shader.attribute_names[0] = "vertex";
-	draw_shader.attribute_names[1] = "tcoord";
-	draw_shader.uniform_names[0] = "tex";
-	draw_shader.uniform_names[1] = "xsize";
-	draw_shader.uniform_names[2] = "ysize";
-    rc = raspitexutil_build_shader_program(&draw_shader);
-    GLCHK(glUseProgram(draw_shader.program));
-    GLCHK(glUniform1i(draw_shader.uniform_locations[0], 0)); // tex unit
-    GLCHK(glUniform1f(draw_shader.uniform_locations[1], state->width));
-	GLCHK(glUniform1f(draw_shader.uniform_locations[2], state->height)); 
-	
+	{
+		static const char* uniform[] = { "tex", "xsize", "ysize","xsize_inv","ysize_inv", 0 };
+		create_shader(&draw_shader,"masking_vs","draw_fs",uniform);
+		shader_uniform1i(&draw_shader,0, 0);
+		shader_uniform1f(&draw_shader,1, state->width);
+		shader_uniform1f(&draw_shader,2, state->height);
+		shader_uniform1f(&draw_shader,3, 1.0 / state->width);
+		shader_uniform1f(&draw_shader,4, 1.0 / state->height);
+	}
+
 	rc = create_fbo(&mask_fbo,GL_RGBA,GL_NONE,state->width/2,state->height/2);
     if (rc != 0)
     {
@@ -215,9 +251,10 @@ static int tracking_init(RASPITEX_STATE *state)
     return rc;
 }
 
-static void apply_shader_pass(RASPITEXUTIL_SHADER_PROGRAM_T* shader, GLenum srcTarget, GLuint srcTex, GLuint destFBO)
+static void apply_shader_pass(RASPITEXUTIL_SHADER_PROGRAM_T* shader, GLenum srcTarget, GLuint srcTex, FBOTexture* destFBO)
 {
-    GLCHK(glBindFramebuffer(GL_FRAMEBUFFER,destFBO));
+    GLCHK(glBindFramebuffer(GL_FRAMEBUFFER,destFBO->fb));
+    GLCHK(glViewport(0,0,destFBO->width,destFBO->height));
 
     GLCHK(glUseProgram(shader->program));
     
@@ -245,9 +282,9 @@ static int tracking_redraw(RASPITEX_STATE *raspitex_state)
     //glClear(GL_COLOR_BUFFER_BIT /*| GL_DEPTH_BUFFER_BIT*/);
     GLCHK(glActiveTexture(GL_TEXTURE0));
 
-	apply_shader_pass(&masking_shader,GL_TEXTURE_EXTERNAL_OES,raspitex_state->texture,mask_fbo.fb);
+	apply_shader_pass(&masking_shader,GL_TEXTURE_EXTERNAL_OES,raspitex_state->texture,&mask_fbo);
 	
-	apply_shader_pass(&draw_shader,GL_TEXTURE_2D,mask_fbo.tex,0);
+	apply_shader_pass(&draw_shader,GL_TEXTURE_2D,mask_fbo.tex,&window_fbo);
     
     GLCHK(glUseProgram(0));
     return 0;
