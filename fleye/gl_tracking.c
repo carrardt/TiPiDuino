@@ -234,14 +234,12 @@ static int tracking_init(RASPITEX_STATE *state)
 
 	// draw score values
 	{
-		const char* uniform[] = { "tex", "xsize", "ysize","xsize_inv","ysize_inv","ccmd_inv", 0 };
+		const char* uniform[] = { "tex", "xsize", "ysize","ccmd_inv", 0 };
 		create_shader(&draw_shader,"draw_fs",uniform);
 		shader_uniform1i(&draw_shader,0, 0);
 		shader_uniform1f(&draw_shader,1, state->width);
 		shader_uniform1f(&draw_shader,2, state->height);
-		shader_uniform1f(&draw_shader,3, 1.0 / state->width);
-		shader_uniform1f(&draw_shader,4, 1.0 / state->height);
-		shader_uniform1f(&draw_shader,5, 1.0 / tracking_ccmd);
+		shader_uniform1f(&draw_shader,3, 1.0 / tracking_ccmd);
 	}
 
 	for(i=0;i<2;i++)

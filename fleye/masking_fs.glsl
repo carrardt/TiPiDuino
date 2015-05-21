@@ -7,15 +7,17 @@ varying vec2 texcoord;
 
 float greenMask(vec2 tcoord)
 {
+	const float greenThreshold = 0.5;
     vec3 p = texture2D(tex, tcoord ).xyz ;
-    vec3 pn = normalize(p);
-    float psq = dot(p,p);
 
-	float redblue = max( pn.x, pn.z );
-	float greenRatio = pn.y / redblue;
+	float rbMax = max( p.x, p.z );
+	float rbMin = min( p.x, p.z );
+	float greenDiff = (p.y-rbMin);
+	float greenRatio = (p.y - rbMax) / (p.y-rbMin);
+	
 	//if( psq > 0.2 ) return 1.0;
 	//if( psq > 0.1 && greenRatio>1.0 ) return 1.0-(1.0/greenRatio);
-	if( psq > 0.01 && greenRatio>=2.0 ) return 1.0;
+	if( greenDiff>0.05 && greenRatio>greenThreshold ) return 1.0;
 	else return 0.0;
 }
 
