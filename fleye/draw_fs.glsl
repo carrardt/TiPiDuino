@@ -41,9 +41,9 @@ void main(void)
 	vec4 S = texture2D(tex, texcoord );
 
 	float s = dot( S, vec4(nxp*nyp,xp*nyp,nxp*yp,xp*yp) );
-	/*if( s < inv64 ) gl_FragColor = vec4(0.0,0.0,0.0,1.0);
+	if( s < inv64 ) gl_FragColor = vec4(0.0,0.0,0.0,1.0);
 	else if(s>(1.0-inv64)) gl_FragColor = vec4( 0.25,1.0,0.25, 1.0 );
 	else gl_FragColor = rgblut(s*64.0*ccmd_inv);
-	*/
-	gl_FragColor = rgblut(s);
+
+	//gl_FragColor = rgblut(s);
 }

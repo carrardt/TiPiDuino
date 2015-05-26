@@ -162,6 +162,7 @@ static int create_shader(RASPITEXUTIL_SHADER_PROGRAM_T* shader, const char* fsFi
 	{
 		shader->uniform_names[i] = uniforms[i];
 	}
+	printf("Compiling %s ...\n",fsFile);
     int rc = raspitexutil_build_shader_program(shader);
 	return rc;
 }
@@ -216,35 +217,34 @@ static int tracking_init(RASPITEX_STATE *state)
 
 	// generate score values corresponding to color matching of target
 	{
-		const char* uniform[] = { "tex", "xstep", "ystep", 0 };
-		create_shader(&masking_shader,"masking_fs",uniform);
+		const char* uniform[] = { "tex","xstep","xsize", 0 };
+		create_shader(&masking_shader,"maskInitRowSegment_fs",uniform);
 		shader_uniform1i(&masking_shader,0, 0);
-		shader_uniform1f(&masking_shader,1, 1.0 / state->width);
-		shader_uniform1f(&masking_shader,2, 1.0 / state->height);
+		shader_uniform1f(&masking_shader,1, 1.0 / (state->width) );
+		shader_uniform1f(&masking_shader,2, state->width);
 	}
+	
+	// processing done with half resoluton, to maximize color (U,V) resolution
 	
 	// update distance to connected component border
 	{
-		const char* uniform[] = { "tex", "xstep", "ystep", 0 };
-		create_shader(&dist_shader,"updateDistance_fs",uniform);
+		const char* uniform[] = { "tex", "xstep", "xsteppix", 0 };
+		create_shader(&dist_shader,"rowSegment_fs",uniform);
 		shader_uniform1i(&dist_shader,0, 0);
-		shader_uniform1f(&dist_shader,1, 2.0 / state->width);
-		shader_uniform1f(&dist_shader,2, 2.0 / state->height);
+		shader_uniform1f(&dist_shader,1, 1.0 / state->width);
+		shader_uniform1f(&dist_shader,2, 1.0 );
 	}
 
 	// draw score values
 	{
-		const char* uniform[] = { "tex", "xsize", "ysize","ccmd_inv", 0 };
-		create_shader(&draw_shader,"draw_fs",uniform);
+		const char* uniform[] = { "tex", 0 };
+		create_shader(&draw_shader,"drawSegmentLength_fs",uniform);
 		shader_uniform1i(&draw_shader,0, 0);
-		shader_uniform1f(&draw_shader,1, state->width);
-		shader_uniform1f(&draw_shader,2, state->height);
-		shader_uniform1f(&draw_shader,3, 1.0 / tracking_ccmd);
 	}
 
 	for(i=0;i<2;i++)
 	{
-		rc = create_fbo(&fbo[i],GL_RGBA,GL_NONE,state->width/2,state->height/2);
+		rc = create_fbo(&fbo[i],GL_RGBA,GL_NONE,state->width,state->height);
 		if (rc != 0)
 		{
 			vcos_log_error("FBO failed\n");
@@ -296,6 +296,8 @@ static int tracking_redraw(RASPITEX_STATE *state)
 	{
 		GLuint inputTexture = fbo[fboIndex].tex;
 		fboIndex = (fboIndex+1)%2;
+		float p2i = 1<<i;
+		shader_uniform1f(&dist_shader,1, p2i / state->width);
 		apply_shader_pass(&dist_shader,GL_TEXTURE_2D,inputTexture,&fbo[fboIndex]);
 	}
 
