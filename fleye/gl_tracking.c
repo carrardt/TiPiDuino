@@ -228,11 +228,11 @@ static int tracking_init(RASPITEX_STATE *state)
 	
 	// update distance to connected component border
 	{
-		const char* uniform[] = { "tex", "xstep", "xsteppix", 0 };
+		const char* uniform[] = { "tex", "xstep", "xs64", 0 };
 		create_shader(&dist_shader,"rowSegment_fs",uniform);
 		shader_uniform1i(&dist_shader,0, 0);
 		shader_uniform1f(&dist_shader,1, 1.0 / state->width);
-		shader_uniform1f(&dist_shader,2, 1.0 );
+		shader_uniform1f(&dist_shader,2, 1.0/64.0 );
 	}
 
 	// draw score values
@@ -296,8 +296,9 @@ static int tracking_redraw(RASPITEX_STATE *state)
 	{
 		GLuint inputTexture = fbo[fboIndex].tex;
 		fboIndex = (fboIndex+1)%2;
-		float p2i = 1<<i;
+		double p2i = 1<<i;
 		shader_uniform1f(&dist_shader,1, p2i / state->width);
+		shader_uniform1f(&dist_shader,2, p2i / 64.0 );
 		apply_shader_pass(&dist_shader,GL_TEXTURE_2D,inputTexture,&fbo[fboIndex]);
 	}
 

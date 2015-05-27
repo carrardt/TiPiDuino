@@ -1,11 +1,16 @@
 uniform sampler2D tex;
 varying vec2 texcoord;
 
+/*
 highp float unpack(vec2 p)
 {
 	return exp2( p.x * 16.0 ) * p.y; 
 }
-
+*/
+highp float unpack(vec2 p)
+{
+	return p.x * 32.0 + p.y; 
+}
 vec4 rgblut(float x)
 {
 
@@ -26,7 +31,7 @@ vec4 rgblut(float x)
 void main(void)
 {
 	vec4 S = texture2D(tex, texcoord );
-	highp float start = unpack(S.xy) ;
-	highp float end = unpack(S.zw) ;
-	gl_FragColor = rgblut( (end-start)/16.0 );
+	highp float left = unpack(S.xy) ;
+	highp float right = unpack(S.zw) ;
+	gl_FragColor = rgblut( left+right );
 }

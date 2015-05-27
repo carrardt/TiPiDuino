@@ -5,11 +5,13 @@ uniform float xsize;
 
 varying vec2 texcoord;
 
+// meilleur, valide jusqu'à 2048. nickel
 vec2 pack(highp float x)
 {
-	highp float h = max( ceil(log2(x)*4.0) , 0.0 ); // exponent in [0;16]
-	highp float l = x / exp2(h*0.25);
-	return vec2( h / 64.0 , l );
+	x /= 64.0;
+	highp float h = floor(x); 
+	highp float l = x - h;
+	return vec2( h / 32.0 , l );
 }
 
 float greenMask(vec2 tcoord)
@@ -32,8 +34,13 @@ void main(void)
 {
     if( greenMask(texcoord) > 0.5 )
     {
-		gl_FragColor.xy = pack(0.0);
-		gl_FragColor.zw = pack(1.0);
+		/*
+		highp float winx = floor(texcoord.x*xsize);
+		gl_FragColor.xy = pack( winx );
+		gl_FragColor.zw = pack( winx + 1.0 );
+		*/
+		gl_FragColor.xy = pack( 0.0);
+		gl_FragColor.zw = pack( 1.5 );
 	}
 	else
 	{
