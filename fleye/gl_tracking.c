@@ -204,47 +204,46 @@ static int tracking_init(RASPITEX_STATE *state)
 	window_fbo.fb = 0;
 	window_fbo.format = GL_NONE;
 	window_fbo.drb = 0;
-	window_fbo.width = state->width;
-	window_fbo.height = state->height;
+	window_fbo.width = state->width/2;
+	window_fbo.height = state->height/2;
 
    glBindTexture(GL_TEXTURE_EXTERNAL_OES, state->texture);
    glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
    glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-   glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-   glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+   glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+   glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
    glBindTexture(GL_TEXTURE_EXTERNAL_OES,0);
-
 
 	// generate score values corresponding to color matching of target
 	{
-		const char* uniform[] = { "tex","xstep","xsize", 0 };
-		create_shader(&masking_shader,"maskInitRowSegment_fs",uniform);
+		const char* uniform[] = { "tex","xstep", "ystep", 0 };
+		create_shader(&masking_shader,"maskInitL2Cross_fs",uniform);
 		shader_uniform1i(&masking_shader,0, 0);
 		shader_uniform1f(&masking_shader,1, 1.0 / (state->width) );
-		shader_uniform1f(&masking_shader,2, state->width);
+		shader_uniform1f(&masking_shader,2, 1.0 / (state->height) );
 	}
-	
+
 	// processing done with half resoluton, to maximize color (U,V) resolution
 	
 	// update distance to connected component border
 	{
-		const char* uniform[] = { "tex", "xstep", "xs64", 0 };
-		create_shader(&dist_shader,"rowSegment_fs",uniform);
+		const char* uniform[] = { "tex", "xstep", "ystep", 0 };
+		create_shader(&dist_shader,"L2CrossIteration_fs",uniform);
 		shader_uniform1i(&dist_shader,0, 0);
-		shader_uniform1f(&dist_shader,1, 1.0 / state->width);
-		shader_uniform1f(&dist_shader,2, 1.0/64.0 );
+		shader_uniform1f(&dist_shader,1, 2.0 / state->width);
+		shader_uniform1f(&dist_shader,2, 2.0 / state->height);
 	}
 
 	// draw score values
 	{
 		const char* uniform[] = { "tex", 0 };
-		create_shader(&draw_shader,"drawSegmentLength_fs",uniform);
+		create_shader(&draw_shader,"drawL2Cross_fs",uniform);
 		shader_uniform1i(&draw_shader,0, 0);
 	}
 
 	for(i=0;i<2;i++)
 	{
-		rc = create_fbo(&fbo[i],GL_RGBA,GL_NONE,state->width,state->height);
+		rc = create_fbo(&fbo[i],GL_RGBA,GL_NONE,state->width/2,state->height/2);
 		if (rc != 0)
 		{
 			vcos_log_error("FBO failed\n");
@@ -257,9 +256,10 @@ static int tracking_init(RASPITEX_STATE *state)
     return rc;
 }
 
-static void apply_shader_pass(RASPITEXUTIL_SHADER_PROGRAM_T* shader, GLenum srcTarget, GLuint srcTex, FBOTexture* destFBO)
+static void apply_shader_pass(RASPITEX_STATE *state, RASPITEXUTIL_SHADER_PROGRAM_T* shader, GLenum srcTarget, GLuint srcTex, FBOTexture* destFBO)
 {
     GLCHK(glBindFramebuffer(GL_FRAMEBUFFER,destFBO->fb));
+//    GLCHK(glViewport(state->width - destFBO->width, state->height - destFBO->height, destFBO->width, destFBO->height));
     GLCHK(glViewport(0,0,destFBO->width,destFBO->height));
 
     GLCHK(glUseProgram(shader->program));
@@ -290,19 +290,21 @@ static int tracking_redraw(RASPITEX_STATE *state)
     //glClear(GL_COLOR_BUFFER_BIT /*| GL_DEPTH_BUFFER_BIT*/);
     GLCHK(glActiveTexture(GL_TEXTURE0));
 
-	apply_shader_pass(&masking_shader,GL_TEXTURE_EXTERNAL_OES,state->texture,&fbo[fboIndex]);
+	apply_shader_pass(state,&masking_shader,GL_TEXTURE_EXTERNAL_OES,state->texture,&fbo[fboIndex]);
 
 	for(i=0;i<tracking_ccmd;i++)
 	{
 		GLuint inputTexture = fbo[fboIndex].tex;
-		fboIndex = (fboIndex+1)%2;
+		int w = fbo[fboIndex].width;
+		int h = fbo[fboIndex].height;
 		double p2i = 1<<i;
-		shader_uniform1f(&dist_shader,1, p2i / state->width);
-		shader_uniform1f(&dist_shader,2, p2i / 64.0 );
-		apply_shader_pass(&dist_shader,GL_TEXTURE_2D,inputTexture,&fbo[fboIndex]);
+		fboIndex = (fboIndex+1)%2;
+		shader_uniform1f(&dist_shader,1, p2i / w);
+		shader_uniform1f(&dist_shader,2, p2i / h);
+		apply_shader_pass(state,&dist_shader,GL_TEXTURE_2D,inputTexture,&fbo[fboIndex]);
 	}
 
-	apply_shader_pass(&draw_shader,GL_TEXTURE_2D,fbo[fboIndex].tex,&window_fbo);
+	apply_shader_pass(state,&draw_shader,GL_TEXTURE_2D,fbo[fboIndex].tex,&window_fbo);
 
     GLCHK(glUseProgram(0));
     return 0;
