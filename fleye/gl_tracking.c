@@ -70,6 +70,7 @@ static FBOTexture window_fbo;
 static RASPITEXUTIL_SHADER_PROGRAM_T masking_shader;
 static RASPITEXUTIL_SHADER_PROGRAM_T dist_shader;
 static RASPITEXUTIL_SHADER_PROGRAM_T draw_shader;
+static GLubyte* image = NULL;
 
 static GLfloat varray[] =
 {
@@ -236,7 +237,7 @@ static int tracking_init(RASPITEX_STATE *state)
 
 	// draw score values
 	{
-		const char* uniform[] = { "tex", 0 };
+		const char* uniform[] = { "tex","target_x","target_y", 0 };
 		create_shader(&draw_shader,"drawL2Cross_fs",uniform);
 		shader_uniform1i(&draw_shader,0, 0);
 	}
@@ -252,6 +253,12 @@ static int tracking_init(RASPITEX_STATE *state)
 	}
 
 	glDisable(GL_DEPTH_TEST);
+	
+	image = malloc((state->width/2)*(state->height/2)*4);
+	printf( "EGL_CLIENT_APIS: %s\n", eglQueryString( state->display, EGL_CLIENT_APIS ) );
+	printf( "EGL_VENDOR: %s\n", eglQueryString( state->display, EGL_VENDOR ) );
+	printf( "EGL_VERSION: %s\n", eglQueryString( state->display, EGL_VERSION ) );
+	printf( "EGL_EXTENSIONS: %s\n", eglQueryString( state->display, EGL_EXTENSIONS ) );
 	
     return rc;
 }
@@ -304,9 +311,54 @@ static int tracking_redraw(RASPITEX_STATE *state)
 		apply_shader_pass(state,&dist_shader,GL_TEXTURE_2D,inputTexture,&fbo[fboIndex]);
 	}
 
+	glReadPixels(0, 0, fbo[fboIndex].width, fbo[fboIndex].height, GL_RGBA,GL_UNSIGNED_BYTE, image);
+	const GLubyte* p = image;
+	int hist[256];
+	int x,y;
+	int sumx=0,sumy=0;
+	int count=0;
+	int L2max=1;
+	for(i=0;i<256;i++) hist[i]=0;
+	for(y=0;y<fbo[fboIndex].height;y++)
+	{
+		for(x=0;x<fbo[fboIndex].width;x++)
+		{
+			int mask = ( (*p) & 0x80 ) ;
+			if( mask )
+			{
+				int l = ( (*p++) & 0x7F ) >> 4;
+				int r = ( (*p++) & 0x7F ) >> 4;
+				int b = ( (*p++) & 0x7F ) >> 4;
+				int u = ( (*p++) & 0x7F ) >> 4;
+				int h = (l<r) ? l : r;
+				int v = (b<u) ? b : u;
+				int m = (h<v) ? h : v;
+				if( m>L2max ) { count=sumx=sumy=0; L2max=m; }
+				else if( m==L2max )
+				{
+					sumx += x;
+					sumy += y;
+					++count;
+				}
+			}
+			else { p+=4; }
+		}
+	}
+
+	float Xf = 0.0f;
+	float Yf = 0.0f;
+	if(count>0)
+	{
+		Xf = (double)sumx / (double)( count * fbo[fboIndex].width );
+		Yf = (double)sumy / (double)( count * fbo[fboIndex].height );		
+	}
+
+	shader_uniform1f(&draw_shader,1, Xf);
+	shader_uniform1f(&draw_shader,2, Yf);
 	apply_shader_pass(state,&draw_shader,GL_TEXTURE_2D,fbo[fboIndex].tex,&window_fbo);
 
     GLCHK(glUseProgram(0));
+
     return 0;
 }
 

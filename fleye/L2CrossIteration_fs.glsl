@@ -15,6 +15,10 @@ varying vec2 texcoord;
 void main(void)
 {
 	vec4 C = texture2D( tex, texcoord );
+	/*if( C.x < 0.5 )
+	{
+		discard;
+	}*/
 
 	if( (texcoord.x+xstep) < 1.0 )
 	{

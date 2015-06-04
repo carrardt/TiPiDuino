@@ -1,5 +1,7 @@
 uniform sampler2D tex;
 varying vec2 texcoord;
+uniform float target_x;
+uniform float target_y;
 
 #define UNIT (1.0/32.0)
 
@@ -24,7 +26,13 @@ void main(void)
 	vec4 S = texture2D(tex, texcoord );
 	//if( abs(left-right)<=(1.0/64.0) && (left+right)>=(1.0/4.0)) gl_FragColor = vec4(1.0,1.0,1.0,1.0);
 	//else gl_FragColor = vec4(0.0,0.0,0.0,1.0);
-	if( S.x >= 0.5 )
+	vec2 V = texcoord-vec2(target_x,target_y);
+	float targetDist2 = dot(V,V);
+	if( targetDist2 < 0.0005 )
+	{
+		gl_FragColor = vec4(1.0,0.0,0.0,1.0);
+	}
+	else if( S.x >= 0.5 )
 	{
 		S -= vec4(0.5,0.5,0.5,0.5);
 		float h =  min(S.x,S.y) * 2.0;
