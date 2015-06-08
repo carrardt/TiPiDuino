@@ -25,12 +25,15 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
+//#define CHECK_GL_ERRORS 1
 
 #include "RaspiTex.h"
 #include "RaspiTexUtil.h"
 #include <GLES2/gl2.h>
+#include <GLES2/gl2ext.h>
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
+#include "cpu_tracking.h"
 
 int tracking_ccmd = 4;
 
@@ -59,18 +62,22 @@ typedef struct
 {
 	GLuint width, height; // dimensions
 	GLuint format; // texture internal format
-	GLuint tex; // color texture
-	GLuint drb; // depth renderbuffer
-	GLuint fb; // frame buffer object
+	GLenum target; // target associated with texture. 0 if renderbuffer
+	GLuint tex; // texture
+	GLuint rb; // renderbuffer
+	GLuint fb; // frame buffer
+	
 } FBOTexture;
 
-static FBOTexture fbo[2];
+static FBOTexture ping_pong_fbo[2];
+//static FBOTexture final_fbo;
 static FBOTexture window_fbo;
 
 static RASPITEXUTIL_SHADER_PROGRAM_T masking_shader;
 static RASPITEXUTIL_SHADER_PROGRAM_T dist_shader;
 static RASPITEXUTIL_SHADER_PROGRAM_T draw_shader;
-static GLubyte* image = NULL;
+static VCOS_THREAD_T cpuTrackingThread;
+static CPU_TRACKING_STATE cpu_tracking_state;
 
 static GLfloat varray[] =
 {
@@ -96,29 +103,31 @@ static const EGLint tracking_egl_config_attribs[] =
 };
 
 
-static int create_fbo(FBOTexture* fbo, GLint colorFormat, GLint depthFormat, GLint w, GLint h)
+static int create_fbo(RASPITEX_STATE *state, FBOTexture* fbo, GLint colorFormat, GLint w, GLint h)
 {
    fbo->format = colorFormat;
    fbo->width = w;
    fbo->height = h;
+   fbo->target = 0;
+   fbo->rb = 0;
 
    glGenFramebuffers(1, & fbo->fb);
 
-   glGenTextures(1, & fbo->tex );
-   glBindTexture(GL_TEXTURE_2D, fbo->tex);
-   glTexImage2D(GL_TEXTURE_2D, 0, fbo->format, fbo->width, fbo->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+	glGenTextures(1, & fbo->tex );
+	fbo->target = GL_TEXTURE_2D;
+	glBindTexture(fbo->target, fbo->tex);
+	glTexImage2D(fbo->target, 0, fbo->format, fbo->width, fbo->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+	glTexParameteri(fbo->target, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(fbo->target, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameteri(fbo->target, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(fbo->target, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glBindTexture(fbo->target, 0);
 
-   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-   glBindTexture(GL_TEXTURE_2D, 0);
-
-	if( depthFormat != GL_NONE )
+	/*if( depthFormat != GL_NONE )
 	{
 	   // Create a texture to hold the depth buffer
-		glGenTextures(1, &(fbo->drb) );
-		glBindTexture(GL_TEXTURE_2D, fbo->drb);
+		glGenTextures(1, &(fbo->depht_rb) );
+		glBindTexture(GL_TEXTURE_2D, fbo->depht_rb);
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT,
 				fbo->width, fbo->height,
 				0, depthFormat, GL_UNSIGNED_SHORT, NULL);
@@ -130,24 +139,34 @@ static int create_fbo(FBOTexture* fbo, GLint colorFormat, GLint depthFormat, GLi
 	}
 	else
 	{
-		fbo->drb = 0;
-	}
+		fbo->depht_rb = 0;
+	}*/
 
     glBindFramebuffer(GL_FRAMEBUFFER, fbo->fb);
 
     // Associate the textures with the FBO.
-
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
-                    GL_TEXTURE_2D, fbo->tex, 0);
+                    fbo->target, fbo->tex, 0);
 
+	// no depth buffer
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
-                    GL_TEXTURE_2D, fbo->drb, 0);
+                    GL_TEXTURE_2D, /*null texture object*/ 0, 0);
 
 	GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
 	glBindFramebuffer(GL_FRAMEBUFFER,0);
 	
     if ( status == GL_FRAMEBUFFER_COMPLETE ) return 0;
     else return 1;
+    
+    
+/*
+glGenTextures(1, (GLuint *) 0x777ada0c);
+glBindTexture(GL_TEXTURE_2D, 3);
+glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, (GLeglImageOES) 0x752d700c);
+
+glFramebufferTexture2DOES(GL_FRAMEBUFFER_OES, GL_COLOR_ATTACHMENT0_OES, GL_TEXTURE_2D, 3, 0);
+ */
+    
 }
 
 static int create_shader(RASPITEXUTIL_SHADER_PROGRAM_T* shader, const char* fsFile, const char* uniforms[])
@@ -204,16 +223,16 @@ static int tracking_init(RASPITEX_STATE *state)
 	window_fbo.tex = 0;
 	window_fbo.fb = 0;
 	window_fbo.format = GL_NONE;
-	window_fbo.drb = 0;
+	window_fbo.rb = 0;
 	window_fbo.width = state->width/2;
 	window_fbo.height = state->height/2;
 
-   glBindTexture(GL_TEXTURE_EXTERNAL_OES, state->texture);
-   glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-   glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-   glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-   glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-   glBindTexture(GL_TEXTURE_EXTERNAL_OES,0);
+   GLCHK( glBindTexture(GL_TEXTURE_EXTERNAL_OES, state->texture) );
+   GLCHK( glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE) );
+   GLCHK( glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE) );
+   GLCHK( glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MIN_FILTER, GL_LINEAR) );
+   GLCHK( glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MAG_FILTER, GL_LINEAR) );
+   GLCHK( glBindTexture(GL_TEXTURE_EXTERNAL_OES,0) );
 
 	// generate score values corresponding to color matching of target
 	{
@@ -244,34 +263,77 @@ static int tracking_init(RASPITEX_STATE *state)
 
 	for(i=0;i<2;i++)
 	{
-		rc = create_fbo(&fbo[i],GL_RGBA,GL_NONE,state->width/2,state->height/2);
+		rc = create_fbo(state,&ping_pong_fbo[i],GL_RGBA,state->width/2,state->height/2);
 		if (rc != 0)
 		{
-			vcos_log_error("FBO failed\n");
+			vcos_log_error("ping pong FBO failed\n");
 			return rc;
 		}
 	}
-
-	glDisable(GL_DEPTH_TEST);
+/*
+	rc = create_fbo(state,&final_fbo,GL_RGBA,state->width/2,state->height/2, (GLubyte*) malloc(state->width*state->height) );
+	if (rc != 0)
+	{
+		vcos_log_error("final FBO failed\n");
+		return rc;
+	}
+*/
+	GLCHK( glDisable(GL_DEPTH_TEST) );
 	
-	image = malloc((state->width/2)*(state->height/2)*4);
+	// allocate space for CPU processing
+	
 	printf( "EGL_CLIENT_APIS: %s\n", eglQueryString( state->display, EGL_CLIENT_APIS ) );
 	printf( "EGL_VENDOR: %s\n", eglQueryString( state->display, EGL_VENDOR ) );
 	printf( "EGL_VERSION: %s\n", eglQueryString( state->display, EGL_VERSION ) );
 	printf( "EGL_EXTENSIONS: %s\n", eglQueryString( state->display, EGL_EXTENSIONS ) );
-	
+	printf( "GL_VERSION: %s\n", glGetString( GL_VERSION ) );
+	printf( "GL_SHADING_LANGUAGE_VERSION: %s\n", glGetString( GL_SHADING_LANGUAGE_VERSION ) );
+	printf( "GL_EXTENSIONS: %s\n", glGetString( GL_EXTENSIONS ) );
+
+	cpu_tracking_state.width = state->width/2;
+	cpu_tracking_state.height = state->height/2;
+	cpu_tracking_state.image = malloc(cpu_tracking_state.width*cpu_tracking_state.height*4);
+	cpu_tracking_state.objectCount = 0;
+	cpu_tracking_state.do_processing = 1;
+	rc = vcos_semaphore_create(&cpu_tracking_state.start_processing_sem,"start_processing_sem", 1);
+	if (rc != VCOS_SUCCESS)
+	{
+		 vcos_log_error("Failed to start cpu processing start semaphor %d",rc);
+		 return rc;
+	}
+	rc = vcos_semaphore_create(&cpu_tracking_state.end_processing_sem,"end_processing_sem", 1);
+	if (rc != VCOS_SUCCESS)
+	{
+		 vcos_log_error("Failed to start cpu processing end semaphor %d",rc);
+		 return rc;
+	}
+	vcos_semaphore_post(&cpu_tracking_state.end_processing_sem);
+
+	rc = vcos_thread_create(&cpuTrackingThread, "cpu-tracking-worker", NULL, cpuTrackingWorker, &cpu_tracking_state);
+	if (rc != VCOS_SUCCESS)
+	{
+      vcos_log_error("Failed to start cpu processing thread %d",rc);
+      return rc;
+	}
+
     return rc;
 }
 
 static void apply_shader_pass(RASPITEX_STATE *state, RASPITEXUTIL_SHADER_PROGRAM_T* shader, GLenum srcTarget, GLuint srcTex, FBOTexture* destFBO)
-{
+{        
     GLCHK(glBindFramebuffer(GL_FRAMEBUFFER,destFBO->fb));
+	{
+		GLenum attachements[1];
+		attachements[0] = (destFBO->fb==0) ? GL_COLOR_EXT : GL_COLOR_ATTACHMENT0 ;
+		GLCHK( glDiscardFramebufferEXT(GL_FRAMEBUFFER,1,attachements) );
+	}
+	
 //    GLCHK(glViewport(state->width - destFBO->width, state->height - destFBO->height, destFBO->width, destFBO->height));
     GLCHK(glViewport(0,0,destFBO->width,destFBO->height));
 
     GLCHK(glUseProgram(shader->program));
     
-    GLCHK(glEnable(srcTarget));
+    //GLCHK(glEnable(srcTarget));
     GLCHK(glBindTexture(srcTarget, srcTex));
     
     GLCHK(glEnableVertexAttribArray(shader->attribute_locations[0]));
@@ -285,78 +347,54 @@ static void apply_shader_pass(RASPITEX_STATE *state, RASPITEXUTIL_SHADER_PROGRAM
     GLCHK(glDisableVertexAttribArray(shader->attribute_locations[1]));
     
     GLCHK(glBindTexture(srcTarget,0));
-    GLCHK(glDisable(srcTarget));
+    //GLCHK(glDisable(srcTarget));
 	
     GLCHK(glFinish());
 }
 
 static int tracking_redraw(RASPITEX_STATE *state)
 {
+	static int FrameN=0;
 	int fboIndex = 0;
 	int i;
     //glClear(GL_COLOR_BUFFER_BIT /*| GL_DEPTH_BUFFER_BIT*/);
-    GLCHK(glActiveTexture(GL_TEXTURE0));
+    GLCHK( glActiveTexture(GL_TEXTURE0) );
 
-	apply_shader_pass(state,&masking_shader,GL_TEXTURE_EXTERNAL_OES,state->texture,&fbo[fboIndex]);
+	apply_shader_pass(state,&masking_shader,GL_TEXTURE_EXTERNAL_OES,state->texture,&ping_pong_fbo[fboIndex]);
 
 	for(i=0;i<tracking_ccmd;i++)
 	{
-		GLuint inputTexture = fbo[fboIndex].tex;
-		int w = fbo[fboIndex].width;
-		int h = fbo[fboIndex].height;
+		GLuint inputTexture = ping_pong_fbo[fboIndex].tex;
+		GLuint inputTarget = ping_pong_fbo[fboIndex].target;
+		int w = ping_pong_fbo[fboIndex].width;
+		int h = ping_pong_fbo[fboIndex].height;
 		double p2i = 1<<i;
 		fboIndex = (fboIndex+1)%2;
 		shader_uniform1f(&dist_shader,1, p2i / w);
 		shader_uniform1f(&dist_shader,2, p2i / h);
-		apply_shader_pass(state,&dist_shader,GL_TEXTURE_2D,inputTexture,&fbo[fboIndex]);
+		apply_shader_pass(state,&dist_shader,inputTarget,inputTexture,&ping_pong_fbo[fboIndex]);
 	}
-
-	glReadPixels(0, 0, fbo[fboIndex].width, fbo[fboIndex].height, GL_RGBA,GL_UNSIGNED_BYTE, image);
-	const GLubyte* p = image;
-	int hist[256];
-	int x,y;
-	int sumx=0,sumy=0;
-	int count=0;
-	int L2max=1;
-	for(i=0;i<256;i++) hist[i]=0;
-	for(y=0;y<fbo[fboIndex].height;y++)
+/*
 	{
-		for(x=0;x<fbo[fboIndex].width;x++)
-		{
-			int mask = ( (*p) & 0x80 ) ;
-			if( mask )
-			{
-				int l = ( (*p++) & 0x7F ) >> 4;
-				int r = ( (*p++) & 0x7F ) >> 4;
-				int b = ( (*p++) & 0x7F ) >> 4;
-				int u = ( (*p++) & 0x7F ) >> 4;
-				int h = (l<r) ? l : r;
-				int v = (b<u) ? b : u;
-				int m = (h<v) ? h : v;
-				if( m>L2max ) { count=sumx=sumy=0; L2max=m; }
-				else if( m==L2max )
-				{
-					sumx += x;
-					sumy += y;
-					++count;
-				}
-			}
-			else { p+=4; }
-		}
+		GLuint inputTexture = ping_pong_fbo[fboIndex].tex;
+		GLuint inputTarget = ping_pong_fbo[fboIndex].target;
+		int w = final_fbo.width;
+		int h = final_fbo.height;
+		double p2i = 1<<(tracking_ccmd-1);
+		shader_uniform1f(&dist_shader,1, p2i / w);
+		shader_uniform1f(&dist_shader,2, p2i / h);
+		apply_shader_pass(state,&dist_shader,inputTarget,inputTexture,&final_fbo);
 	}
-
-	float Xf = 0.0f;
-	float Yf = 0.0f;
-	if(count>0)
-	{
-		Xf = (double)sumx / (double)( count * fbo[fboIndex].width );
-		Yf = (double)sumy / (double)( count * fbo[fboIndex].height );		
-	}
-
-	shader_uniform1f(&draw_shader,1, Xf);
-	shader_uniform1f(&draw_shader,2, Yf);
-	apply_shader_pass(state,&draw_shader,GL_TEXTURE_2D,fbo[fboIndex].tex,&window_fbo);
-
+*/
+	// TODO: find an alternative to glReadPixels, way too slow !!!
+	vcos_semaphore_wait(&cpu_tracking_state.end_processing_sem); 
+	GLCHK( glReadPixels(0, 0, ping_pong_fbo[fboIndex].width, ping_pong_fbo[fboIndex].height, GL_RGBA,GL_UNSIGNED_BYTE, cpu_tracking_state.image) );
+	vcos_semaphore_post(&cpu_tracking_state.start_processing_sem);
+	/*
+	shader_uniform1f(&draw_shader,1, cpu_tracking_state.objectCenter[0][0]);
+	shader_uniform1f(&draw_shader,2, cpu_tracking_state.objectCenter[0][1]);
+	apply_shader_pass(state,&draw_shader,GL_TEXTURE_2D,ping_pong_fbo[fboIndex].tex,&window_fbo);
+*/
     GLCHK(glUseProgram(0));
 
     return 0;

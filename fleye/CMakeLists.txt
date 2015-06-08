@@ -18,7 +18,7 @@ set(RASPICAM_SOURCES
    ${RASPICAM_SOURCE_DIR}/tga.c
 )
 
-add_executable(fleye Fleye.c GPUTracking.c gl_tracking.c ${RASPICAM_SOURCES} )
+add_executable(fleye Fleye.c GPUTracking.c gl_tracking.c cpu_tracking.c ${RASPICAM_SOURCES} )
 
 set (MMAL_LIBS mmal_core mmal_util mmal_vc_client)
 

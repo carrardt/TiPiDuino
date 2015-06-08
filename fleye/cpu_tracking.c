@@ -8,8 +8,8 @@ void *cpuTrackingWorker(void *arg)
 	while( state->do_processing )
 	{
 		vcos_semaphore_wait( & state->start_processing_sem );
-		/*
-		const GLubyte* p = state->image;
+
+		const uint32_t* p = (uint32_t*) state->image;
 		int x,y;
 		int sumx=0,sumy=0;
 		int count=0;
@@ -18,11 +18,12 @@ void *cpuTrackingWorker(void *arg)
 		{
 			for(x=0;x<state->width;x++)
 			{
-				int mask = ( (*p) & 0x80 ) ;
-				int l = ( (*p++) & 0x7F ) >> 4;
-				int r = ( (*p++) & 0x7F ) >> 4;
-				int b = ( (*p++) & 0x7F ) >> 4;
-				int u = ( (*p++) & 0x7F ) >> 4;
+				uint32_t value = *(p++);
+				uint32_t mask = ( value & 0x00000080 ) ;
+				int l = ( value & 0x0000007F ) >> 4;
+				int r = ( value & 0x00007F00 ) >> 12;
+				int b = ( value & 0x007F0000 ) >> 20;
+				int u = ( value & 0x7F000000 ) >> 28;
 				if( mask )
 				{
 					int h = (l<r) ? l : r;
@@ -44,14 +45,14 @@ void *cpuTrackingWorker(void *arg)
 			state->objectCount = 1;
 			state->objectCenter[0][0] = (double)sumx / (double)( count * state->width );
 			state->objectCenter[0][1] = (double)sumy / (double)( count * state->height );
-			//printf("%f , %f\n",state->objectCenter[0][0],state->objectCenter[0][1]);
+			//printf("%f, %f\n",state->objectCenter[0][0],state->objectCenter[0][1]);
 		}
 		else
 		{
 			state->objectCount = 0;
 			//printf("vide\n");
 		}
-		* */
+
 		vcos_semaphore_post( & state->end_processing_sem );
 		
 		// ici, transmission des données au mcu
