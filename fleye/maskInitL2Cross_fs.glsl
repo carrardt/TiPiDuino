@@ -26,7 +26,7 @@ float greenMask(vec3 p)
 
 void main(void)
 {
-	vec3 ftex = texture2D(tex, texcoord - vec2(xstep,ystep) ).xyz;
+	vec3 ftex = texture2D(tex, texcoord ).xyz;
     if( greenMask(ftex) > 0.5 )
     {
 		gl_FragColor = vec4(0.5,0.5,0.5,0.5);

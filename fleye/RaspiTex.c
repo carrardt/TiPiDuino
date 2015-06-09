@@ -42,7 +42,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "interface/mmal/mmal_buffer.h"
 #include "interface/mmal/util/mmal_util.h"
 #include "interface/mmal/util/mmal_util_params.h"
-#include "tga.h"
 
 /**
  * \file GPUTracking.c
@@ -92,17 +91,21 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * @param arg2 Parameter (could be NULL)
  * @return How many parameters were used, 0,1,2
  */
-extern int tracking_ccmd;
 int raspitex_parse_cmdline(RASPITEX_STATE *state,
       const char *arg1, const char *arg2)
 {
-	printf("raspitex_parse_cmdline %s %s\n",arg1,arg2);
+	//printf("raspitex_parse_cmdline %s %s\n",arg1,arg2);
 	if( strcmp(arg1,"-ccmd")==0 )
 	{
-		tracking_ccmd = atoi(arg2);
+		state->tracking_ccmd = atoi(arg2);
 		return 2;
 	}
-	
+	else if( strcmp(arg1,"-disptrack")==0 )
+	{
+		state->tracking_display = 1;
+		return 2;
+	}
+
    return 0;
 }
 
@@ -149,7 +152,7 @@ static void raspitex_do_capture(RASPITEX_STATE *state)
    uint8_t *buffer = NULL;
    size_t size = 0;
 
-   if (state->capture.request)
+   if (state->capture.request && state->ops.capture!=0 )
    {
       if (state->ops.capture(state, &buffer, &size) == 0)
       {
@@ -267,9 +270,12 @@ static int raspitex_draw(RASPITEX_STATE *state, MMAL_BUFFER_HEADER_T *buf)
       if (rc != 0)
          goto end;
 
-      raspitex_do_capture(state);
+      //raspitex_do_capture(state);
 
-      eglSwapBuffers(state->display, state->surface);
+	  if( state->tracking_display )
+	  {
+		eglSwapBuffers(state->display, state->surface);
+	  }
       update_fps();
    }
    else
@@ -578,6 +584,10 @@ void raspitex_set_defaults(RASPITEX_STATE *state)
    state->ops.gl_term = raspitexutil_gl_term;
    state->ops.destroy_native_window = raspitexutil_destroy_native_window;
    state->ops.close = raspitexutil_close;
+   
+   // 4 iterations for per-pixel L2-cross generation
+   state->tracking_ccmd = 4;
+   state->tracking_display = 0;
 }
 
 /* Stops the rendering loop and destroys MMAL resources
@@ -615,55 +625,4 @@ int raspitex_start(RASPITEX_STATE *state)
    return (status == VCOS_SUCCESS ? 0 : -1);
 }
 
-/**
- * Writes the next GL frame-buffer to a RAW .ppm formatted file
- * using the specified file-handle.
- * @param state Pointer to the GL preview state.
- * @param outpt_file Output file handle for the ppm image.
- * @return Zero on success.
- */
-int raspitex_capture(RASPITEX_STATE *state, FILE *output_file)
-{
-   int rc = 0;
-   uint8_t *buffer = NULL;
-   size_t size = 0;
 
-   vcos_log_trace("%s: state %p file %p", VCOS_FUNCTION,
-         state, output_file);
-
-   if (state && output_file)
-   {
-      /* Only request one capture at a time */
-      vcos_semaphore_wait(&state->capture.start_sem);
-      state->capture.request = 1;
-
-      /* Wait for capture to start */
-      vcos_semaphore_wait(&state->capture.completed_sem);
-
-      /* Take ownership of the captured buffer */
-      buffer = state->capture.buffer;
-      size = state->capture.size;
-
-      state->capture.request = 0;
-      state->capture.buffer = 0;
-      state->capture.size = 0;
-
-      /* Allow another capture to be requested */
-      vcos_semaphore_post(&state->capture.start_sem);
-   }
-   if (size == 0 || ! buffer)
-   {
-      vcos_log_error("%s: capture failed", VCOS_FUNCTION);
-      rc = -1;
-      goto end;
-   }
-
-
-   raspitexutil_brga_to_rgba(buffer, size);
-   rc = write_tga(output_file, state->width, state->height, buffer, size);
-   fflush(output_file);
-
-end:
-   free(buffer);
-   return rc;
-}

@@ -5,6 +5,8 @@ void *cpuTrackingWorker(void *arg)
 {
 	CPU_TRACKING_STATE * state = (CPU_TRACKING_STATE *) arg;
 	
+	fprintf(stderr,"cpuTrackingWorker started: %dx%d\n",state->width,state->height); fflush(stderr);
+	
 	while( state->do_processing )
 	{
 		vcos_semaphore_wait( & state->start_processing_sem );
@@ -43,6 +45,7 @@ void *cpuTrackingWorker(void *arg)
 		if(count>0)
 		{
 			state->objectCount = 1;
+			//printf("%d %fx%f\n",count,state->width,state->height);
 			state->objectCenter[0][0] = (double)sumx / (double)( count * state->width );
 			state->objectCenter[0][1] = (double)sumy / (double)( count * state->height );
 			//printf("%f, %f\n",state->objectCenter[0][0],state->objectCenter[0][1]);

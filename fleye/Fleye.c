@@ -979,7 +979,9 @@ int main(int argc, const char **argv)
          VCOS_STATUS_T vcos_status;
 
          if (state.verbose)
+         {
             fprintf(stderr, "Connecting camera stills port to encoder input port\n");
+		 }
 
          // Now connect the camera to the encoder
          status = connect_ports(camera_still_port, encoder_input_port, &state.encoder_connection);
@@ -998,6 +1000,10 @@ int main(int argc, const char **argv)
 
          vcos_assert(vcos_status == VCOS_SUCCESS);
 
+         if (state.verbose)
+         {
+            fprintf(stderr, "Starting preview...\n"); fflush(stderr);
+		 }
          /* If GL preview is requested then start the GL threads */
          if ( raspitex_start(&state.raspitex_state) != 0 )
             goto error;
@@ -1008,18 +1014,6 @@ int main(int argc, const char **argv)
             goto error;
          }
 
-         if (state.demoMode)
-         {
-            // Run for the user specific time..
-            int num_iterations = state.timeout / state.demoInterval;
-            int i;
-            for (i=0;i<num_iterations;i++)
-            {
-               raspicamcontrol_cycle_test(state.camera_component);
-               vcos_sleep(state.demoInterval);
-            }
-         }
-         else
          {
             int frame, keep_looping = 1;
             frame = 0;
