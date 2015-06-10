@@ -60,6 +60,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "RaspiCLI.h"
 #include "RaspiTex.h"
 
+#include "gpio.h"
+
 #include <semaphore.h>
 
 // Standard port setting for the camera component
@@ -903,6 +905,7 @@ int main(int argc, const char **argv)
    MMAL_PORT_T *encoder_output_port = NULL;
 
    bcm_host_init();
+   init_gpio();
 
    // Register our application with the logging system
    vcos_log_register("RaspiStill", VCOS_LOG_CATEGORY);

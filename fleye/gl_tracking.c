@@ -101,6 +101,7 @@ static int shader_uniform1f(RASPITEXUTIL_SHADER_PROGRAM_T* shader, int i, GLfloa
 static int tracking_init(RASPITEX_STATE *state)
 {
 	fprintf(stderr,"tracking_init\n"); fflush(stderr);
+	
    int i,rc;
     state->egl_config_attribs = tracking_egl_config_attribs;
     rc = raspitexutil_gl_init_2_0(state);

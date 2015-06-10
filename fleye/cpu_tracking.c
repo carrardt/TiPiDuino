@@ -1,4 +1,5 @@
 #include "cpu_tracking.h"
+#include "gpio.h"
 #include <stdio.h>
 
 void *cpuTrackingWorker(void *arg)
@@ -59,6 +60,10 @@ void *cpuTrackingWorker(void *arg)
 		vcos_semaphore_post( & state->end_processing_sem );
 		
 		// ici, transmission des données au mcu
+		if( state->objectCount > 0 )
+		{
+			gpio_write_xy_f(state->objectCenter[0][0], state->objectCenter[0][1]);
+		}
 	}
 	
 	return NULL;

@@ -31,7 +31,8 @@ OBJCOPY=$(AVRGCCROOT)/bin/avr-objcopy
 
 # flash tool
 AVRDUDE=avrdude
-SERIALPORT=/dev/ttyACM0
+#SERIALPORT=/dev/ttyACM0
+SERIALPORT=/dev/ttyUSB0
 
 # Deduced properties from board database
 BOARDSDB=$(WIRING_SRC_DIR)/framework/hardware/$(FAMILY)/boards.txt
