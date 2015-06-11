@@ -1,6 +1,6 @@
 #include <stdio.h>
  
-#include <bcm2835.h>
+#include "bcm2835.h"
 #include "gpio.h"
  
 
@@ -57,8 +57,9 @@ void gpio_write_xy_i(unsigned int xi, unsigned int yi)
 		else { clr_mask |= 1<<i; }
 	}
 
-	printf("clr=%04X, set=%04X\n",clr_mask,set_mask);
+	//printf("clr=%04X, set=%04X\n",clr_mask,set_mask);
 	bcm2835_gpio_set_multi(set_mask);
 	bcm2835_gpio_clr_multi(clr_mask);
+	// usleep(130); // have to wait 
 }
 
