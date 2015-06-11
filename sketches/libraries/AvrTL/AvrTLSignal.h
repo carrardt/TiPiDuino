@@ -14,6 +14,8 @@ namespace avrtl
 	
 #define INIT_CLOCK_COUNTER() 	uint8_t _t=TCNT0,_t0=_t; int32_t _m=-_t0
 #define INIT_CLOCK_COUNTER16() 	uint8_t _t=TCNT0,_t0=_t; int16_t _m=-_t0
+#define REWIND_CLOCK_COUNTER(x) do{ _m -= (x); }while(0)
+#define RESET_CLOCK_COUNTER() do{ _m=0; _t=TCNT0; }while(0)
 #define UPDATE_CLOCK_COUNTER() 	do{ uint8_t _t2=TCNT0; if(_t2<_t)_m+=256; _t=_t2; }while(0)
 #define CLOCK_ELAPSED() 		(_m+_t)
 
@@ -86,6 +88,52 @@ namespace avrtl
 			DelayMicroseconds(100000);
 		}
 	}
+
+	template<uint16_t CycleTicks>
+	static inline void loopPWM(auto tx, auto updateFunc)
+	{
+		SCOPED_SIGNAL_PROCESSING;
+		
+		uint16_t HighPeriodTicks = updateFunc();
+		uint16_t LowPeriodTicks = 0;
+		uint16_t nextSwitchTime = 0;		
+		uint16_t wallClock = 0;
+		
+		INIT_CLOCK_COUNTER16();		
+		tx.Set(true);
+		while( HighPeriodTicks < CycleTicks )
+		{
+			// shift timer back so that 16bits wallclock is always enough
+			REWIND_CLOCK_COUNTER(LowPeriodTicks);
+			
+			do {
+				UPDATE_CLOCK_COUNTER();
+				wallClock = CLOCK_ELAPSED();
+			} while( wallClock < HighPeriodTicks );
+
+			// as soon as we detect high time is elapsed, set to low
+			tx.Set(false);
+			
+			// keep timer in sync
+			UPDATE_CLOCK_COUNTER();
+			
+			// shift timer back so that 16bits wallclock is always enough
+			REWIND_CLOCK_COUNTER(HighPeriodTicks);
+			
+			// update timings
+			LowPeriodTicks = CycleTicks - HighPeriodTicks;
+			HighPeriodTicks = updateFunc();
+			
+			do {
+				UPDATE_CLOCK_COUNTER();
+				wallClock = CLOCK_ELAPSED();
+			} while( wallClock<LowPeriodTicks );
+
+			// as soon as we detect low time is elapsed, set to high
+			tx.Set(true);
+		}
+	}
+
 
 	// in ticks, not in microSeconds
 	template<uint16_t CycleTicks, uint16_t HighPeriodTicks>
