@@ -2,7 +2,12 @@
  
 #include "bcm2835.h"
 #include "gpio.h"
- 
+
+#define SERVO_X_MIN 100
+#define SERVO_X_MAX 950
+
+#define SERVO_Y_MIN 100
+#define SERVO_Y_MAX 950
 
 int init_gpio()
 {
@@ -26,16 +31,16 @@ int init_gpio()
 void gpio_write_xy_f(float xf, float yf)
 {
 	unsigned int xi,yi;
-	
+
 	if(xf<0.0f) xf=0.0f;
 	else if(xf>1.0f) xf=1.0f;
-	
+
 	if(yf<0.0f) yf=0.0f;
 	else if(yf>1.0f) yf=1.0f;
 
-	xi = (unsigned int)( xf * 1024 );
-	yi = (unsigned int)( yf * 1024 );
-	
+	xi = SERVO_X_MIN + (unsigned int)( xf * (SERVO_X_MAX-SERVO_X_MIN) );
+	yi = SERVO_Y_MIN + (unsigned int)( yf * (SERVO_Y_MAX-SERVO_Y_MIN) );
+
 	gpio_write_xy_i(xi,yi);
 }
 
@@ -58,8 +63,9 @@ void gpio_write_xy_i(unsigned int xi, unsigned int yi)
 	}
 
 	//printf("clr=%04X, set=%04X\n",clr_mask,set_mask);
-	bcm2835_gpio_set_multi(set_mask);
-	bcm2835_gpio_clr_multi(clr_mask);
+	//bcm2835_gpio_clr_multi( (1<<20) | (1<<21) );
+	bcm2835_gpio_clr_multi( clr_mask );
+	bcm2835_gpio_set_multi( set_mask /*| (1<<20) | (1<<21)*/ );
 	// usleep(130); // have to wait 
 }
 

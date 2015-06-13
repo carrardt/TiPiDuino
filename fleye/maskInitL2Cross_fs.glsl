@@ -5,6 +5,7 @@ uniform float ystep;
 
 varying vec2 texcoord;
 
+//#define SCORE_TEST 1
 
 float greenMask(vec3 p)
 {
@@ -27,7 +28,10 @@ float greenMask(vec3 p)
 void main(void)
 {
 	vec3 ftex = texture2D(tex, texcoord ).xyz;
-    if( greenMask(ftex) > 0.5 )
+#ifdef SCORE_TEST
+	gl_FragColor.x = greenMask(ftex);
+#else
+   if( greenMask(ftex) > 0.5 )
     {
 		gl_FragColor = vec4(0.5,0.5,0.5,0.5);
 	}
@@ -35,4 +39,5 @@ void main(void)
 	{
 		gl_FragColor = vec4(0.0,0.0,0.0,0.0);
 	}
+#endif
 }

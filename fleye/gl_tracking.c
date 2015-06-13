@@ -161,14 +161,6 @@ static int tracking_init(RASPITEX_STATE *state)
 			return rc;
 		}
 	}
-/*
-	rc = create_fbo(state,&final_fbo,GL_RGBA,state->width/2,state->height/2, (GLubyte*) malloc(state->width*state->height) );
-	if (rc != 0)
-	{
-		vcos_log_error("final FBO failed\n");
-		return rc;
-	}
-*/
 	GLCHK( glDisable(GL_DEPTH_TEST) );
 	
 	// allocate space for CPU processing
@@ -220,7 +212,6 @@ static void apply_shader_pass(RASPITEX_STATE *state, RASPITEXUTIL_SHADER_PROGRAM
 		GLCHK( glDiscardFramebufferEXT(GL_FRAMEBUFFER,1,attachements) );
 	}
 	
-//    GLCHK(glViewport(state->width - destFBO->width, state->height - destFBO->height, destFBO->width, destFBO->height));
     GLCHK(glViewport(0,0,destFBO->width,destFBO->height));
 
     GLCHK(glUseProgram(shader->program));
@@ -267,18 +258,7 @@ static int tracking_redraw(RASPITEX_STATE *state)
 		shader_uniform1f(& state->dist_shader,2, p2i / h);
 		apply_shader_pass(state,& state->dist_shader,inputTarget,inputTexture,& state->ping_pong_fbo[fboIndex]);
 	}
-/*
-	{
-		GLuint inputTexture = ping_pong_fbo[fboIndex].tex;
-		GLuint inputTarget = ping_pong_fbo[fboIndex].target;
-		int w = final_fbo.width;
-		int h = final_fbo.height;
-		double p2i = 1<<(tracking_ccmd-1);
-		shader_uniform1f(&dist_shader,1, p2i / w);
-		shader_uniform1f(&dist_shader,2, p2i / h);
-		apply_shader_pass(state,&dist_shader,inputTarget,inputTexture,&final_fbo);
-	}
-*/
+
 	// TODO: find an alternative to glReadPixels, way too slow !!!
 	vcos_semaphore_wait(& state->cpu_tracking_state.end_processing_sem); 
 	GLCHK( glReadPixels(0, 0,
@@ -289,9 +269,12 @@ static int tracking_redraw(RASPITEX_STATE *state)
 
 	if( state->tracking_display )
 	{
-		shader_uniform1f(& state->draw_shader,1, state->cpu_tracking_state.objectCenter[0][0]);
-		shader_uniform1f(& state->draw_shader,2, state->cpu_tracking_state.objectCenter[0][1]);
-		apply_shader_pass(state, & state->draw_shader, GL_TEXTURE_2D, state->ping_pong_fbo[fboIndex].tex,& state->window_fbo);
+		float ox = state->cpu_tracking_state.objectCenter[0][0];
+		float oy = state->cpu_tracking_state.objectCenter[0][1];
+		//printf("draw %f, %f\n",ox,oy);
+		shader_uniform1f( & state->draw_shader,1, ox );
+		shader_uniform1f( & state->draw_shader,2, oy );
+		apply_shader_pass( state, & state->draw_shader, GL_TEXTURE_2D, state->ping_pong_fbo[fboIndex].tex,& state->window_fbo );
 	}
 
     GLCHK(glUseProgram(0));

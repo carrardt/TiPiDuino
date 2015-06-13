@@ -3,6 +3,8 @@ varying vec2 texcoord;
 uniform float target_x;
 uniform float target_y;
 
+//#define SCORE_TEST 1
+
 #define UNIT (1.0/32.0)
 
 vec3 rgblut(float x)
@@ -32,7 +34,10 @@ void main(void)
 	vec4 S = texture2D(tex, texcoord );
 	//if( abs(left-right)<=(1.0/64.0) && (left+right)>=(1.0/4.0)) gl_FragColor = vec4(1.0,1.0,1.0,1.0);
 	//else gl_FragColor = vec4(0.0,0.0,0.0,1.0);
-
+#ifdef SCORE_TEST
+	gl_FragColor.xyz = rgblut( S.x );
+	gl_FragColor.w = 1.0;
+#else
 	gl_FragColor = vec4(0.0,0.0,0.0,1.0);
 	
 	float d =  clamp( ( min( min(S.x,S.y) , min(S.z,S.w) ) - 0.5 ) * 2.0 , 0.0 , 1.0 );
@@ -41,5 +46,5 @@ void main(void)
 	vec2 V = texcoord-vec2(target_x,target_y);
 	float R = clamp( 1.0-dot(V,V)*1024.0 , 0.0, 1.0 );
 	gl_FragColor.xyz += vec3(R,-R,-R);
-
+#endif
 }

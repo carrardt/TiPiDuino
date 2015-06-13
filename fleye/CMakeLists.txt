@@ -14,7 +14,8 @@ SET(VCLIB "${VCROOT}/lib")
 SET(BCM2835LIB "/usr/loca/lib")
 
 include_directories(${VCINC} ${VCINC}/interface/vcos/pthreads ${VCINC}/interface/vmcs_host/linux)
-add_definitions(-DGLSL_SRC_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}\" -pthread)
+#add_definitions(-DGLSL_SRC_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}\" -pthread)
+add_definitions(-DGLSL_SRC_DIR=\".\" -pthread)
 
 link_directories(${VCLIB} ${BCM2835LIB})
 
