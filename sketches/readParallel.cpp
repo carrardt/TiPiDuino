@@ -5,6 +5,8 @@
 
 using namespace avrtl;
 
+// #define LATENCY_BENCHMARK 1
+
 HWSerialIO serialIO;
 PrintStream serialOut;
 
@@ -34,9 +36,11 @@ void setup()
 	serialOut.begin( &serialIO );
 	par10_init();
 	serialOut<<"ready"<<endl;
+#ifdef LATENCY_BENCHMARK
 	old_SREG = SREG;
 	cli();
 	while( par10_read()!=1 );
+#endif
 }
 
 static uint16_t lastValue = 0;
@@ -47,6 +51,8 @@ void loop()
 {
 	uint16_t value = par10_read();
 	if(value==lastValue) return;
+	
+#ifdef LATENCY_BENCHMARK
 	if( (lastValue+1) != value )
 	{
 		missedValues[missed++] = lastValue+1;
@@ -63,5 +69,12 @@ void loop()
 		old_SREG = SREG;
 		cli();
 	}
+#endif
+
 	lastValue = value;
+
+#ifndef LATENCY_BENCHMARK
+	serialOut<<value<<endl;
+#endif	
+
 }

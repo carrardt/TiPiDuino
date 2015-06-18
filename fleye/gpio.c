@@ -3,11 +3,15 @@
 #include "bcm2835.h"
 #include "gpio.h"
 
-#define SERVO_X_MIN 100
-#define SERVO_X_MAX 950
+#define SERVO_X_VALUE_MIN 250
+#define SERVO_X_ANGLE_MIN -45.0
+#define SERVO_X_VALUE_MAX 750
+#define SERVO_X_ANGLE_MAX 45.0
 
-#define SERVO_Y_MIN 100
-#define SERVO_Y_MAX 950
+#define SERVO_Y_VALUE_MIN 250
+#define SERVO_Y_ANGLE_MIN -45.0
+#define SERVO_Y_VALUE_MAX 750
+#define SERVO_Y_ANGLE_MAX 45.0
 
 int init_gpio()
 {
@@ -28,6 +32,14 @@ int init_gpio()
   return 0;
 }
 
+// theta and phi are angle in radians
+void gpio_write_theta_phi(float theta, float phi)
+{
+	gpio_write_xy_f(
+		(theta*57.29577951308232-SERVO_X_ANGLE_MIN)/(SERVO_X_ANGLE_MAX-SERVO_X_ANGLE_MIN) ,
+		(  phi*57.29577951308232-SERVO_Y_ANGLE_MIN)/(SERVO_Y_ANGLE_MAX-SERVO_Y_ANGLE_MIN) );
+}
+
 void gpio_write_xy_f(float xf, float yf)
 {
 	unsigned int xi,yi;
@@ -38,8 +50,8 @@ void gpio_write_xy_f(float xf, float yf)
 	if(yf<0.0f) yf=0.0f;
 	else if(yf>1.0f) yf=1.0f;
 
-	xi = SERVO_X_MIN + (unsigned int)( xf * (SERVO_X_MAX-SERVO_X_MIN) );
-	yi = SERVO_Y_MIN + (unsigned int)( yf * (SERVO_Y_MAX-SERVO_Y_MIN) );
+	xi = SERVO_X_VALUE_MIN + (unsigned int)( xf * (SERVO_X_VALUE_MAX-SERVO_X_VALUE_MIN) );
+	yi = SERVO_Y_VALUE_MIN + (unsigned int)( yf * (SERVO_Y_VALUE_MAX-SERVO_Y_VALUE_MIN) );
 
 	gpio_write_xy_i(xi,yi);
 }
