@@ -33,14 +33,15 @@ int init_gpio()
 }
 
 // theta and phi are angle in radians
-void gpio_write_theta_phi(float theta, float phi)
+void gpio_write_theta_phi(float theta, float phi, int laserSwitch)
 {
 	gpio_write_xy_f(
 		(theta*57.29577951308232-SERVO_X_ANGLE_MIN)/(SERVO_X_ANGLE_MAX-SERVO_X_ANGLE_MIN) ,
-		(  phi*57.29577951308232-SERVO_Y_ANGLE_MIN)/(SERVO_Y_ANGLE_MAX-SERVO_Y_ANGLE_MIN) );
+		(  phi*57.29577951308232-SERVO_Y_ANGLE_MIN)/(SERVO_Y_ANGLE_MAX-SERVO_Y_ANGLE_MIN) ,
+		laserSwitch );
 }
 
-void gpio_write_xy_f(float xf, float yf)
+void gpio_write_xy_f(float xf, float yf, int laserSwitch)
 {
 	unsigned int xi,yi;
 
@@ -53,10 +54,10 @@ void gpio_write_xy_f(float xf, float yf)
 	xi = SERVO_X_VALUE_MIN + (unsigned int)( xf * (SERVO_X_VALUE_MAX-SERVO_X_VALUE_MIN) );
 	yi = SERVO_Y_VALUE_MIN + (unsigned int)( yf * (SERVO_Y_VALUE_MAX-SERVO_Y_VALUE_MIN) );
 
-	gpio_write_xy_i(xi,yi);
+	gpio_write_xy_i(xi,yi,laserSwitch);
 }
 
-void gpio_write_xy_i(unsigned int xi, unsigned int yi)
+void gpio_write_xy_i(unsigned int xi, unsigned int yi, int laserSwitch)
 {
 	unsigned int i;
 	unsigned int set_mask = 0;
@@ -74,10 +75,10 @@ void gpio_write_xy_i(unsigned int xi, unsigned int yi)
 		else { clr_mask |= 1<<i; }
 	}
 
-	//printf("clr=%04X, set=%04X\n",clr_mask,set_mask);
-	//bcm2835_gpio_clr_multi( (1<<20) | (1<<21) );
+	if( laserSwitch ) { set_mask |= 1<<20; }
+	else { clr_mask |= 1<<20; }
+	
 	bcm2835_gpio_clr_multi( clr_mask );
 	bcm2835_gpio_set_multi( set_mask /*| (1<<20) | (1<<21)*/ );
-	// usleep(130); // have to wait 
 }
 

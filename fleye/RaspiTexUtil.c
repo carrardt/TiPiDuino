@@ -678,5 +678,48 @@ glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, (GLeglImageOES) 0x752d700c);
 
 glFramebufferTexture2DOES(GL_FRAMEBUFFER_OES, GL_COLOR_ATTACHMENT0_OES, GL_TEXTURE_2D, 3, 0);
  */
-    
 }
+
+int create_image_shader(RASPITEXUTIL_SHADER_PROGRAM_T* shader, const char* fsFile)
+{
+	int i;
+	// generate score values corresponding to color matching of target
+	memset(shader,0,sizeof(RASPITEXUTIL_SHADER_PROGRAM_T));
+	
+	shader->vertex_source = readShader("common_vs");
+	shader->attribute_names[0] = "vertex";
+	shader->attribute_names[1] = "tcoord";
+	
+	shader->fragment_source = readShader(fsFile);
+	shader->uniform_names[0] = "tex";
+	shader->uniform_names[1] = "xstep";
+	shader->uniform_names[2] = "ystep";
+	shader->uniform_names[3] = "iter";
+	shader->uniform_names[4] = "xstep2i";
+	shader->uniform_names[5] = "ystep2i";
+	shader->uniform_names[6] = "target_x";
+	shader->uniform_names[7] = "target_y";
+
+	printf("Compiling %s ...\n",fsFile);
+    int rc = raspitexutil_build_shader_program(shader);    
+	return rc;
+}
+
+int create_image_processing(ImageProcessing* imgProc, const ShaderPass* gpuPasses, void(*cpuFunc)(CPU_TRACKING_STATE*) )
+{
+	int i,rc;
+	memset(imgProc,0,sizeof(ImageProcessing));
+	for(i=0;gpuPasses[i]->shaderFile!=0;++i)
+	{
+		imgProc->gpu_pass[i] = gpuPasses[i];
+		rc = create_image_shader( & imgProc->gl_shader[i] , imgProc->gpu_pass[i].shaderFile );
+		if( rc != 0 )
+		{
+			vcos_log_error("Shder creation failed for %s",imgProc->gpu_pass[i].shaderFile);
+			return rc;
+		}
+	}
+	imgProc->cpu_processing = cpuFunc;
+	return 0;
+}
+

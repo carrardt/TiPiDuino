@@ -27,7 +27,7 @@ float greenMask(vec3 p)
 
 void main(void)
 {
-	vec3 ftex = texture2D(tex, texcoord ).xyz;
+	vec3 ftex = texture2D(tex, vec2(texcoord.x, 1.0-texcoord.y) ).xyz;
 #ifdef SCORE_TEST
 	gl_FragColor.x = greenMask(ftex);
 #else

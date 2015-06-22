@@ -34,6 +34,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 #include "cpu_tracking.h"
+#include "l2CrossObjectCenter.h"
 
 static GLfloat varray[] =
 {
@@ -57,24 +58,6 @@ static const EGLint tracking_egl_config_attribs[] =
    EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
    EGL_NONE
 };
-
-static int create_shader(RASPITEXUTIL_SHADER_PROGRAM_T* shader, const char* fsFile, const char* uniforms[])
-{
-	int i;
-	// generate score values corresponding to color matching of target
-	memset(shader,0,sizeof(RASPITEXUTIL_SHADER_PROGRAM_T));
-	shader->vertex_source = readShader("common_vs");
-	shader->attribute_names[0] = "vertex";
-	shader->attribute_names[1] = "tcoord";
-	shader->fragment_source = readShader(fsFile);
-	for(i=0;uniforms[i]!=0;++i)
-	{
-		shader->uniform_names[i] = uniforms[i];
-	}
-	printf("Compiling %s ...\n",fsFile);
-    int rc = raspitexutil_build_shader_program(shader);
-	return rc;
-}
 
 static int shader_uniform1i(RASPITEXUTIL_SHADER_PROGRAM_T* shader, int i, GLint value)
 {
@@ -125,31 +108,15 @@ static int tracking_init(RASPITEX_STATE *state)
    GLCHK( glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MAG_FILTER, GL_LINEAR) );
    GLCHK( glBindTexture(GL_TEXTURE_EXTERNAL_OES,0) );
 
-	// generate score values corresponding to color matching of target
+	state->imageProcessing = calloc(sizeof(ImageProcessing));
 	{
-		const char* uniform[] = { "tex","xstep", "ystep", 0 };
-		create_shader(& (state->masking_shader),"maskInitL2Cross_fs",uniform);
-		shader_uniform1i(& (state->masking_shader),0, 0);
-		shader_uniform1f(& (state->masking_shader),1, 1.0 / (state->width) );
-		shader_uniform1f(& (state->masking_shader),2, 1.0 / (state->height) );
-	}
-
-	// processing done with half resoluton, to maximize color (U,V) resolution
-	
-	// update distance to connected component border
-	{
-		const char* uniform[] = { "tex", "xstep", "ystep", 0 };
-		create_shader(& (state->dist_shader),"L2CrossIteration_fs",uniform);
-		shader_uniform1i(& (state->dist_shader),0, 0);
-		shader_uniform1f(& (state->dist_shader),1, 1.0 / state->width);
-		shader_uniform1f(& (state->dist_shader),2, 1.0 / state->height);
-	}
-
-	// draw score values
-	{
-		const char* uniform[] = { "tex","target_x","target_y", 0 };
-		create_shader(&(state->draw_shader),"drawL2Cross_fs",uniform);
-		shader_uniform1i(&(state->draw_shader),0, 0);
+		ShaderPass gpuPasses[] = {
+			{ "maskInitL2Cross_fs"	, 1 } ,
+			{ "L2CrossIteation_fs"	, SHADER_CCMD_PASSES } ,
+			{ "drawL2Cross_fs"		, SHADER_DISPLAY_PASS } ,
+			{NULL,0}
+		};
+		create_image_processing( state->imageProcessing, gpuPasses, naiveL2CrossObjectCenter );
 	}
 
 	for(i=0;i<2;i++)
@@ -193,7 +160,7 @@ static int tracking_init(RASPITEX_STATE *state)
 	}
 	vcos_semaphore_post(& state->cpu_tracking_state.end_processing_sem);
 
-	rc = vcos_thread_create(& state->cpuTrackingThread, "cpu-tracking-worker", NULL, cpuTrackingWorker, & state->cpu_tracking_state);
+	rc = vcos_thread_create(& state->cpuTrackingThread, "cpu-tracking-worker", NULL, cpuTrackingWorker, state);
 	if (rc != VCOS_SUCCESS)
 	{
       vcos_log_error("Failed to start cpu processing thread %d",rc);
@@ -236,47 +203,66 @@ static void apply_shader_pass(RASPITEX_STATE *state, RASPITEXUTIL_SHADER_PROGRAM
     GLCHK(glFinish());
 }
 
+static int triggerCpuProcessing(RASPITEX_STATE *state)
+{
+	vcos_semaphore_wait(& state->cpu_tracking_state.end_processing_sem); 
+	GLCHK( glReadPixels(0, 0, state->width, state->height,GL_RGBA,GL_UNSIGNED_BYTE, state->cpu_tracking_state.image) );
+	vcos_semaphore_post(& state->cpu_tracking_state.start_processing_sem);
+}
+
 static int tracking_redraw(RASPITEX_STATE *state)
 {
 	static int FrameN=0;
 	int fboIndex = 0;
-	int i;
+	int gpu_shader_index, i;
+	GLint inTexTarget = GL_TEXTURE_EXTERNAL_OES;
+	GLint inTex = state->texture;
+	int w = state->width;
+	int h = state->height;
+	
     //glClear(GL_COLOR_BUFFER_BIT /*| GL_DEPTH_BUFFER_BIT*/);
     GLCHK( glActiveTexture(GL_TEXTURE0) );
 
-	apply_shader_pass(state,& state->masking_shader,GL_TEXTURE_EXTERNAL_OES,state->texture,& state->ping_pong_fbo[fboIndex]);
-
-	for(i=0;i<state->tracking_ccmd;i++)
+	for(gpu_shader_index=0; state->imageProcessing->gpu_pass[gpu_shader_index].shaderFile!=0; ++gpu_shader_index)
 	{
-		GLuint inputTexture = state->ping_pong_fbo[fboIndex].tex;
-		GLuint inputTarget = state->ping_pong_fbo[fboIndex].target;
-		int w = state->ping_pong_fbo[fboIndex].width;
-		int h = state->ping_pong_fbo[fboIndex].height;
-		double p2i = 1<<i;
-		fboIndex = (fboIndex+1)%2;
-		shader_uniform1f(& state->dist_shader,1, p2i / w);
-		shader_uniform1f(& state->dist_shader,2, p2i / h);
-		apply_shader_pass(state,& state->dist_shader,inputTarget,inputTexture,& state->ping_pong_fbo[fboIndex]);
+		int nPasses = state->imageProcessing->gpu_pass[gpu_shader_index].numberOfPasses;
+		RASPITEXUTIL_SHADER_PROGRAM_T* shader = & state->imageProcessing->gl_shader[gpu_shader_index];
+		FBOTexture* fbo_pair[2] = { & state->ping_pong_fbo[0], & state->ping_pong_fbo[1] };
+		
+		if( nPasses != 0 )
+		{
+			if( nPasses == SHADER_CCMD_PASSES ) { nPasses = state->tracking_ccmd; }
+			else if( nPasses == SHADER_DISPLAY_PASS )
+			{
+				triggerCpuProcessing(state);
+				triggerCpu = false;
+				nPasses = state->tracking_display ? 1 : 0;
+				fbo_pair[0] = & state->window_fbo;
+			}
+			
+			shader_uniform1i( shader, 0, 0 ); // sampler always refers to active texture 0
+			shader_uniform1f( shader, 1, 1.0 / w ); 
+			shader_uniform1f( shader, 2, 1.0 / h);
+			shader_uniform1f( shader, 6, state->cpu_tracking_state.objectCenter[0][0] );
+			shader_uniform1f( shader, 7, state->cpu_tracking_state.objectCenter[0][1] );
+
+			for(i=0;i<nPasses;i++)
+			{
+				double p2i = 1<<i;
+				shader_uniform1i( shader, 3, i);
+				shader_uniform1f( shader, 4, p2i / w);
+				shader_uniform1f( shader, 5, p2i / h);
+				apply_shader_pass(state, shader, inTexTarget, inTex, fbo_pair[fboIndex]);
+				inTexTarget = fbo_pair[fboIndex]->target;
+				inTex = fbo_pair[fboIndex]->tex;
+				fboIndex = ( fboIndex + 1 ) % 2; // starts with 1, 
+			}
+			fboIndex = ( fboIndex + 1 ) % 2; // back to last written fbo
+		}
 	}
 
-	// TODO: find an alternative to glReadPixels, way too slow !!!
-	vcos_semaphore_wait(& state->cpu_tracking_state.end_processing_sem); 
-	GLCHK( glReadPixels(0, 0,
-						state->ping_pong_fbo[fboIndex].width,
-						state->ping_pong_fbo[fboIndex].height,
-						GL_RGBA,GL_UNSIGNED_BYTE, state->cpu_tracking_state.image) );
-	vcos_semaphore_post(& state->cpu_tracking_state.start_processing_sem);
-
-	if( state->tracking_display )
-	{
-		float ox = state->cpu_tracking_state.objectCenter[0][0];
-		float oy = state->cpu_tracking_state.objectCenter[0][1];
-		//printf("draw %f, %f\n",ox,oy);
-		shader_uniform1f( & state->draw_shader,1, ox );
-		shader_uniform1f( & state->draw_shader,2, oy );
-		apply_shader_pass( state, & state->draw_shader, GL_TEXTURE_2D, state->ping_pong_fbo[fboIndex].tex,& state->window_fbo );
-	}
-
+	if(triggerCpu) { triggerCpuProcessing(state); }
+	
     GLCHK(glUseProgram(0));
 
     return 0;

@@ -84,7 +84,9 @@ void raspitexutil_close(RASPITEX_STATE* raspitex_state);
 /* Utility functions */
 char* readShader(const char* fileName);
 int raspitexutil_build_shader_program(RASPITEXUTIL_SHADER_PROGRAM_T *p);
+int create_image_shader(RASPITEXUTIL_SHADER_PROGRAM_T* shader, const char* fsFile);
 void raspitexutil_brga_to_rgba(uint8_t *buffer, size_t size);
 int create_fbo(RASPITEX_STATE *state, FBOTexture* fbo, GLint colorFormat, GLint w, GLint h);
+int create_image_processing(ImageProcessing* imgProc, const ShaderPass* gpuPasses, void(*cpuFunc)(CPU_TRACKING_STATE*) );
 
 #endif /* RASPITEX_UTIL_H_ */

@@ -41,7 +41,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define RASPITEX_VERSION_MAJOR 1
 #define RASPITEX_VERSION_MINOR 0
 
-typedef struct
+typedef struct FBOTexture
 {
 	GLuint width, height; // dimensions
 	GLuint format; // texture internal format
@@ -51,15 +51,51 @@ typedef struct
 	GLuint fb; // frame buffer
 } FBOTexture;
 
+#define SHADER_MAX_ATTRIBUTES 16
+#define SHADER_MAX_UNIFORMS   16
+/**
+ * Container for a simple shader program. The uniform and attribute locations
+ * are automatically setup by raspitex_build_shader_program.
+ */
+typedef struct RASPITEXUTIL_SHADER_PROGRAM_T
+{
+   const char *vertex_source;       /// Pointer to vertex shader source
+   const char *fragment_source;     /// Pointer to fragment shader source
 
-typedef enum {
-   RASPITEX_SCENE_SQUARE = 0,
-   RASPITEX_SCENE_MIRROR,
-   RASPITEX_SCENE_TEAPOT,
-   RASPITEX_SCENE_YUV,
-   RASPITEX_SCENE_SOBEL,
+   /// Array of uniform names for raspitex_build_shader_program to process
+   const char *uniform_names[SHADER_MAX_UNIFORMS];
+   /// Array of attribute names for raspitex_build_shader_program to process
+   const char *attribute_names[SHADER_MAX_ATTRIBUTES];
 
-} RASPITEX_SCENE_T;
+   GLint vs;                        /// Vertex shader handle
+   GLint fs;                        /// Fragment shader handle
+   GLint program;                   /// Shader program handle
+
+   /// The locations for uniforms defined in uniform_names
+   GLint uniform_locations[SHADER_MAX_UNIFORMS];
+
+   /// The locations for attributes defined in attribute_names
+   GLint attribute_locations[SHADER_MAX_ATTRIBUTES];
+} RASPITEXUTIL_SHADER_PROGRAM_T;
+
+
+#define SHADER_PASS_DISABLED 0
+#define SHADER_CCMD_PASSES -1
+#define SHADER_DISPLAY_PASS -2
+struct ShaderPass
+{
+	const char* shaderFile; // fragment shader file
+	int numberOfPasses; // 0=disabled, -1=ccmd command line parameter
+} ShaderPass;
+
+#define IMGPROC_MAX_SHADERS 16;
+struct ImageProcessing
+{
+	const ShaderPass gpu_pass[IMGPROC_MAX_SHADERS];
+	RASPITEXUTIL_SHADER_PROGRAM_T gl_shader[IMGPROC_MAX_SHADERS];
+	void(*cpu_processing)(CPU_TRACKING_STATE*) ;
+} ImageProcessing;
+
 
 struct RASPITEX_STATE;
 
@@ -128,32 +164,6 @@ typedef struct RASPITEX_CAPTURE
    int request;
 } RASPITEX_CAPTURE;
 
-#define SHADER_MAX_ATTRIBUTES 16
-#define SHADER_MAX_UNIFORMS   16
-/**
- * Container for a simple shader program. The uniform and attribute locations
- * are automatically setup by raspitex_build_shader_program.
- */
-typedef struct RASPITEXUTIL_SHADER_PROGRAM_T
-{
-   const char *vertex_source;       /// Pointer to vertex shader source
-   const char *fragment_source;     /// Pointer to fragment shader source
-
-   /// Array of uniform names for raspitex_build_shader_program to process
-   const char *uniform_names[SHADER_MAX_UNIFORMS];
-   /// Array of attribute names for raspitex_build_shader_program to process
-   const char *attribute_names[SHADER_MAX_ATTRIBUTES];
-
-   GLint vs;                        /// Vertex shader handle
-   GLint fs;                        /// Fragment shader handle
-   GLint program;                   /// Shader program handle
-
-   /// The locations for uniforms defined in uniform_names
-   GLint uniform_locations[SHADER_MAX_UNIFORMS];
-
-   /// The locations for attributes defined in attribute_names
-   GLint attribute_locations[SHADER_MAX_ATTRIBUTES];
-} RASPITEXUTIL_SHADER_PROGRAM_T;
 
 /**
  * Contains the internal state and configuration for the GL rendered
@@ -179,11 +189,8 @@ typedef struct RASPITEX_STATE
    int tracking_ccmd;
    int tracking_display;
 	FBOTexture ping_pong_fbo[2];
-	//static FBOTexture final_fbo;
 	FBOTexture window_fbo;
-	RASPITEXUTIL_SHADER_PROGRAM_T masking_shader;
-	RASPITEXUTIL_SHADER_PROGRAM_T dist_shader;
-	RASPITEXUTIL_SHADER_PROGRAM_T draw_shader;
+	ImageProcessing* imageProcessing;
 	VCOS_THREAD_T cpuTrackingThread;
 	CPU_TRACKING_STATE cpu_tracking_state;
 
