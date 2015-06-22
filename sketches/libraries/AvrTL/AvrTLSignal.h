@@ -123,6 +123,7 @@ namespace avrtl
 			// update timings
 			LowPeriodTicks = CycleTicks - HighPeriodTicks;
 			HighPeriodTicks = updateFunc();
+			bool highState = (HighPeriodTicks>0);
 			
 			do {
 				UPDATE_CLOCK_COUNTER();
@@ -130,7 +131,7 @@ namespace avrtl
 			} while( wallClock<LowPeriodTicks );
 
 			// as soon as we detect low time is elapsed, set to high
-			tx.Set(true);
+			tx.Set(highState);
 		}
 	}
 

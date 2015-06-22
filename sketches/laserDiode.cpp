@@ -4,19 +4,27 @@
 
 using namespace avrtl;
 
-#define LASER_PIN 12
+constexpr auto laserPin = 12;
+constexpr auto switchPin = 2;
+constexpr auto pwmHighUSecs = 10;
+constexpr auto pwmCycleUSecs = 128;
 
-auto laser = StaticPin<LASER_PIN>();
+constexpr uint16_t pwmCycleTicks = microsecondsToTicks(pwmCycleUSecs);
+constexpr uint16_t pwmHighTicks = microsecondsToTicks(pwmHighUSecs);
+
+auto laserOutput = StaticPin<laserPin>();
+auto switchInput = StaticPin<switchPin>();
 
 void setup()
 {
-	laser.SetOutput();
+	laserOutput.SetOutput();
+	switchInput.SetInput();
 }
 
 void loop()
 {
-	laser = true;
-	DelayMicroseconds( 1000 );
-	laser = false;
-	DelayMicroseconds( 3000 );
+	loopPWM<pwmCycleTicks>(
+		laserOutput,
+		[]()->uint16_t{ return switchInput.Get() ? pwmHighTicks : 0 ; }
+		);
 }
