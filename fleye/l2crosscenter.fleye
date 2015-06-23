@@ -1,0 +1,4 @@
+maskInitL2Cross_fs 1
+L2CrossIteration_fs CCMD
+l2CrossCenter CPU
+drawL2Cross_fs DISPLAY

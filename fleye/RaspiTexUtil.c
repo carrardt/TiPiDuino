@@ -30,6 +30,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "RaspiTex.h"
 #include <bcm_host.h>
 #include <GLES2/gl2.h>
+#include <dlfcn.h>
 
 VCOS_LOG_CAT_T raspitex_log_category;
 
@@ -705,21 +706,69 @@ int create_image_shader(RASPITEXUTIL_SHADER_PROGRAM_T* shader, const char* fsFil
 	return rc;
 }
 
-int create_image_processing(ImageProcessing* imgProc, const ShaderPass* gpuPasses, void(*cpuFunc)(CPU_TRACKING_STATE*) )
+int create_image_processing(RASPITEX_STATE* state, const char* filename)
 {
-	int i,rc;
-	memset(imgProc,0,sizeof(ImageProcessing));
-	for(i=0;gpuPasses[i].shaderFile!=0;++i)
+	int rc;
+	FILE* fp;
+	char tmp[256];
+	sprintf(tmp,"./%s.fleye",filename);
+	fp = fopen(tmp,"rb");
+	if( fp == 0 )
 	{
-		imgProc->gpu_pass[i] = gpuPasses[i];
-		rc = create_image_shader( & imgProc->gl_shader[i] , imgProc->gpu_pass[i].shaderFile );
-		if( rc != 0 )
-		{
-			vcos_log_error("Shader creation failed for %s",imgProc->gpu_pass[i].shaderFile);
-			return rc;
-		}
+		vcos_log_error("failed to open processing script %s",tmp);
+		return -1;
 	}
-	imgProc->cpu_processing = cpuFunc;
+	
+	state->n_processing_steps = 0;
+	do
+	{
+
+		int count=0;
+		tmp[0]='\0';
+		
+		state->processing_step[state->n_processing_steps].fileName[0] = '\0';
+		state->processing_step[state->n_processing_steps].cpu_processing = NULL;
+		
+		fscanf(fp,"%s %s\n",state->processing_step[state->n_processing_steps].fileName,tmp);
+		if( strcasecmp(tmp,"DISABLED")==0 ) { count=0; }
+		else if( strcasecmp(tmp,"CCMD")==0 ) { count=SHADER_CCMD_PASSES; }
+		else if( strcasecmp(tmp,"DISPLAY")==0 ) { count=SHADER_DISPLAY_PASS; }
+		else if( strcasecmp(tmp,"CPU")==0 ) { count=CPU_PROCESSING_PASS; }
+		else { count=atoi(tmp); }
+		
+		if( count != 0 )
+		{
+			if( count==CPU_PROCESSING_PASS )
+			{
+				sprintf(tmp,"./lib%s.so",state->processing_step[state->n_processing_steps].fileName);
+				void * handle = dlopen(tmp, RTLD_LOCAL | RTLD_NOW);
+				if(handle==NULL)
+				{
+					vcos_log_error("failed to load plugin %s",tmp);
+					return -1;
+				}
+				state->processing_step[state->n_processing_steps].cpu_processing = dlsym(handle,"run");
+				if( state->processing_step[state->n_processing_steps].cpu_processing == NULL)
+				{
+					vcos_log_error("can't find function 'run' in %s",tmp);
+					return -1;
+				}
+			}
+			else
+			{
+				rc = create_image_shader( & state->processing_step[state->n_processing_steps].gl_shader 
+										, state->processing_step[state->n_processing_steps].fileName );
+				if( rc != 0 )
+				{
+					vcos_log_error("error compiling shader %s",state->processing_step[state->n_processing_steps].fileName);
+					return rc;
+				}
+			}
+		}
+		++ state->n_processing_steps;
+		
+	} while( !feof(fp) && state->n_processing_steps < IMGPROC_MAX_STEPS );
+	
 	return 0;
 }
 

@@ -5,6 +5,7 @@
 #include "interface/vcos/vcos.h"
 
 #define MAX_TRACKED_OBJECTS 8
+struct CPU_TRACKING_STATE;
 
 typedef struct CPU_TRACKING_STATE
 {
@@ -21,6 +22,8 @@ typedef struct CPU_TRACKING_STATE
   float objectCenter[MAX_TRACKED_OBJECTS][2];
   float objectArea[MAX_TRACKED_OBJECTS];
   float objectLength[MAX_TRACKED_OBJECTS];
+  
+  void(*cpu_processing)(struct CPU_TRACKING_STATE*);
 
 } CPU_TRACKING_STATE;
 

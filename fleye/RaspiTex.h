@@ -82,20 +82,16 @@ typedef struct RASPITEXUTIL_SHADER_PROGRAM_T
 #define SHADER_PASS_DISABLED 0
 #define SHADER_CCMD_PASSES -1
 #define SHADER_DISPLAY_PASS -2
-typedef struct ShaderPass
+#define CPU_PROCESSING_PASS -255
+typedef struct ProcessingStep
 {
-	const char* shaderFile; // fragment shader file
+	char fileName[256]; // fragment shader file or plugin name
 	int numberOfPasses; // 0=disabled, -1=ccmd command line parameter
-} ShaderPass;
+	RASPITEXUTIL_SHADER_PROGRAM_T gl_shader;
+	void(*cpu_processing)(CPU_TRACKING_STATE*);
+} ProcessingStep;
 
-#define IMGPROC_MAX_SHADERS 16
-typedef struct ImageProcessing
-{
-	ShaderPass gpu_pass[IMGPROC_MAX_SHADERS];
-	RASPITEXUTIL_SHADER_PROGRAM_T gl_shader[IMGPROC_MAX_SHADERS];
-	void(*cpu_processing)(CPU_TRACKING_STATE*) ;
-} ImageProcessing;
-
+#define IMGPROC_MAX_STEPS 16
 
 struct RASPITEX_STATE;
 
@@ -190,7 +186,8 @@ typedef struct RASPITEX_STATE
    int tracking_display;
 	FBOTexture ping_pong_fbo[2];
 	FBOTexture window_fbo;
-	ImageProcessing* imageProcessing;
+	ProcessingStep processing_step[IMGPROC_MAX_STEPS];
+	int n_processing_steps;
 	VCOS_THREAD_T cpuTrackingThread;
 	CPU_TRACKING_STATE cpu_tracking_state;
 

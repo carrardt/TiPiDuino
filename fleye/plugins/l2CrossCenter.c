@@ -1,6 +1,10 @@
-#include "cpu_tracking.h"
+#include "../cpu_tracking.h"
 
-void naiveL2CrossObjectCenter(CPU_TRACKING_STATE * state)
+void setup()
+{
+}
+
+void run(CPU_TRACKING_STATE * state)
 {
 	const uint32_t* p = (uint32_t*) state->image;
 	int x,y;

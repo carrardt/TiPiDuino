@@ -11,30 +11,33 @@ SET(COMPILE_DEFINITIONS "-Werror")
 SET(VCROOT "/opt/vc")
 SET(VCINC "${VCROOT}/include")
 SET(VCLIB "${VCROOT}/lib")
+set (MMAL_LIBS mmal_core mmal_util mmal_vc_client)
 
-file(GLOB GLSL_SOURCE_FILES "*.glsl")
+include_directories(${VCINC} ${VCINC}/interface/vcos/pthreads ${VCINC}/interface/vmcs_host/linux)
+add_definitions(-DGLSL_SRC_DIR=\"${CMAKE_CURRENT_BINARY_DIR}\" -pthread)
+link_directories(${VCLIB})
+
+add_executable(fleye Fleye.c gl_tracking.c cpu_tracking.c RaspiCamControl.c RaspiCLI.c RaspiPreview.c RaspiTex.c RaspiTexUtil.c)
+target_link_libraries(fleye ${MMAL_LIBS} vcos bcm_host GLESv2 EGL pthread m dl)
+
+add_executable(test_gpio test_gpio.c thirdparty/bcm2835.c)
+
+# copy shader files
+file(GLOB GLSL_SOURCE_FILES "shaders/" "*.glsl")
 foreach(GLSL_SRC ${GLSL_SOURCE_FILES})
 	get_filename_component(GLSL_SRC_NODIR ${GLSL_SRC} NAME)
 	message("copy ${GLSL_SRC} to ${CMAKE_CURRENT_BINARY_DIR}/${GLSL_SRC_NODIR}")
-	configure_file( ${GLSL_SRC} ${CMAKE_CURRENT_BINARY_DIR}/${GLSL_SRC_NODIR} COPYONLY)
+	configure_file( shaders/${GLSL_SRC} ${CMAKE_CURRENT_BINARY_DIR}/${GLSL_SRC_NODIR} COPYONLY)
 endforeach(GLSL_SRC)
 
-
-include_directories(${VCINC} ${VCINC}/interface/vcos/pthreads ${VCINC}/interface/vmcs_host/linux)
-#add_definitions(-DGLSL_SRC_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}\" -pthread)
-add_definitions(-DGLSL_SRC_DIR=\".\" -pthread)
-
-link_directories(${VCLIB})
-
-add_library(gpio gpio.cpp bcm2835.c)
-
-add_executable(fleye Fleye.c gl_tracking.c cpu_tracking.c RaspiCamControl.c RaspiCLI.c RaspiPreview.c RaspiTex.c RaspiTexUtil.c l2CrossObjectCenter.c )
-add_executable(test_gpio test_gpio.c)
-
-set (MMAL_LIBS mmal_core mmal_util mmal_vc_client)
-
-target_link_libraries(test_gpio gpio)
-target_link_libraries(fleye ${MMAL_LIBS} vcos bcm_host GLESv2 EGL pthread m gpio)
+# compile plugin dynamic libraries
+file(GLOB PLUGIN_SOURCE_FILES "plugins/*.c")
+foreach(PLUGIN_SRC ${PLUGIN_SOURCE_FILES})
+	get_filename_component(PLUGIN_SRC_NODIR ${PLUGIN_SRC} NAME)
+	get_filename_component(PLUGIN_NAME ${PLUGIN_SRC_NODIR} NAME_WE)
+	add_library(${PLUGIN_NAME} SHARED ${PLUGIN_SRC})
+	install(TARGETS ${PLUGIN_NAME} LIBRARY DESTINATION bin)
+endforeach(PLUGIN_SRC)
 
 install(TARGETS fleye RUNTIME DESTINATION bin)
 

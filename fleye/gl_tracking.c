@@ -34,7 +34,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 #include "cpu_tracking.h"
-#include "l2CrossObjectCenter.h"
 
 static GLfloat varray[] =
 {
@@ -108,25 +107,7 @@ static int tracking_init(RASPITEX_STATE *state)
    GLCHK( glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MAG_FILTER, GL_LINEAR) );
    GLCHK( glBindTexture(GL_TEXTURE_EXTERNAL_OES,0) );
 
-	state->imageProcessing = malloc(sizeof(ImageProcessing));
-	{
-
-		ShaderPass gpuPasses[] = {
-			{ "maskInitL2Cross_fs"	, 1 } ,
-			{ "L2CrossIteration_fs"	, SHADER_CCMD_PASSES } ,
-			//{ "naiveL2CrossObjectCenter", CPU_PROCESSING_PASS } ,
-			{ "drawL2Cross_fs"		, SHADER_DISPLAY_PASS } ,
-			{NULL,0}
-		};
-		create_image_processing( state->imageProcessing, gpuPasses, naiveL2CrossObjectCenter );
-#if 0
-		ShaderPass gpuPasses[] = {
-			{ "passthru_fs"	, SHADER_DISPLAY_PASS } ,
-			{NULL,0}
-		};
-		create_image_processing( state->imageProcessing, gpuPasses, NULL );
-#endif
-	}
+	create_image_processing( state, "l2crosscenter" );
 
 	for(i=0;i<2;i++)
 	{
@@ -169,7 +150,7 @@ static int tracking_init(RASPITEX_STATE *state)
 	}
 	vcos_semaphore_post(& state->cpu_tracking_state.end_processing_sem);
 
-	rc = vcos_thread_create(& state->cpuTrackingThread, "cpu-tracking-worker", NULL, cpuTrackingWorker, state);
+	rc = vcos_thread_create(& state->cpuTrackingThread, "cpu-tracking-worker", NULL, cpuTrackingWorker, & state->cpu_tracking_state);
 	if (rc != VCOS_SUCCESS)
 	{
       vcos_log_error("Failed to start cpu processing thread %d",rc);
@@ -212,19 +193,11 @@ static void apply_shader_pass(RASPITEX_STATE *state, RASPITEXUTIL_SHADER_PROGRAM
     GLCHK(glFinish());
 }
 
-static int triggerCpuProcessing(RASPITEX_STATE *state)
-{
-	vcos_semaphore_wait(& state->cpu_tracking_state.end_processing_sem); 
-	GLCHK( glReadPixels(0, 0, state->width, state->height,GL_RGBA,GL_UNSIGNED_BYTE, state->cpu_tracking_state.image) );
-	vcos_semaphore_post(& state->cpu_tracking_state.start_processing_sem);
-}
-
 static int tracking_redraw(RASPITEX_STATE *state)
 {
 	static int FrameN=0;
 	int fboIndex = 0;
-	int gpu_shader_index, i;
-	int triggerCpu = 1;
+	int i;
 	GLint inTexTarget = GL_TEXTURE_EXTERNAL_OES;
 	GLint inTex = state->texture;
 	FBOTexture* destFBO = & state->ping_pong_fbo[fboIndex];
@@ -234,23 +207,32 @@ static int tracking_redraw(RASPITEX_STATE *state)
     //glClear(GL_COLOR_BUFFER_BIT /*| GL_DEPTH_BUFFER_BIT*/);
     GLCHK( glActiveTexture(GL_TEXTURE0) );
 
-	for(gpu_shader_index=0; state->imageProcessing->gpu_pass[gpu_shader_index].shaderFile!=0; ++gpu_shader_index)
+	for(i=0; i<state->n_processing_steps; ++i)
 	{
-		int nPasses = state->imageProcessing->gpu_pass[gpu_shader_index].numberOfPasses;
-		RASPITEXUTIL_SHADER_PROGRAM_T* shader = & state->imageProcessing->gl_shader[gpu_shader_index];
+		int nPasses = state->processing_step[i].numberOfPasses;
 		destFBO = & state->ping_pong_fbo[fboIndex];
 		
-		if( nPasses == SHADER_CCMD_PASSES ) { nPasses = state->tracking_ccmd; }
+		if( nPasses == SHADER_CCMD_PASSES )
+		{ 
+			nPasses = state->tracking_ccmd;
+		}
 		else if( nPasses == SHADER_DISPLAY_PASS )
 		{
-			triggerCpuProcessing(state);
-			triggerCpu = 0;
 			nPasses = state->tracking_display ? 1 : 0;
 			destFBO = & state->window_fbo;
 		}
-			
-		if( nPasses != 0 )
+
+		if ( nPasses == CPU_PROCESSING_PASS )
 		{
+			vcos_semaphore_wait(& state->cpu_tracking_state.end_processing_sem);
+			state->cpu_tracking_state.cpu_processing = state->processing_step[i].cpu_processing;
+			GLCHK( glReadPixels(0, 0, state->width, state->height,GL_RGBA,GL_UNSIGNED_BYTE, state->cpu_tracking_state.image) );
+			vcos_semaphore_post(& state->cpu_tracking_state.start_processing_sem);
+		}
+		else if( nPasses != 0 )
+		{
+			RASPITEXUTIL_SHADER_PROGRAM_T* shader = & state->processing_step[i].gl_shader;
+			
 			shader_uniform1i( shader, 0, 0 ); // sampler always refers to active texture 0
 			shader_uniform1f( shader, 1, 1.0 / w ); 
 			shader_uniform1f( shader, 2, 1.0 / h);
@@ -271,8 +253,6 @@ static int tracking_redraw(RASPITEX_STATE *state)
 			}
 		}
 	}
-
-	if(triggerCpu) { triggerCpuProcessing(state); }
 	
     GLCHK(glUseProgram(0));
 
