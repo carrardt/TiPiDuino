@@ -3,7 +3,7 @@ varying vec2 texcoord;
 uniform float target_x;
 uniform float target_y;
 
-//#define SCORE_TEST 1
+#define SCORE_TEST 1
 
 #define UNIT (1.0/32.0)
 
@@ -12,7 +12,7 @@ vec3 rgblut(float x)
 	if( x < 0.3333 )
 	{
 		x = x * 3.0;
-		return vec3(0.0,0.0,x);		
+		return vec3(0.1,0.1,x);		
 	}
 	else if( x < 0.6666 )
 	{
@@ -39,7 +39,7 @@ void main(void)
 	gl_FragColor.w = 1.0;
 #else
 	gl_FragColor = vec4(0.0,0.0,0.0,1.0);
-	
+
 	float d =  clamp( ( min( min(S.x,S.y) , min(S.z,S.w) ) - 0.5 ) * 2.0 , 0.0 , 1.0 );
 	gl_FragColor.xyz += rgblut( d*2.0 ) ;
 

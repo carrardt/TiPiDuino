@@ -110,13 +110,22 @@ static int tracking_init(RASPITEX_STATE *state)
 
 	state->imageProcessing = malloc(sizeof(ImageProcessing));
 	{
+
 		ShaderPass gpuPasses[] = {
 			{ "maskInitL2Cross_fs"	, 1 } ,
 			{ "L2CrossIteration_fs"	, SHADER_CCMD_PASSES } ,
+			//{ "naiveL2CrossObjectCenter", CPU_PROCESSING_PASS } ,
 			{ "drawL2Cross_fs"		, SHADER_DISPLAY_PASS } ,
 			{NULL,0}
 		};
 		create_image_processing( state->imageProcessing, gpuPasses, naiveL2CrossObjectCenter );
+#if 0
+		ShaderPass gpuPasses[] = {
+			{ "passthru_fs"	, SHADER_DISPLAY_PASS } ,
+			{NULL,0}
+		};
+		create_image_processing( state->imageProcessing, gpuPasses, NULL );
+#endif
 	}
 
 	for(i=0;i<2;i++)
@@ -183,7 +192,7 @@ static void apply_shader_pass(RASPITEX_STATE *state, RASPITEXUTIL_SHADER_PROGRAM
 
     GLCHK(glUseProgram(shader->program));
     
-    //GLCHK(glEnable(srcTarget));
+    GLCHK(glEnable(srcTarget));
     GLCHK(glBindTexture(srcTarget, srcTex));
     
     GLCHK(glEnableVertexAttribArray(shader->attribute_locations[0]));
@@ -198,7 +207,7 @@ static void apply_shader_pass(RASPITEX_STATE *state, RASPITEXUTIL_SHADER_PROGRAM
     GLCHK(glDisableVertexAttribArray(shader->attribute_locations[1]));
     
     GLCHK(glBindTexture(srcTarget,0));
-    //GLCHK(glDisable(srcTarget));
+    GLCHK(glDisable(srcTarget));
 	
     GLCHK(glFinish());
 }
@@ -218,6 +227,7 @@ static int tracking_redraw(RASPITEX_STATE *state)
 	int triggerCpu = 1;
 	GLint inTexTarget = GL_TEXTURE_EXTERNAL_OES;
 	GLint inTex = state->texture;
+	FBOTexture* destFBO = & state->ping_pong_fbo[fboIndex];
 	int w = state->width;
 	int h = state->height;
 	
@@ -228,19 +238,19 @@ static int tracking_redraw(RASPITEX_STATE *state)
 	{
 		int nPasses = state->imageProcessing->gpu_pass[gpu_shader_index].numberOfPasses;
 		RASPITEXUTIL_SHADER_PROGRAM_T* shader = & state->imageProcessing->gl_shader[gpu_shader_index];
-		FBOTexture* fbo_pair[2] = { & state->ping_pong_fbo[0], & state->ping_pong_fbo[1] };
+		destFBO = & state->ping_pong_fbo[fboIndex];
 		
+		if( nPasses == SHADER_CCMD_PASSES ) { nPasses = state->tracking_ccmd; }
+		else if( nPasses == SHADER_DISPLAY_PASS )
+		{
+			triggerCpuProcessing(state);
+			triggerCpu = 0;
+			nPasses = state->tracking_display ? 1 : 0;
+			destFBO = & state->window_fbo;
+		}
+			
 		if( nPasses != 0 )
 		{
-			if( nPasses == SHADER_CCMD_PASSES ) { nPasses = state->tracking_ccmd; }
-			else if( nPasses == SHADER_DISPLAY_PASS )
-			{
-				triggerCpuProcessing(state);
-				triggerCpu = 0;
-				nPasses = state->tracking_display ? 1 : 0;
-				fbo_pair[0] = & state->window_fbo;
-			}
-			
 			shader_uniform1i( shader, 0, 0 ); // sampler always refers to active texture 0
 			shader_uniform1f( shader, 1, 1.0 / w ); 
 			shader_uniform1f( shader, 2, 1.0 / h);
@@ -249,16 +259,16 @@ static int tracking_redraw(RASPITEX_STATE *state)
 
 			for(i=0;i<nPasses;i++)
 			{
+				//printf("%s : pass #%d\n",state->imageProcessing->gpu_pass[gpu_shader_index].shaderFile,i);
 				double p2i = 1<<i;
 				shader_uniform1i( shader, 3, i);
 				shader_uniform1f( shader, 4, p2i / w);
 				shader_uniform1f( shader, 5, p2i / h);
-				apply_shader_pass(state, shader, inTexTarget, inTex, fbo_pair[fboIndex]);
-				inTexTarget = fbo_pair[fboIndex]->target;
-				inTex = fbo_pair[fboIndex]->tex;
-				fboIndex = ( fboIndex + 1 ) % 2; // starts with 1, 
+				apply_shader_pass(state, shader, inTexTarget, inTex, destFBO );
+				inTexTarget = destFBO->target;
+				inTex = destFBO->tex;
+				fboIndex = ( fboIndex + 1 ) % 2; 
 			}
-			fboIndex = ( fboIndex + 1 ) % 2; // back to last written fbo
 		}
 	}
 

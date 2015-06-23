@@ -2,7 +2,6 @@
 uniform samplerExternalOES tex;
 uniform float xstep;
 uniform float ystep;
-
 varying vec2 texcoord;
 
 //#define SCORE_TEST 1
