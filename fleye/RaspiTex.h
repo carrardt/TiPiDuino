@@ -184,6 +184,7 @@ typedef struct RASPITEX_STATE
    /* processing options*/
    int tracking_ccmd;
    int tracking_display;
+   char tracking_script[64];
 	FBOTexture ping_pong_fbo[2];
 	FBOTexture window_fbo;
 	ProcessingStep processing_step[IMGPROC_MAX_STEPS];

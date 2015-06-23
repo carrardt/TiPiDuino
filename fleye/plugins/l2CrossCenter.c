@@ -1,10 +1,12 @@
+#include <stdio.h>
 #include "../cpu_tracking.h"
 
-void setup()
+void l2CrossCenter_setup()
 {
+	printf("L2CrossCenter plugin ready\n");
 }
 
-void run(CPU_TRACKING_STATE * state)
+void l2CrossCenter_run(CPU_TRACKING_STATE * state)
 {
 	const uint32_t* p = (uint32_t*) state->image;
 	int x,y;

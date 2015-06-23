@@ -3,7 +3,7 @@ varying vec2 texcoord;
 uniform float target_x;
 uniform float target_y;
 
-#define SCORE_TEST 1
+//#define SCORE_TEST 1
 
 #define UNIT (1.0/32.0)
 

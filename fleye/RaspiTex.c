@@ -103,6 +103,11 @@ int raspitex_parse_cmdline(RASPITEX_STATE *state,
 	else if( strcmp(arg1,"-disptrack")==0 )
 	{
 		state->tracking_display = 1;
+		return 1;
+	}
+	else if( strcmp(arg1,"-script")==0 )
+	{
+		strcpy(state->tracking_script,arg2);
 		return 2;
 	}
 
@@ -587,6 +592,7 @@ void raspitex_set_defaults(RASPITEX_STATE *state)
    // 4 iterations for per-pixel L2-cross generation
    state->tracking_ccmd = 4;
    state->tracking_display = 0;
+   strcpy(state->tracking_script,"default");
 }
 
 /* Stops the rendering loop and destroys MMAL resources

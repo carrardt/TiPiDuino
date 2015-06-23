@@ -593,9 +593,7 @@ int raspitexutil_build_shader_program(RASPITEXUTIL_SHADER_PROGRAM_T *p)
         p->uniform_locations[i] = glGetUniformLocation(p->program, p->uniform_names[i]);
         if (p->uniform_locations[i] == -1)
         {
-            vcos_log_error("Failed to get location for uniform %s",
-                  p->uniform_names[i]);
-            //goto fail;
+            vcos_log_trace("unused uniform %s", p->uniform_names[i]);
         }
         else {
             vcos_log_trace("Uniform for %s is %d",
@@ -701,7 +699,7 @@ int create_image_shader(RASPITEXUTIL_SHADER_PROGRAM_T* shader, const char* fsFil
 	shader->uniform_names[6] = "target_x";
 	shader->uniform_names[7] = "target_y";
 
-	printf("Compiling %s ...\n",fsFile);
+	printf("Compiling shader %s ...\n",fsFile);
     int rc = raspitexutil_build_shader_program(shader);    
 	return rc;
 }
@@ -718,7 +716,8 @@ int create_image_processing(RASPITEX_STATE* state, const char* filename)
 		vcos_log_error("failed to open processing script %s",tmp);
 		return -1;
 	}
-	
+	printf("using processing script %s\n",tmp);
+
 	state->n_processing_steps = 0;
 	do
 	{
@@ -735,23 +734,32 @@ int create_image_processing(RASPITEX_STATE* state, const char* filename)
 		else if( strcasecmp(tmp,"DISPLAY")==0 ) { count=SHADER_DISPLAY_PASS; }
 		else if( strcasecmp(tmp,"CPU")==0 ) { count=CPU_PROCESSING_PASS; }
 		else { count=atoi(tmp); }
+		state->processing_step[state->n_processing_steps].numberOfPasses = count;
 		
 		if( count != 0 )
 		{
 			if( count==CPU_PROCESSING_PASS )
 			{
 				sprintf(tmp,"./lib%s.so",state->processing_step[state->n_processing_steps].fileName);
+				printf("loading dynamic library %s ...\n",tmp);
 				void * handle = dlopen(tmp, RTLD_LOCAL | RTLD_NOW);
 				if(handle==NULL)
 				{
 					vcos_log_error("failed to load plugin %s",tmp);
 					return -1;
 				}
-				state->processing_step[state->n_processing_steps].cpu_processing = dlsym(handle,"run");
+				sprintf(tmp,"%s_run",state->processing_step[state->n_processing_steps].fileName);
+				state->processing_step[state->n_processing_steps].cpu_processing = dlsym(handle,tmp);
 				if( state->processing_step[state->n_processing_steps].cpu_processing == NULL)
 				{
-					vcos_log_error("can't find function 'run' in %s",tmp);
+					vcos_log_error("can't find function %s",tmp);
 					return -1;
+				}
+				sprintf(tmp,"%s_setup",state->processing_step[state->n_processing_steps].fileName);
+				void(*init_plugin)() = dlsym(handle,tmp);
+				if( init_plugin != NULL )
+				{
+					(*init_plugin) ();
 				}
 			}
 			else
@@ -766,9 +774,12 @@ int create_image_processing(RASPITEX_STATE* state, const char* filename)
 			}
 		}
 		++ state->n_processing_steps;
-		
+
 	} while( !feof(fp) && state->n_processing_steps < IMGPROC_MAX_STEPS );
-	
+
+	fclose(fp);
+	printf("processing pipeline has %d steps\n",state->n_processing_steps);
+
 	return 0;
 }
 

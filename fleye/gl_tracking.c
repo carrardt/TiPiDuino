@@ -81,9 +81,7 @@ static int shader_uniform1f(RASPITEXUTIL_SHADER_PROGRAM_T* shader, int i, GLfloa
 }
 
 static int tracking_init(RASPITEX_STATE *state)
-{
-	fprintf(stderr,"tracking_init\n"); fflush(stderr);
-	
+{	
    int i,rc;
     state->egl_config_attribs = tracking_egl_config_attribs;
     rc = raspitexutil_gl_init_2_0(state);
@@ -107,7 +105,7 @@ static int tracking_init(RASPITEX_STATE *state)
    GLCHK( glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MAG_FILTER, GL_LINEAR) );
    GLCHK( glBindTexture(GL_TEXTURE_EXTERNAL_OES,0) );
 
-	create_image_processing( state, "l2crosscenter" );
+	create_image_processing( state, state->tracking_script );
 
 	for(i=0;i<2;i++)
 	{
@@ -197,7 +195,7 @@ static int tracking_redraw(RASPITEX_STATE *state)
 {
 	static int FrameN=0;
 	int fboIndex = 0;
-	int i;
+	int step,i;
 	GLint inTexTarget = GL_TEXTURE_EXTERNAL_OES;
 	GLint inTex = state->texture;
 	FBOTexture* destFBO = & state->ping_pong_fbo[fboIndex];
@@ -207,9 +205,9 @@ static int tracking_redraw(RASPITEX_STATE *state)
     //glClear(GL_COLOR_BUFFER_BIT /*| GL_DEPTH_BUFFER_BIT*/);
     GLCHK( glActiveTexture(GL_TEXTURE0) );
 
-	for(i=0; i<state->n_processing_steps; ++i)
+	for(step=0; step<state->n_processing_steps; ++step)
 	{
-		int nPasses = state->processing_step[i].numberOfPasses;
+		int nPasses = state->processing_step[step].numberOfPasses;
 		destFBO = & state->ping_pong_fbo[fboIndex];
 		
 		if( nPasses == SHADER_CCMD_PASSES )
@@ -221,17 +219,18 @@ static int tracking_redraw(RASPITEX_STATE *state)
 			nPasses = state->tracking_display ? 1 : 0;
 			destFBO = & state->window_fbo;
 		}
-
+		
 		if ( nPasses == CPU_PROCESSING_PASS )
 		{
 			vcos_semaphore_wait(& state->cpu_tracking_state.end_processing_sem);
-			state->cpu_tracking_state.cpu_processing = state->processing_step[i].cpu_processing;
+			state->cpu_tracking_state.cpu_processing = state->processing_step[step].cpu_processing;
 			GLCHK( glReadPixels(0, 0, state->width, state->height,GL_RGBA,GL_UNSIGNED_BYTE, state->cpu_tracking_state.image) );
 			vcos_semaphore_post(& state->cpu_tracking_state.start_processing_sem);
 		}
 		else if( nPasses != 0 )
 		{
-			RASPITEXUTIL_SHADER_PROGRAM_T* shader = & state->processing_step[i].gl_shader;
+			//printf("step %s : %d passes\n",state->processing_step[step].fileName,nPasses);
+			RASPITEXUTIL_SHADER_PROGRAM_T* shader = & state->processing_step[step].gl_shader;
 			
 			shader_uniform1i( shader, 0, 0 ); // sampler always refers to active texture 0
 			shader_uniform1f( shader, 1, 1.0 / w ); 

@@ -6,7 +6,7 @@ void *cpuTrackingWorker(void *arg)
 {
 	CPU_TRACKING_STATE * state = (CPU_TRACKING_STATE *) arg;
 	
-	fprintf(stderr,"cpuTrackingWorker started: %dx%d\n",state->width,state->height); fflush(stderr);
+	printf("cpuTrackingWorker started: %dx%d\n",state->width,state->height);
 	
 	vcos_semaphore_wait( & state->start_processing_sem );
 	
