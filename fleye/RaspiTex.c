@@ -574,7 +574,6 @@ void raspitex_set_defaults(RASPITEX_STATE *state)
    state->opacity = 255;
    state->width = DEFAULT_WIDTH;
    state->height = DEFAULT_HEIGHT;
-   state->scene_id = 0; //RASPITEX_SCENE_SQUARE;
 
    state->ops.create_native_window = raspitexutil_create_native_window;
    state->ops.gl_init = raspitexutil_gl_init_1_0;

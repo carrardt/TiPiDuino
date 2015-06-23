@@ -108,11 +108,11 @@ static int tracking_init(RASPITEX_STATE *state)
    GLCHK( glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MAG_FILTER, GL_LINEAR) );
    GLCHK( glBindTexture(GL_TEXTURE_EXTERNAL_OES,0) );
 
-	state->imageProcessing = calloc(sizeof(ImageProcessing));
+	state->imageProcessing = malloc(sizeof(ImageProcessing));
 	{
 		ShaderPass gpuPasses[] = {
 			{ "maskInitL2Cross_fs"	, 1 } ,
-			{ "L2CrossIteation_fs"	, SHADER_CCMD_PASSES } ,
+			{ "L2CrossIteration_fs"	, SHADER_CCMD_PASSES } ,
 			{ "drawL2Cross_fs"		, SHADER_DISPLAY_PASS } ,
 			{NULL,0}
 		};
@@ -215,6 +215,7 @@ static int tracking_redraw(RASPITEX_STATE *state)
 	static int FrameN=0;
 	int fboIndex = 0;
 	int gpu_shader_index, i;
+	int triggerCpu = 1;
 	GLint inTexTarget = GL_TEXTURE_EXTERNAL_OES;
 	GLint inTex = state->texture;
 	int w = state->width;
@@ -235,7 +236,7 @@ static int tracking_redraw(RASPITEX_STATE *state)
 			else if( nPasses == SHADER_DISPLAY_PASS )
 			{
 				triggerCpuProcessing(state);
-				triggerCpu = false;
+				triggerCpu = 0;
 				nPasses = state->tracking_display ? 1 : 0;
 				fbo_pair[0] = & state->window_fbo;
 			}

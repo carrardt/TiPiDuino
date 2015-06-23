@@ -13,6 +13,7 @@
 #define SERVO_Y_VALUE_MAX 750
 #define SERVO_Y_ANGLE_MAX 45.0
 
+
 int init_gpio()
 {
   int i;
@@ -22,8 +23,8 @@ int init_gpio()
     return -1;
   }
 
-  // we use 2x 10bits digital outputs
-  for(i=0;i<20;++i)
+  // reserve 24 GPIO pins as output
+  for(i=0;i<24;++i)
   {
 	bcm2835_gpio_fsel(i, BCM2835_GPIO_FSEL_OUTP);
 	bcm2835_gpio_write(i, LOW);

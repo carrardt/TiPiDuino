@@ -15,7 +15,7 @@ float greenMask(vec3 p)
 	float rbMin = min( p.x, p.z );
 	float greenDiff = (p.y-rbMin);
 	float greenRatio = (p.y - rbMax) / (p.y-rbMin);
-	
+
 #ifdef SCORE_TEST
 	if( greenDiff>0.05 ) return clamp(greenRatio,0.0,1.0);
 	else return 0.0;

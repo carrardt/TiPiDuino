@@ -82,16 +82,16 @@ typedef struct RASPITEXUTIL_SHADER_PROGRAM_T
 #define SHADER_PASS_DISABLED 0
 #define SHADER_CCMD_PASSES -1
 #define SHADER_DISPLAY_PASS -2
-struct ShaderPass
+typedef struct ShaderPass
 {
 	const char* shaderFile; // fragment shader file
 	int numberOfPasses; // 0=disabled, -1=ccmd command line parameter
 } ShaderPass;
 
-#define IMGPROC_MAX_SHADERS 16;
-struct ImageProcessing
+#define IMGPROC_MAX_SHADERS 16
+typedef struct ImageProcessing
 {
-	const ShaderPass gpu_pass[IMGPROC_MAX_SHADERS];
+	ShaderPass gpu_pass[IMGPROC_MAX_SHADERS];
 	RASPITEXUTIL_SHADER_PROGRAM_T gl_shader[IMGPROC_MAX_SHADERS];
 	void(*cpu_processing)(CPU_TRACKING_STATE*) ;
 } ImageProcessing;
@@ -225,9 +225,7 @@ typedef struct RASPITEX_STATE
 
    MMAL_BUFFER_HEADER_T *preview_buf;  /// MMAL buffer currently bound to texture(s)
 
-   RASPITEX_SCENE_T scene_id;          /// Id of the scene to load
    RASPITEX_SCENE_OPS ops;             /// The interface for the current scene
-   void *scene_state;                  /// Pointer to scene specific data
    int verbose;                        /// Log FPS
 
    RASPITEX_CAPTURE capture;           /// Frame-buffer capture state

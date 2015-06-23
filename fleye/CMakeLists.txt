@@ -11,17 +11,24 @@ SET(COMPILE_DEFINITIONS "-Werror")
 SET(VCROOT "/opt/vc")
 SET(VCINC "${VCROOT}/include")
 SET(VCLIB "${VCROOT}/lib")
-SET(BCM2835LIB "/usr/loca/lib")
+
+file(GLOB GLSL_SOURCE_FILES "*.glsl")
+foreach(GLSL_SRC ${GLSL_SOURCE_FILES})
+	get_filename_component(GLSL_SRC_NODIR ${GLSL_SRC} NAME)
+	message("copy ${GLSL_SRC} to ${CMAKE_CURRENT_BINARY_DIR}/${GLSL_SRC_NODIR}")
+	configure_file( ${GLSL_SRC} ${CMAKE_CURRENT_BINARY_DIR}/${GLSL_SRC_NODIR} COPYONLY)
+endforeach(GLSL_SRC)
+
 
 include_directories(${VCINC} ${VCINC}/interface/vcos/pthreads ${VCINC}/interface/vmcs_host/linux)
 #add_definitions(-DGLSL_SRC_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}\" -pthread)
 add_definitions(-DGLSL_SRC_DIR=\".\" -pthread)
 
-link_directories(${VCLIB} ${BCM2835LIB})
+link_directories(${VCLIB})
 
-add_library(gpio gpio.c bcm2835.c)
+add_library(gpio gpio.cpp bcm2835.c)
 
-add_executable(fleye Fleye.c gl_tracking.c cpu_tracking.c RaspiCamControl.c RaspiCLI.c RaspiPreview.c RaspiTex.c RaspiTexUtil.c)
+add_executable(fleye Fleye.c gl_tracking.c cpu_tracking.c RaspiCamControl.c RaspiCLI.c RaspiPreview.c RaspiTex.c RaspiTexUtil.c l2CrossObjectCenter.c )
 add_executable(test_gpio test_gpio.c)
 
 set (MMAL_LIBS mmal_core mmal_util mmal_vc_client)

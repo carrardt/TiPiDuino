@@ -709,13 +709,13 @@ int create_image_processing(ImageProcessing* imgProc, const ShaderPass* gpuPasse
 {
 	int i,rc;
 	memset(imgProc,0,sizeof(ImageProcessing));
-	for(i=0;gpuPasses[i]->shaderFile!=0;++i)
+	for(i=0;gpuPasses[i].shaderFile!=0;++i)
 	{
 		imgProc->gpu_pass[i] = gpuPasses[i];
 		rc = create_image_shader( & imgProc->gl_shader[i] , imgProc->gpu_pass[i].shaderFile );
 		if( rc != 0 )
 		{
-			vcos_log_error("Shder creation failed for %s",imgProc->gpu_pass[i].shaderFile);
+			vcos_log_error("Shader creation failed for %s",imgProc->gpu_pass[i].shaderFile);
 			return rc;
 		}
 	}
