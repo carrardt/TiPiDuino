@@ -25,8 +25,8 @@ void l2CrossCenter_run(CPU_TRACKING_STATE * state)
 			int u = ( value & 0x7F000000 ) >> 28;
 			if( mask )
 			{
-				int h = (l<r) ? l : r;
-				int v = (b<u) ? b : u;
+				int h = l; //(l<r) ? l : r;
+				int v = b; //(b<u) ? b : u;
 				int m = (h<v) ? h : v;
 				if( m>L2max ) { count=sumx=sumy=0; L2max=m; }
 				else if( m==L2max )

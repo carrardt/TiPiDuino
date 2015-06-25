@@ -505,7 +505,6 @@ char* readShader(const char* fileName)
 	fseek(fp,0,SEEK_END);
 	size_t fsize = ftell(fp);
 	fseek(fp,0,SEEK_SET);
-	vcos_log_trace("file size is %d\n",fsize);
 	char* buf = (char*) malloc(fsize+1);
 	fread(buf,fsize,1,fp);
 	buf[fsize]='\0';
@@ -679,17 +678,17 @@ glFramebufferTexture2DOES(GL_FRAMEBUFFER_OES, GL_COLOR_ATTACHMENT0_OES, GL_TEXTU
  */
 }
 
-int create_image_shader(RASPITEXUTIL_SHADER_PROGRAM_T* shader, const char* fsFile)
+int create_image_shader(RASPITEXUTIL_SHADER_PROGRAM_T* shader, const char* vs, const char* fs)
 {
 	int i;
 	// generate score values corresponding to color matching of target
 	memset(shader,0,sizeof(RASPITEXUTIL_SHADER_PROGRAM_T));
 	
-	shader->vertex_source = readShader("common_vs");
+	shader->vertex_source = vs;
 	shader->attribute_names[0] = "vertex";
 	shader->attribute_names[1] = "tcoord";
 	
-	shader->fragment_source = readShader(fsFile);
+	shader->fragment_source = fs;
 	shader->uniform_names[0] = "tex";
 	shader->uniform_names[1] = "xstep";
 	shader->uniform_names[2] = "ystep";
@@ -698,14 +697,37 @@ int create_image_shader(RASPITEXUTIL_SHADER_PROGRAM_T* shader, const char* fsFil
 	shader->uniform_names[5] = "ystep2i";
 	shader->uniform_names[6] = "target_x";
 	shader->uniform_names[7] = "target_y";
+	shader->uniform_names[8] = "xsize";
+	shader->uniform_names[9] = "ysize";
 
-	printf("Compiling shader %s ...\n",fsFile);
     int rc = raspitexutil_build_shader_program(shader);    
 	return rc;
 }
 
 int create_image_processing(RASPITEX_STATE* state, const char* filename)
 {
+	const char* tex2d_prolog =
+		"uniform sampler2D tex;\n";
+	
+	const char* texExternal_prolog = 
+		"#extension GL_OES_EGL_image_external : require\n"
+		"uniform samplerExternalOES tex;\n";
+	
+	const char* uniforms = 	
+		"uniform float iter;\n"
+		"uniform float xstep;\n"
+		"uniform float ystep;\n"
+		"uniform float xsize;\n"
+		"uniform float ysize;\n"
+		"uniform float xstep2i;\n"
+		"uniform float ystep2i;\n"
+		"uniform float target_x;\n"
+		"uniform float target_y;\n";
+
+	const char* vs_attributes = 
+		"attribute vec2 vertex;\n"
+		"attribute vec2 tcoord;\n" ;
+
 	int rc;
 	FILE* fp;
 	char tmp[256];
@@ -764,8 +786,45 @@ int create_image_processing(RASPITEX_STATE* state, const char* filename)
 			}
 			else
 			{
-				rc = create_image_shader( & state->processing_step[state->n_processing_steps].gl_shader 
-										, state->processing_step[state->n_processing_steps].fileName );
+				char * vs = 0;
+				char * fs = 0;
+				const char * vsFileName = 0;
+				const char * fsFileName = 0;
+				{
+					const char* texProlog = "// No texture prolog\n";
+					char* user_vs = 0;
+					char* user_fs = 0;
+					char* sep = 0;
+
+					int vs_size=0, fs_size=0;
+					
+					sep = strchr( state->processing_step[state->n_processing_steps].fileName , ';' );
+					if( sep != NULL ) { *sep = '\0'; }
+					else 
+					{
+						vcos_log_error("bad shader string (%s) must be vertexshader;fragmentshader",state->processing_step[state->n_processing_steps].fileName);
+						return rc;
+					}
+					vsFileName = state->processing_step[state->n_processing_steps].fileName;
+					fsFileName = sep+1;
+					
+					user_vs = readShader(vsFileName);
+					vs_size = strlen(vs_attributes) + strlen(uniforms) + strlen(user_vs);
+					vs = malloc( vs_size + 8 );
+					sprintf(vs,"%s\n%s\n%s\n",vs_attributes,uniforms,user_vs);
+					free(user_vs);
+					//printf("Vertex Shader:\n%s",vs);
+
+					user_fs = readShader(fsFileName);
+					texProlog = ( state->n_processing_steps == 0 ) ? texExternal_prolog : tex2d_prolog ;
+					fs_size = strlen(texProlog) + strlen(uniforms) + strlen(user_fs) ;
+					fs = malloc( fs_size + 8 );
+					sprintf(fs,"%s\n%s\n%s\n",texProlog,uniforms,user_fs);
+					free(user_fs);
+					//printf("Fragment Shader:\n%s",fs);
+				}
+				printf("Compiling shader : %s/%s ...\n",vsFileName,fsFileName);
+				rc = create_image_shader( & state->processing_step[state->n_processing_steps].gl_shader, vs, fs );
 				if( rc != 0 )
 				{
 					vcos_log_error("error compiling shader %s",state->processing_step[state->n_processing_steps].fileName);

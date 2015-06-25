@@ -1,7 +1,3 @@
-#extension GL_OES_EGL_image_external : require
-uniform samplerExternalOES tex;
-uniform float xstep;
-uniform float ystep;
 varying vec2 texcoord;
 
 //#define SCORE_TEST 1
@@ -26,7 +22,11 @@ float greenMask(vec3 p)
 
 void main(void)
 {
-	vec3 ftex = texture2D(tex, vec2(texcoord.x, 1.0-texcoord.y) ).xyz;
+	vec3 ftex =( texture2D(tex, vec2(texcoord.x-xstep*0.5, (1.0-texcoord.y)-ystep*0.5) ).xyz
+			   + texture2D(tex, vec2(texcoord.x-xstep*0.5, (1.0-texcoord.y)+ystep*0.5) ).xyz
+			   + texture2D(tex, vec2(texcoord.x+xstep*0.5, (1.0-texcoord.y)-ystep*0.5) ).xyz
+			   + texture2D(tex, vec2(texcoord.x+xstep*0.5, (1.0-texcoord.y)+ystep*0.5) ).xyz ) * 0.25;
+			   
 #ifdef SCORE_TEST
 	gl_FragColor.x = greenMask(ftex);
 #else

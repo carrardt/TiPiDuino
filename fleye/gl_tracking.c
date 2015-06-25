@@ -35,17 +35,22 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <EGL/eglext.h>
 #include "cpu_tracking.h"
 
-static GLfloat varray[] =
+static GLfloat varray[8] =
 {
-   -1.0f, -1.0f, 1.0f, -1.0f, 1.0f, 1.0f,
-   1.0f, 1.0f, -1.0f, -1.0f, -1.0f, 1.0f,
+   -1.0f, -1.0f,
+   -1.0f, 1.0f,
+   1.0f, -1.0f,
+   1.0f, 1.0f
 };
 
-static GLfloat tarray[] =
+static GLfloat tarray[8] =
 {
-   0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f,
-   1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f,
+   0.0f, 0.0f,
+   0.0f, 1.0f,
+   1.0f, 0.0f,
+   1.0f, 1.0f,
 };
+
 
 static const EGLint tracking_egl_config_attribs[] =
 {
@@ -101,6 +106,8 @@ static int tracking_init(RASPITEX_STATE *state)
    GLCHK( glBindTexture(GL_TEXTURE_EXTERNAL_OES, state->texture) );
    GLCHK( glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE) );
    GLCHK( glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE) );
+   // GLCHK( glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MIN_FILTER, GL_NEAREST) );
+   // GLCHK( glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MAG_FILTER, GL_NEAREST) );
    GLCHK( glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MIN_FILTER, GL_LINEAR) );
    GLCHK( glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MAG_FILTER, GL_LINEAR) );
    GLCHK( glBindTexture(GL_TEXTURE_EXTERNAL_OES,0) );
@@ -176,11 +183,11 @@ static void apply_shader_pass(RASPITEX_STATE *state, RASPITEXUTIL_SHADER_PROGRAM
     
     GLCHK(glEnableVertexAttribArray(shader->attribute_locations[0]));
     GLCHK(glVertexAttribPointer(shader->attribute_locations[0], 2, GL_FLOAT, GL_FALSE, 0, varray));
+    
     GLCHK(glEnableVertexAttribArray(shader->attribute_locations[1]));
     GLCHK(glVertexAttribPointer(shader->attribute_locations[1], 2, GL_FLOAT, GL_FALSE, 0, tarray));
     
-    //glTranslatef(1.0f/scale,1.0f/scale,0.0f);
-    GLCHK(glDrawArrays(GL_TRIANGLES, 0, 6));
+    GLCHK(glDrawArrays(GL_TRIANGLE_STRIP, 0, 4));
     
     GLCHK(glDisableVertexAttribArray(shader->attribute_locations[0]));
     GLCHK(glDisableVertexAttribArray(shader->attribute_locations[1]));
@@ -219,7 +226,7 @@ static int tracking_redraw(RASPITEX_STATE *state)
 			nPasses = state->tracking_display ? 1 : 0;
 			destFBO = & state->window_fbo;
 		}
-		
+
 		if ( nPasses == CPU_PROCESSING_PASS )
 		{
 			vcos_semaphore_wait(& state->cpu_tracking_state.end_processing_sem);
@@ -237,14 +244,16 @@ static int tracking_redraw(RASPITEX_STATE *state)
 			shader_uniform1f( shader, 2, 1.0 / h);
 			shader_uniform1f( shader, 6, state->cpu_tracking_state.objectCenter[0][0] );
 			shader_uniform1f( shader, 7, state->cpu_tracking_state.objectCenter[0][1] );
+			shader_uniform1f( shader, 8, w ); 
+			shader_uniform1f( shader, 9, h);
 
 			for(i=0;i<nPasses;i++)
 			{
 				//printf("%s : pass #%d\n",state->imageProcessing->gpu_pass[gpu_shader_index].shaderFile,i);
 				double p2i = 1<<i;
-				shader_uniform1i( shader, 3, i);
-				shader_uniform1f( shader, 4, p2i / w);
-				shader_uniform1f( shader, 5, p2i / h);
+				shader_uniform1f( shader, 3, i);
+				shader_uniform1f( shader, 4, p2i /w );
+				shader_uniform1f( shader, 5, p2i /h );
 				apply_shader_pass(state, shader, inTexTarget, inTex, destFBO );
 				inTexTarget = destFBO->target;
 				inTex = destFBO->tex;
