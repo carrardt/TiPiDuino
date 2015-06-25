@@ -79,10 +79,12 @@ typedef struct RASPITEXUTIL_SHADER_PROGRAM_T
 } RASPITEXUTIL_SHADER_PROGRAM_T;
 
 
-#define SHADER_PASS_DISABLED 0
-#define SHADER_CCMD_PASSES -1
-#define SHADER_DISPLAY_PASS -2
-#define CPU_PROCESSING_PASS -255
+#define SHADER_PASS_DISABLED    		0
+#define SHADER_CCMD_PASSES 			   -1
+#define SHADER_DISPLAY_PASS 		   -2
+#define CPU_PROCESSING_PASS 		 -100
+#define CPU_PROCESSING_PASS_READBACK -101
+
 typedef struct ProcessingStep
 {
 	char fileName[256]; // fragment shader file or plugin name

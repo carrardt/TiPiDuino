@@ -1,4 +1,4 @@
 common_vs;maskInitL2Cross_fs 1
 common_vs;L2CrossIteration_fs CCMD
-l2CrossCenter CPU
+l2CrossCenter CPU_RB
 common_vs;drawL2Cross_fs DISPLAY

@@ -755,12 +755,13 @@ int create_image_processing(RASPITEX_STATE* state, const char* filename)
 		else if( strcasecmp(tmp,"CCMD")==0 ) { count=SHADER_CCMD_PASSES; }
 		else if( strcasecmp(tmp,"DISPLAY")==0 ) { count=SHADER_DISPLAY_PASS; }
 		else if( strcasecmp(tmp,"CPU")==0 ) { count=CPU_PROCESSING_PASS; }
+		else if( strcasecmp(tmp,"CPU_RB")==0 ) { count=CPU_PROCESSING_PASS_READBACK; }
 		else { count=atoi(tmp); }
 		state->processing_step[state->n_processing_steps].numberOfPasses = count;
 		
 		if( count != 0 )
 		{
-			if( count==CPU_PROCESSING_PASS )
+			if( count==CPU_PROCESSING_PASS || count==CPU_PROCESSING_PASS_READBACK )
 			{
 				sprintf(tmp,"./lib%s.so",state->processing_step[state->n_processing_steps].fileName);
 				printf("loading dynamic library %s ...\n",tmp);

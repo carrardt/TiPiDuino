@@ -29,14 +29,14 @@ void main(void)
 	{
 		float nbh = texture2D( tex, vec2(Tx_p,texcoord.y) ).x;
 		float NbhClass = clamp( sign(0.5-nbh) , 0.0 , 1.0 );
-		if( NbhClass==ObjClass && C.x<=nbh ) C.x += UNIT;
+		if( NbhClass==ObjClass && C.x==nbh ) C.x += UNIT;
 	}
 
 	if( Ty_p<1.0 )
 	{
 		float nbh = texture2D( tex, vec2(texcoord.x,Ty_p) ).y;
 		float NbhClass = clamp( sign(0.5-nbh) , 0.0 , 1.0 );
-		if( NbhClass==ObjClass && C.y<=nbh ) C.y += UNIT;
+		if( NbhClass==ObjClass && C.y==nbh ) C.y += UNIT;
 	}
 
 

@@ -227,11 +227,14 @@ static int tracking_redraw(RASPITEX_STATE *state)
 			destFBO = & state->window_fbo;
 		}
 
-		if ( nPasses == CPU_PROCESSING_PASS )
+		if ( nPasses == CPU_PROCESSING_PASS || nPasses == CPU_PROCESSING_PASS_READBACK )
 		{
 			vcos_semaphore_wait(& state->cpu_tracking_state.end_processing_sem);
 			state->cpu_tracking_state.cpu_processing = state->processing_step[step].cpu_processing;
-			GLCHK( glReadPixels(0, 0, state->width, state->height,GL_RGBA,GL_UNSIGNED_BYTE, state->cpu_tracking_state.image) );
+			if( nPasses == CPU_PROCESSING_PASS_READBACK )
+			{
+				GLCHK( glReadPixels(0, 0, state->width, state->height,GL_RGBA,GL_UNSIGNED_BYTE, state->cpu_tracking_state.image) );
+			}
 			vcos_semaphore_post(& state->cpu_tracking_state.start_processing_sem);
 		}
 		else if( nPasses != 0 )

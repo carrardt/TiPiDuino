@@ -19,15 +19,13 @@ void l2CrossCenter_run(CPU_TRACKING_STATE * state)
 		{
 			uint32_t value = *(p++);
 			uint32_t mask = ( value & 0x00000080 ) ;
-			int l = ( value & 0x0000007F ) >> 4;
-			int r = ( value & 0x00007F00 ) >> 12;
-			int b = ( value & 0x007F0000 ) >> 20;
-			int u = ( value & 0x7F000000 ) >> 28;
+			int r0 = ( value & 0x0000007F ) >> 4;
+			int u0 = ( value & 0x00007F00 ) >> 12;
+			int r1 = ( value & 0x007F0000 ) >> 20;
+			int u1 = ( value & 0x7F000000 ) >> 28;
 			if( mask )
 			{
-				int h = l; //(l<r) ? l : r;
-				int v = b; //(b<u) ? b : u;
-				int m = (h<v) ? h : v;
+				int m = (r0>u0) ? r0 : u0;
 				if( m>L2max ) { count=sumx=sumy=0; L2max=m; }
 				else if( m==L2max )
 				{
