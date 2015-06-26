@@ -784,6 +784,9 @@ int create_image_processing(RASPITEX_STATE* state, const char* filename)
 				{
 					(*init_plugin) ();
 				}
+				
+				state->cpu_tracking_state.cpu_processing[ state->cpu_tracking_state.nCpuFuncs ++ ] = state->processing_step[state->n_processing_steps].cpu_processing;
+				state->cpu_tracking_state.cpuFunc = 0;
 			}
 			else
 			{

@@ -8,13 +8,14 @@ void l2CrossCenter_setup()
 
 void l2CrossCenter_run(CPU_TRACKING_STATE * state)
 {
-	const uint32_t* p = (uint32_t*) state->image;
+	const uint32_t* base_ptr = (uint32_t*) state->image;
 	int x,y;
 	int sumx=0,sumy=0;
 	int count=0;
 	int L2max=1;
 	for(y=0;y<state->height;y++)
 	{
+		const uint32_t* p = base_ptr + y * state->width;
 		for(x=0;x<state->width;x++)
 		{
 			uint32_t value = *(p++);
@@ -30,8 +31,19 @@ void l2CrossCenter_run(CPU_TRACKING_STATE * state)
 				else if( m==L2max )
 				{
 					sumx += x;
+					if( r0 >= 1 ) sumx += 1<<(r0-1);
 					sumy += y;
+					if( u0 >= 1 ) sumy += 1<<(u0-1);
 					++count;
+				}
+			}
+			else /* skip empty space*/
+			{
+				if(r0>1)
+				{ 
+					int skip = 1<<(r0);
+					x += skip;
+					p += skip;
 				}
 			}
 		}

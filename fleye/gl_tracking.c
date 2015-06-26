@@ -230,7 +230,11 @@ static int tracking_redraw(RASPITEX_STATE *state)
 		if ( nPasses == CPU_PROCESSING_PASS || nPasses == CPU_PROCESSING_PASS_READBACK )
 		{
 			vcos_semaphore_wait(& state->cpu_tracking_state.end_processing_sem);
-			state->cpu_tracking_state.cpu_processing = state->processing_step[step].cpu_processing;
+			
+			// cpu function pointers are stored in state->cpu_tracking_state.cpu_processing[]
+			// and the cpu worker switch from one to another itself
+			// state->cpu_tracking_state.cpu_processing = state->processing_step[step].cpu_processing;
+			
 			if( nPasses == CPU_PROCESSING_PASS_READBACK )
 			{
 				GLCHK( glReadPixels(0, 0, state->width, state->height,GL_RGBA,GL_UNSIGNED_BYTE, state->cpu_tracking_state.image) );

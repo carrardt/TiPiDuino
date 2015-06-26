@@ -89,7 +89,7 @@ int main(int argc, char* argv[])
 {
 	int i=0,X=0,Y=0,L=0;
 	double Xf=0.0, Yf=0.0;
-	if(argc<4) return 1;
+	if(argc<5) return 1;
 
 	X = atoi(argv[2]);
 	Y = atoi(argv[3]);

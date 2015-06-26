@@ -12,10 +12,11 @@ void *cpuTrackingWorker(void *arg)
 	
 	while( state->do_processing )
 	{
-		if( state->cpu_processing!=0)
+		if( state->cpu_processing[ state->cpuFunc ] !=0 )
 		{
-			( * state->cpu_processing )( state );
+			( * state->cpu_processing[ state->cpuFunc ] )( state );
 		}
+		state->cpuFunc = ( state->cpuFunc + 1 ) % state->nCpuFuncs;
 
 		vcos_semaphore_post( & state->end_processing_sem );
 		
