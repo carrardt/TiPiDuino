@@ -1,5 +1,9 @@
-common_vs;maskInitL2Cross_fs 1
-common_vs;L2CrossIteration_fs CCMD
-l2CrossCenter CPU_RB
-gpioPanTiltFollower CPU
-common_vs;drawL2Cross_fs DISPLAY
+SHADER common_vs maskInitL2Cross_fs 1
+SHADER common_vs L2CrossIteration_fs CCMD
+CPU glReadPixels 0
+CPU l2CrossCenter 1
+CPU gpioPanTiltFollower 1
+SHADER common_vs drawL2Cross_fs DISPLAY
+CPU waitAsync 0
+CPU glDrawObjectCenter 0
+

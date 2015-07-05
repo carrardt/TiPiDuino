@@ -19,26 +19,34 @@ void main(void)
 	float tx = texcoord.x;
 	float ty = texcoord.y;
 
-	float Tx_p = tx + xstep2i;
-	float Ty_p = ty + ystep2i;
+	float Tx_p = tx + step2i.x;
+	float Ty_p = ty + step2i.y;
 	
 	// 0.0 means Class 1, 1.0 means void
-	float ObjClass = clamp( sign(0.5-C.x) , 0.0 , 1.0 );
+	float Obj1Class = clamp( sign(0.5-C.x) , 0.0 , 1.0 );
+	float Obj2Class = clamp( sign(0.5-C.z) , 0.0 , 1.0 );
 	
 	if( Tx_p<1.0 )
 	{
-		float nbh = texture2D( tex, vec2(Tx_p,texcoord.y) ).x;
-		float NbhClass = clamp( sign(0.5-nbh) , 0.0 , 1.0 );
-		if( NbhClass==ObjClass && C.x==nbh ) C.x += UNIT;
+		vec4 RightNbh = texture2D( tex, vec2(Tx_p,texcoord.y) );
+
+		float Nbh1Class = clamp( sign(0.5-RightNbh.x) , 0.0 , 1.0 );
+		if( Nbh1Class==Obj1Class && C.x==RightNbh.x ) C.x += UNIT;
+
+		float Nbh2Class = clamp( sign(0.5-RightNbh.z) , 0.0 , 1.0 );
+		if( Nbh2Class==Obj2Class && C.z==RightNbh.z ) C.z += UNIT;		
 	}
 
 	if( Ty_p<1.0 )
 	{
-		float nbh = texture2D( tex, vec2(texcoord.x,Ty_p) ).y;
-		float NbhClass = clamp( sign(0.5-nbh) , 0.0 , 1.0 );
-		if( NbhClass==ObjClass && C.y==nbh ) C.y += UNIT;
-	}
+		vec4 UpNbh = texture2D( tex, vec2(Tx_p,texcoord.y) );
 
+		float Nbh1Class = clamp( sign(0.5-UpNbh.y) , 0.0 , 1.0 );
+		if( Nbh1Class==Obj1Class && C.y==UpNbh.y ) C.y += UNIT;
+
+		float Nbh2Class = clamp( sign(0.5-UpNbh.w) , 0.0 , 1.0 );
+		if( Nbh2Class==Obj2Class && C.w==UpNbh.w ) C.w += UNIT;		
+	}
 
 	gl_FragColor = C;
 }

@@ -83,12 +83,15 @@ typedef struct RASPITEXUTIL_SHADER_PROGRAM_T
 #define SHADER_CCMD_PASSES 			   -1
 #define SHADER_DISPLAY_PASS 		   -2
 #define CPU_PROCESSING_PASS 		 -100
-#define CPU_PROCESSING_PASS_READBACK -101
+
+#define PROCESSING_MAIN_THREAD		    0
+#define PROCESSING_ASYNC_THREAD			1
 
 typedef struct ProcessingStep
 {
-	char fileName[256]; // fragment shader file or plugin name
 	int numberOfPasses; // 0=disabled, -1=ccmd command line parameter
+	int exec_thread;
+	int read_fb;
 	RASPITEXUTIL_SHADER_PROGRAM_T gl_shader;
 	void(*cpu_processing)(CPU_TRACKING_STATE*);
 } ProcessingStep;

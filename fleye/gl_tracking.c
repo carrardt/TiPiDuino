@@ -51,7 +51,6 @@ static GLfloat tarray[8] =
    1.0f, 1.0f,
 };
 
-
 static const EGLint tracking_egl_config_attribs[] =
 {
    EGL_RED_SIZE,   8,
@@ -84,6 +83,18 @@ static int shader_uniform1f(RASPITEXUTIL_SHADER_PROGRAM_T* shader, int i, GLfloa
 	}
 	else { return -1; }
 }
+
+static int shader_uniform2f(RASPITEXUTIL_SHADER_PROGRAM_T* shader, int i, GLfloat v0, GLfloat v1)
+{
+    GLCHK(glUseProgram(shader->program));
+    if( shader->uniform_locations[i]!=-1 )
+    {
+		GLCHK(glUniform2f(shader->uniform_locations[i], v0, v1));
+		return 0;
+	}
+	else { return -1; }
+}
+
 
 static int tracking_init(RASPITEX_STATE *state)
 {	
@@ -143,17 +154,16 @@ static int tracking_init(RASPITEX_STATE *state)
 	rc = vcos_semaphore_create(& state->cpu_tracking_state.start_processing_sem,"start_processing_sem", 1);
 	if (rc != VCOS_SUCCESS)
 	{
-		 vcos_log_error("Failed to start cpu processing start semaphor %d",rc);
+		 vcos_log_error("Failed to create start_processing_sem semaphor %d",rc);
 		 return rc;
 	}
 
 	rc = vcos_semaphore_create(& state->cpu_tracking_state.end_processing_sem,"end_processing_sem", 1);
 	if (rc != VCOS_SUCCESS)
 	{
-		 vcos_log_error("Failed to start cpu processing end semaphor %d",rc);
+		 vcos_log_error("Failed to create end_processing_sem semaphor %d",rc);
 		 return rc;
 	}
-	vcos_semaphore_post(& state->cpu_tracking_state.end_processing_sem);
 
 	rc = vcos_thread_create(& state->cpuTrackingThread, "cpu-tracking-worker", NULL, cpuTrackingWorker, & state->cpu_tracking_state);
 	if (rc != VCOS_SUCCESS)
@@ -208,59 +218,70 @@ static int tracking_redraw(RASPITEX_STATE *state)
 	FBOTexture* destFBO = & state->ping_pong_fbo[fboIndex];
 	int w = state->width;
 	int h = state->height;
-	
+
+	// wait previous async cycle to be finished
+	int nPrevTasksToWait = state->cpu_tracking_state.nAvailCpuFuncs - state->cpu_tracking_state.nFinishedCpuFuncs;
+	//printf("waiting %d (%d/%d) previous tasks\n",nPrevTasksToWait,state->cpu_tracking_state.nFinishedCpuFuncs,state->cpu_tracking_state.nAvailCpuFuncs);
+	while( nPrevTasksToWait > 0 )
+	{
+		vcos_semaphore_wait( & state->cpu_tracking_state.end_processing_sem );
+		-- nPrevTasksToWait;
+	}
+	state->cpu_tracking_state.nAvailCpuFuncs = 0;
+	state->cpu_tracking_state.nFinishedCpuFuncs = 0;
+
     //glClear(GL_COLOR_BUFFER_BIT /*| GL_DEPTH_BUFFER_BIT*/);
     GLCHK( glActiveTexture(GL_TEXTURE0) );
 
 	for(step=0; step<state->n_processing_steps; ++step)
 	{
 		int nPasses = state->processing_step[step].numberOfPasses;
-		destFBO = & state->ping_pong_fbo[fboIndex];
-		
-		if( nPasses == SHADER_CCMD_PASSES )
-		{ 
-			nPasses = state->tracking_ccmd;
-		}
-		else if( nPasses == SHADER_DISPLAY_PASS )
-		{
-			nPasses = state->tracking_display ? 1 : 0;
-			destFBO = & state->window_fbo;
-		}
 
-		if ( nPasses == CPU_PROCESSING_PASS || nPasses == CPU_PROCESSING_PASS_READBACK )
+		if ( nPasses == CPU_PROCESSING_PASS )
 		{
-			vcos_semaphore_wait(& state->cpu_tracking_state.end_processing_sem);
-			
-			// cpu function pointers are stored in state->cpu_tracking_state.cpu_processing[]
-			// and the cpu worker switch from one to another itself
-			// state->cpu_tracking_state.cpu_processing = state->processing_step[step].cpu_processing;
-			
-			if( nPasses == CPU_PROCESSING_PASS_READBACK )
+			if( state->processing_step[step].exec_thread == 0 )
 			{
-				GLCHK( glReadPixels(0, 0, state->width, state->height,GL_RGBA,GL_UNSIGNED_BYTE, state->cpu_tracking_state.image) );
+				//printf("sync exec cpu step #%d\n",step);
+				( * state->processing_step[step].cpu_processing ) (& state->cpu_tracking_state);
 			}
-			vcos_semaphore_post(& state->cpu_tracking_state.start_processing_sem);
+			else
+			{
+				//printf("async start cpu step #%d\n",step);
+				state->cpu_tracking_state.cpu_processing[ state->cpu_tracking_state.nAvailCpuFuncs ] = state->processing_step[step].cpu_processing;
+				++ state->cpu_tracking_state.nAvailCpuFuncs;
+				vcos_semaphore_post(& state->cpu_tracking_state.start_processing_sem);
+			}
 		}
 		else if( nPasses != 0 )
 		{
-			//printf("step %s : %d passes\n",state->processing_step[step].fileName,nPasses);
+			destFBO = & state->ping_pong_fbo[fboIndex];
+			
+			if( nPasses == SHADER_CCMD_PASSES )
+			{ 
+				nPasses = state->tracking_ccmd;
+			}
+			else if( nPasses == SHADER_DISPLAY_PASS )
+			{
+				nPasses = state->tracking_display ? 1 : 0;
+				destFBO = & state->window_fbo;
+			}
+
+			//printf("shader step %d : %d passes\n",step,nPasses);
 			RASPITEXUTIL_SHADER_PROGRAM_T* shader = & state->processing_step[step].gl_shader;
 			
 			shader_uniform1i( shader, 0, 0 ); // sampler always refers to active texture 0
-			shader_uniform1f( shader, 1, 1.0 / w ); 
-			shader_uniform1f( shader, 2, 1.0 / h);
-			shader_uniform1f( shader, 6, state->cpu_tracking_state.objectCenter[0][0] );
-			shader_uniform1f( shader, 7, state->cpu_tracking_state.objectCenter[0][1] );
-			shader_uniform1f( shader, 8, w ); 
-			shader_uniform1f( shader, 9, h);
+			shader_uniform2f( shader, 1, 1.0 / w, 1.0 / h ); 
+			shader_uniform2f( shader, 2, w, h ); 
+			shader_uniform2f( shader, 6, state->cpu_tracking_state.objectCenter[0][0] , state->cpu_tracking_state.objectCenter[0][1] ); 
+			shader_uniform2f( shader, 7, state->cpu_tracking_state.objectCenter[1][0] , state->cpu_tracking_state.objectCenter[1][1] ); 
 
 			for(i=0;i<nPasses;i++)
 			{
 				//printf("%s : pass #%d\n",state->imageProcessing->gpu_pass[gpu_shader_index].shaderFile,i);
 				double p2i = 1<<i;
 				shader_uniform1f( shader, 3, i);
-				shader_uniform1f( shader, 4, p2i /w );
-				shader_uniform1f( shader, 5, p2i /h );
+				shader_uniform1f( shader, 4, p2i);
+				shader_uniform2f( shader, 5, p2i /w , p2i /h );
 				apply_shader_pass(state, shader, inTexTarget, inTex, destFBO );
 				inTexTarget = destFBO->target;
 				inTex = destFBO->tex;
@@ -270,6 +291,10 @@ static int tracking_redraw(RASPITEX_STATE *state)
 	}
 	
     GLCHK(glUseProgram(0));
+
+	// terminate async processing cycle
+	state->cpu_tracking_state.cpu_processing[ state->cpu_tracking_state.nAvailCpuFuncs ] = 0;
+	vcos_semaphore_post(& state->cpu_tracking_state.start_processing_sem);
 
     return 0;
 }

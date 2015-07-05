@@ -690,15 +690,13 @@ int create_image_shader(RASPITEXUTIL_SHADER_PROGRAM_T* shader, const char* vs, c
 	
 	shader->fragment_source = fs;
 	shader->uniform_names[0] = "tex";
-	shader->uniform_names[1] = "xstep";
-	shader->uniform_names[2] = "ystep";
+	shader->uniform_names[1] = "step";
+	shader->uniform_names[2] = "size";
 	shader->uniform_names[3] = "iter";
-	shader->uniform_names[4] = "xstep2i";
-	shader->uniform_names[5] = "ystep2i";
-	shader->uniform_names[6] = "target_x";
-	shader->uniform_names[7] = "target_y";
-	shader->uniform_names[8] = "xsize";
-	shader->uniform_names[9] = "ysize";
+	shader->uniform_names[4] = "iter2i";
+	shader->uniform_names[5] = "step2i";
+	shader->uniform_names[6] = "obj0Center";
+	shader->uniform_names[7] = "obj1Center";
 
     int rc = raspitexutil_build_shader_program(shader);    
 	return rc;
@@ -707,26 +705,28 @@ int create_image_shader(RASPITEXUTIL_SHADER_PROGRAM_T* shader, const char* vs, c
 int create_image_processing(RASPITEX_STATE* state, const char* filename)
 {
 	const char* tex2d_prolog =
-		"uniform sampler2D tex;\n";
+		"uniform sampler2D tex;\n"
+		;
 	
 	const char* texExternal_prolog = 
 		"#extension GL_OES_EGL_image_external : require\n"
-		"uniform samplerExternalOES tex;\n";
+		"uniform samplerExternalOES tex;\n"
+		;
 	
 	const char* uniforms = 	
+		"uniform vec2 step;\n"
+		"uniform vec2 size;\n"
 		"uniform float iter;\n"
-		"uniform float xstep;\n"
-		"uniform float ystep;\n"
-		"uniform float xsize;\n"
-		"uniform float ysize;\n"
-		"uniform float xstep2i;\n"
-		"uniform float ystep2i;\n"
-		"uniform float target_x;\n"
-		"uniform float target_y;\n";
+		"uniform float iter2i;\n"
+		"uniform vec2 step2i;\n"
+		"uniform vec2 obj0Center;\n"
+		"uniform vec2 obj1Center;\n"
+		;
 
 	const char* vs_attributes = 
 		"attribute vec2 vertex;\n"
-		"attribute vec2 tcoord;\n" ;
+		"attribute vec2 tcoord;\n"
+		;
 
 	int rc;
 	FILE* fp;
@@ -741,104 +741,92 @@ int create_image_processing(RASPITEX_STATE* state, const char* filename)
 	printf("using processing script %s\n",tmp);
 
 	state->n_processing_steps = 0;
-	do
+	state->cpu_tracking_state.cpuFunc = 0;
+	state->cpu_tracking_state.nAvailCpuFuncs = 0;
+	state->cpu_tracking_state.nFinishedCpuFuncs = 0;
+
+	while( state->n_processing_steps<IMGPROC_MAX_STEPS  && !feof(fp) && fscanf(fp,"%s",tmp)==1 )
 	{
-
-		int count=0;
-		tmp[0]='\0';
+		memset( & state->processing_step[state->n_processing_steps] , 0, sizeof(ProcessingStep) );
 		
-		state->processing_step[state->n_processing_steps].fileName[0] = '\0';
-		state->processing_step[state->n_processing_steps].cpu_processing = NULL;
-		
-		fscanf(fp,"%s %s\n",state->processing_step[state->n_processing_steps].fileName,tmp);
-		if( strcasecmp(tmp,"DISABLED")==0 ) { count=0; }
-		else if( strcasecmp(tmp,"CCMD")==0 ) { count=SHADER_CCMD_PASSES; }
-		else if( strcasecmp(tmp,"DISPLAY")==0 ) { count=SHADER_DISPLAY_PASS; }
-		else if( strcasecmp(tmp,"CPU")==0 ) { count=CPU_PROCESSING_PASS; }
-		else if( strcasecmp(tmp,"CPU_RB")==0 ) { count=CPU_PROCESSING_PASS_READBACK; }
-		else { count=atoi(tmp); }
-		state->processing_step[state->n_processing_steps].numberOfPasses = count;
-		
-		if( count != 0 )
+		if( strcasecmp(tmp,"SHADER")==0 )
 		{
-			if( count==CPU_PROCESSING_PASS || count==CPU_PROCESSING_PASS_READBACK )
+			char vsFileName[64];
+			char fsFileName[64];
+			int count = 0;
+			char * vs = 0;
+			char * fs = 0;
+			fscanf(fp,"%s %s %s\n",vsFileName,fsFileName,tmp);
+			if( strcasecmp(tmp,"DISABLED")==0 ) { count=0; }
+			else if( strcasecmp(tmp,"CCMD")==0 ) { count=SHADER_CCMD_PASSES; }
+			else if( strcasecmp(tmp,"DISPLAY")==0 ) { count=SHADER_DISPLAY_PASS; }
+			else { count=atoi(tmp); }
+			state->processing_step[state->n_processing_steps].numberOfPasses = count;
 			{
-				sprintf(tmp,"./lib%s.so",state->processing_step[state->n_processing_steps].fileName);
-				printf("loading dynamic library %s ...\n",tmp);
-				void * handle = dlopen(tmp, RTLD_LOCAL | RTLD_NOW);
-				if(handle==NULL)
-				{
-					vcos_log_error("failed to load plugin %s",tmp);
-					return -1;
-				}
-				sprintf(tmp,"%s_run",state->processing_step[state->n_processing_steps].fileName);
-				state->processing_step[state->n_processing_steps].cpu_processing = dlsym(handle,tmp);
-				if( state->processing_step[state->n_processing_steps].cpu_processing == NULL)
-				{
-					vcos_log_error("can't find function %s",tmp);
-					return -1;
-				}
-				sprintf(tmp,"%s_setup",state->processing_step[state->n_processing_steps].fileName);
-				void(*init_plugin)() = dlsym(handle,tmp);
-				if( init_plugin != NULL )
-				{
-					(*init_plugin) ();
-				}
-				
-				state->cpu_tracking_state.cpu_processing[ state->cpu_tracking_state.nCpuFuncs ++ ] = state->processing_step[state->n_processing_steps].cpu_processing;
-				state->cpu_tracking_state.cpuFunc = 0;
+				const char* texProlog = "// No texture prolog\n";
+				char* user_vs = 0;
+				char* user_fs = 0;
+				char* sep = 0;
+				int vs_size=0, fs_size=0;
+
+				user_vs = readShader(vsFileName);
+				vs_size = strlen(vs_attributes) + strlen(uniforms) + strlen(user_vs);
+				vs = malloc( vs_size + 8 );
+				sprintf(vs,"%s\n%s\n%s\n",vs_attributes,uniforms,user_vs);
+				free(user_vs);
+				//printf("Vertex Shader:\n%s",vs);
+
+				user_fs = readShader(fsFileName);
+				texProlog = ( state->n_processing_steps == 0 ) ? texExternal_prolog : tex2d_prolog ;
+				fs_size = strlen(texProlog) + strlen(uniforms) + strlen(user_fs) ;
+				fs = malloc( fs_size + 8 );
+				sprintf(fs,"%s\n%s\n%s\n",texProlog,uniforms,user_fs);
+				free(user_fs);
+				//printf("Fragment Shader:\n%s",fs);
 			}
-			else
+			printf("Compiling shader : %s/%s ...\n",vsFileName,fsFileName);
+			rc = create_image_shader( & state->processing_step[state->n_processing_steps].gl_shader, vs, fs );
+			if( rc != 0 )
 			{
-				char * vs = 0;
-				char * fs = 0;
-				const char * vsFileName = 0;
-				const char * fsFileName = 0;
-				{
-					const char* texProlog = "// No texture prolog\n";
-					char* user_vs = 0;
-					char* user_fs = 0;
-					char* sep = 0;
-
-					int vs_size=0, fs_size=0;
-					
-					sep = strchr( state->processing_step[state->n_processing_steps].fileName , ';' );
-					if( sep != NULL ) { *sep = '\0'; }
-					else 
-					{
-						vcos_log_error("bad shader string (%s) must be vertexshader;fragmentshader",state->processing_step[state->n_processing_steps].fileName);
-						return rc;
-					}
-					vsFileName = state->processing_step[state->n_processing_steps].fileName;
-					fsFileName = sep+1;
-					
-					user_vs = readShader(vsFileName);
-					vs_size = strlen(vs_attributes) + strlen(uniforms) + strlen(user_vs);
-					vs = malloc( vs_size + 8 );
-					sprintf(vs,"%s\n%s\n%s\n",vs_attributes,uniforms,user_vs);
-					free(user_vs);
-					//printf("Vertex Shader:\n%s",vs);
-
-					user_fs = readShader(fsFileName);
-					texProlog = ( state->n_processing_steps == 0 ) ? texExternal_prolog : tex2d_prolog ;
-					fs_size = strlen(texProlog) + strlen(uniforms) + strlen(user_fs) ;
-					fs = malloc( fs_size + 8 );
-					sprintf(fs,"%s\n%s\n%s\n",texProlog,uniforms,user_fs);
-					free(user_fs);
-					//printf("Fragment Shader:\n%s",fs);
-				}
-				printf("Compiling shader : %s/%s ...\n",vsFileName,fsFileName);
-				rc = create_image_shader( & state->processing_step[state->n_processing_steps].gl_shader, vs, fs );
-				if( rc != 0 )
-				{
-					vcos_log_error("error compiling shader %s",state->processing_step[state->n_processing_steps].fileName);
-					return rc;
-				}
+				vcos_log_error("failed to compile shader");
+				return rc;
 			}
 		}
+		else if( strcasecmp(tmp,"CPU")==0 )
+		{
+			char tmp2[256];
+			state->processing_step[state->n_processing_steps].numberOfPasses = CPU_PROCESSING_PASS;
+			fscanf(fp,"%s %d\n",tmp, & state->processing_step[state->n_processing_steps].exec_thread );
+			sprintf(tmp2,"./lib%s.so",tmp);
+			printf("loading dynamic library %s ...\n",tmp2);
+			void * handle = dlopen(tmp2, RTLD_LOCAL | RTLD_NOW);
+			if(handle==NULL)
+			{
+				vcos_log_error("failed to load plugin %s",tmp2);
+				return -1;
+			}
+			sprintf(tmp2,"%s_run",tmp);
+			state->processing_step[state->n_processing_steps].cpu_processing = dlsym(handle,tmp2);
+			if( state->processing_step[state->n_processing_steps].cpu_processing == NULL)
+			{
+				vcos_log_error("can't find function %s",tmp2);
+				return -1;
+			}
+			sprintf(tmp2,"%s_setup",tmp);
+			void(*init_plugin)() = dlsym(handle,tmp2);
+			if( init_plugin != NULL )
+			{
+				(*init_plugin) ();
+			}
+		}
+		else
+		{
+			vcos_log_error("bad processing step type '%s'",tmp);
+			return -1;
+		}
+				
 		++ state->n_processing_steps;
-
-	} while( !feof(fp) && state->n_processing_steps < IMGPROC_MAX_STEPS );
+	}
 
 	fclose(fp);
 	printf("processing pipeline has %d steps\n",state->n_processing_steps);
