@@ -1,6 +1,6 @@
-varying vec2 texcoord;
 
 void main(void)
 {
-	gl_FragColor = texture2D(tex, texcoord );
+	vec2 tc = gl_PointCoord;
+	gl_FragColor = texture2D(tex, tc );
 }

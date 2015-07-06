@@ -562,9 +562,35 @@ int raspitexutil_build_shader_program(RASPITEXUTIL_SHADER_PROGRAM_T *p)
     glGetProgramiv(p->program, GL_LINK_STATUS, &status);
     if (! status)
     {
+		char* str=0;
+		char* pendl=0;
+		int line=1;
         vcos_log_error("Failed to link shader program");
         glGetProgramInfoLog(p->program, sizeof(log), &logLen, log);
-        vcos_log_error("Program info log %s", log);
+        vcos_log_error("%s", log);
+        printf("Vertex shader:\n");
+
+        str=p->vertex_source;
+        pendl=0;
+        line=1;
+        while( (pendl=strchr(str,'\n'))!=0 )
+        {
+			*pendl = '\0';
+			printf("%d: %s\n",line++,str);
+			str = pendl+1;
+		}
+        printf("Fragment shader:\n");
+
+        str=p->fragment_source;
+        pendl=0;
+        line=1;
+        while( (pendl=strchr(str,'\n'))!=0 )
+        {
+			*pendl = '\0';
+			printf("%d: %s\n",line++,str);
+			str = pendl+1;
+		}
+
         goto fail;
     }
 
@@ -686,7 +712,6 @@ int create_image_shader(RASPITEXUTIL_SHADER_PROGRAM_T* shader, const char* vs, c
 	
 	shader->vertex_source = vs;
 	shader->attribute_names[0] = "vertex";
-	shader->attribute_names[1] = "tcoord";
 	
 	shader->fragment_source = fs;
 	shader->uniform_names[0] = "tex";
@@ -725,7 +750,6 @@ int create_image_processing(RASPITEX_STATE* state, const char* filename)
 
 	const char* vs_attributes = 
 		"attribute vec2 vertex;\n"
-		"attribute vec2 tcoord;\n"
 		;
 
 	int rc;

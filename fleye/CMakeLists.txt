@@ -5,6 +5,9 @@ project (Fleye)
 # 
 # 60+ fps configs
 # ./fleye -v -ex fixedfps -w 1296 -h 972 -p 0,0,384,256 --ccmd 5 --disptrack --script passthru
+#
+# pixel coord precision test
+# ./fleye -v -ex fixedfps -w 1296 -h 972 -p 32,32,416,288 --ccmd 5 --disptrack --script wincoord
 
 SET(COMPILE_DEFINITIONS "-Werror")
 

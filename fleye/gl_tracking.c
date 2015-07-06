@@ -37,18 +37,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 static GLfloat varray[8] =
 {
-   -1.0f, -1.0f,
-   -1.0f, 1.0f,
-   1.0f, -1.0f,
-   1.0f, 1.0f
-};
-
-static GLfloat tarray[8] =
-{
-   0.0f, 0.0f,
-   0.0f, 1.0f,
-   1.0f, 0.0f,
-   1.0f, 1.0f,
+   0.0f, 0.0f
 };
 
 static const EGLint tracking_egl_config_attribs[] =
@@ -193,14 +182,10 @@ static void apply_shader_pass(RASPITEX_STATE *state, RASPITEXUTIL_SHADER_PROGRAM
     
     GLCHK(glEnableVertexAttribArray(shader->attribute_locations[0]));
     GLCHK(glVertexAttribPointer(shader->attribute_locations[0], 2, GL_FLOAT, GL_FALSE, 0, varray));
-    
-    GLCHK(glEnableVertexAttribArray(shader->attribute_locations[1]));
-    GLCHK(glVertexAttribPointer(shader->attribute_locations[1], 2, GL_FLOAT, GL_FALSE, 0, tarray));
-    
-    GLCHK(glDrawArrays(GL_TRIANGLE_STRIP, 0, 4));
+        
+    GLCHK(glDrawArrays(GL_POINTS, 0, 1));
     
     GLCHK(glDisableVertexAttribArray(shader->attribute_locations[0]));
-    GLCHK(glDisableVertexAttribArray(shader->attribute_locations[1]));
     
     GLCHK(glBindTexture(srcTarget,0));
     GLCHK(glDisable(srcTarget));
