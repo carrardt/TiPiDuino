@@ -268,7 +268,7 @@ static int tracking_redraw(RASPITEX_STATE *state)
 
 			//printf("shader step %d : %d passes\n",step,nPasses);
 			RASPITEXUTIL_SHADER_PROGRAM_T* shader = & state->processing_step[step].gl_shader;
-			
+
 			shader_uniform1i( shader, 0, 0 ); // sampler always refers to active texture 0
 			shader_uniform2f( shader, 1, 1.0 / w, 1.0 / h ); 
 			shader_uniform2f( shader, 2, w, h ); 

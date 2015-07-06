@@ -20,15 +20,14 @@ void l2CrossCenter_run(CPU_TRACKING_STATE * state)
 		for(x=0;x<state->width;x++)
 		{
 			uint32_t value = *(p++);
-			uint32_t mask = ( value & 0x00800080 ) ;
-			int r1 = ( value & 0x0000007F ) >> 4;
-			int u1 = ( value & 0x00007F00 ) >> 12;
-			int r2 = ( value & 0x007F0000 ) >> 20;
-			int u2 = ( value & 0x7F000000 ) >> 28;
-			if( mask )
+			uint32_t mask1 = ( value & 0x00008080 ) ;
+			uint32_t mask2 = ( value & 0x80800000 ) ;
+			if( mask1 )
 			{
+				int r1 = ( value & 0x0000007F ) >> 4;
+				int u1 = ( value & 0x00007F00 ) >> 12;
+
 				int m1 = (r1>u1) ? r1 : u1;
-				int m2 = (r2>u2) ? r2 : u2;
 
 				if( m1>obj1_L2max ) { obj1_count = obj1_sumx = obj1_sumy = 0; obj1_L2max=m1; }
 				else if( m1==obj1_L2max )
@@ -39,7 +38,12 @@ void l2CrossCenter_run(CPU_TRACKING_STATE * state)
 					if( u1 >= 1 ) obj1_sumy += 1<<(u1-1);
 					++ obj1_count;
 				}
-
+			}
+			if( mask2 )
+			{
+				int r2 = ( value & 0x007F0000 ) >> 20;
+				int u2 = ( value & 0x7F000000 ) >> 28;
+				int m2 = (r2>u2) ? r2 : u2;
 				if( m2>obj2_L2max ) { obj2_count = obj2_sumx = obj2_sumy = 0; obj2_L2max=m2; }
 				else if( m2==obj2_L2max )
 				{

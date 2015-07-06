@@ -19,7 +19,7 @@ float laserMask(vec3 p)
 	float gbMax = max( p.y, p.z );
 	float redDiff = p.x - gbMax;
 
-	if( i2>0.33 && redDiff>0.33 ) return 1.0;
+	if( i2>0.33 && redDiff>0.25 ) return 1.0;
 	else return 0.0;
 }
 
