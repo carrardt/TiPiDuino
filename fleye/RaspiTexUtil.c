@@ -790,6 +790,7 @@ int create_image_processing(RASPITEX_STATE* state, const char* filename)
 				const char* texProlog = "// No texture prolog\n";
 				char* user_vs = 0;
 				char* user_fs = 0;
+				char* inc_fs = 0;
 				char* sep = 0;
 				int vs_size=0, fs_size=0;
 
@@ -801,10 +802,12 @@ int create_image_processing(RASPITEX_STATE* state, const char* filename)
 				//printf("Vertex Shader:\n%s",vs);
 
 				user_fs = readShader(fsFileName);
+				inc_fs = readShader("inc_fs");
 				texProlog = ( state->n_processing_steps == 0 ) ? texExternal_prolog : tex2d_prolog ;
-				fs_size = strlen(texProlog) + strlen(uniforms) + strlen(user_fs) ;
+				fs_size = strlen(texProlog) + strlen(uniforms) + strlen(inc_fs) + strlen(user_fs) ;
 				fs = malloc( fs_size + 8 );
-				sprintf(fs,"%s\n%s\n%s\n",texProlog,uniforms,user_fs);
+				sprintf(fs,"%s\n%s\n%s\n%s\n",texProlog,uniforms,inc_fs,user_fs);
+				free(inc_fs);
 				free(user_fs);
 				//printf("Fragment Shader:\n%s",fs);
 			}

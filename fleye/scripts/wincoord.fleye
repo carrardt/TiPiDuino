@@ -1,0 +1,2 @@
+SHADER common_vs wincoord_fs DISPLAY
+
