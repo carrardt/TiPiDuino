@@ -266,7 +266,7 @@ static int tracking_redraw(RASPITEX_STATE *state)
 				double p2i = 1<<i;
 				shader_uniform1f( shader, 3, i);
 				shader_uniform1f( shader, 4, p2i);
-				shader_uniform2f( shader, 5, p2i /w , p2i /h );
+				shader_uniform2f( shader, 5, p2i/w , p2i/h );
 				apply_shader_pass(state, shader, inTexTarget, inTex, destFBO );
 				inTexTarget = destFBO->target;
 				inTex = destFBO->tex;

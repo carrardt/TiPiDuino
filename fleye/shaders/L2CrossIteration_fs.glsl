@@ -1,5 +1,3 @@
-varying vec2 texcoord;
-
 #define UNIT (1.0/32.0)
 
 /*
@@ -10,6 +8,7 @@ varying vec2 texcoord;
 
 void main(void)
 {
+	vec2 texcoord = normalizedWindowCoord();
 	vec4 C = texture2D( tex, texcoord );
 	/*if( C.x < 0.5 )
 	{

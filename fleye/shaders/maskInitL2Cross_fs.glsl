@@ -1,5 +1,3 @@
-varying vec2 texcoord;
-
 float greenMask(vec3 p)
 {
 	const float greenThreshold = 0.667;
@@ -25,10 +23,12 @@ float laserMask(vec3 p)
 
 void main(void)
 {
-	vec3 ftex =( texture2D(tex, vec2(texcoord.x-step.x*0.5, (1.0-texcoord.y)-step.y*0.5) ).xyz
-			   + texture2D(tex, vec2(texcoord.x-step.x*0.5, (1.0-texcoord.y)+step.y*0.5) ).xyz
-			   + texture2D(tex, vec2(texcoord.x+step.x*0.5, (1.0-texcoord.y)-step.y*0.5) ).xyz
-			   + texture2D(tex, vec2(texcoord.x+step.x*0.5, (1.0-texcoord.y)+step.y*0.5) ).xyz ) * 0.25;
+	vec2 texcoord = normalizedWindowCoord();
+	texcoord.y = 1.0 - texcoord.y;
+	vec3 ftex =( texture2D(tex, vec2(texcoord.x-step.x*0.5, texcoord.y-step.y*0.5) ).xyz
+			   + texture2D(tex, vec2(texcoord.x-step.x*0.5, texcoord.y+step.y*0.5) ).xyz
+			   + texture2D(tex, vec2(texcoord.x+step.x*0.5, texcoord.y-step.y*0.5) ).xyz
+			   + texture2D(tex, vec2(texcoord.x+step.x*0.5, texcoord.y+step.y*0.5) ).xyz ) * 0.25;
 			   
 	float gm = clamp( sign(greenMask(ftex)-0.5) , 0.0 , 0.5 );
 

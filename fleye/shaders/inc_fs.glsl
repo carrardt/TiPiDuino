@@ -2,6 +2,7 @@
 vec2 normalizedWindowCoord()
 {
 	vec2 normCoord = gl_PointCoord;
+	normCoord.y = 1.0 - normCoord.y;
 	if( size.x > size.y )
 	{
 		normCoord.y = 0.5 + ( (normCoord.y-0.5) * ( size.x / size.y ) );
