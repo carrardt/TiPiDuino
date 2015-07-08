@@ -203,6 +203,7 @@ static int tracking_redraw(RASPITEX_STATE *state)
 	FBOTexture* destFBO = & state->ping_pong_fbo[fboIndex];
 	int w = state->width;
 	int h = state->height;
+	int swapBuffers = 0;
 
 	// wait previous async cycle to be finished
 	int nPrevTasksToWait = state->cpu_tracking_state.nAvailCpuFuncs - state->cpu_tracking_state.nFinishedCpuFuncs;
@@ -241,14 +242,11 @@ static int tracking_redraw(RASPITEX_STATE *state)
 		{
 			destFBO = & state->ping_pong_fbo[fboIndex];
 			
-			if( nPasses == SHADER_CCMD_PASSES )
-			{ 
-				nPasses = state->tracking_ccmd;
-			}
-			else if( nPasses == SHADER_DISPLAY_PASS )
+			if( nPasses == SHADER_DISPLAY_PASS )
 			{
-				nPasses = state->tracking_display ? 1 : 0;
+				nPasses = 1;
 				destFBO = & state->window_fbo;
+				swapBuffers = 1;
 			}
 
 			//printf("shader step %d : %d passes\n",step,nPasses);
@@ -275,11 +273,15 @@ static int tracking_redraw(RASPITEX_STATE *state)
 		}
 	}
 	
-    GLCHK(glUseProgram(0));
-
 	// terminate async processing cycle
 	state->cpu_tracking_state.cpu_processing[ state->cpu_tracking_state.nAvailCpuFuncs ] = 0;
 	vcos_semaphore_post(& state->cpu_tracking_state.start_processing_sem);
+
+    GLCHK(glUseProgram(0));
+	if(swapBuffers)
+	{
+		eglSwapBuffers(state->display, state->surface);
+	}
 
     return 0;
 }

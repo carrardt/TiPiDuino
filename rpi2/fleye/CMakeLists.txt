@@ -4,7 +4,7 @@ project (Fleye)
 # ./fleye -v -ex fixedfps -w 1296 -h 972 -p 0,0,648,486 --ccmd 4 --disptrack
 # 
 # 60+ fps configs
-# ./fleye -v -ex fixedfps -w 1296 -h 972 -p 0,0,384,256 --ccmd 5 --disptrack --script passthru
+# ./fleye -v -ex fixedfps -w 1296 -h 972 -p 0,0,384,256 --set "CCMD 5" --script l2crosscenter
 #
 # pixel coord precision test
 # ./fleye -v -ex fixedfps -w 1296 -h 972 -p 32,32,416,288 --ccmd 5 --disptrack --script wincoord

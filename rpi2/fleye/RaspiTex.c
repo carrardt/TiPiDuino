@@ -85,6 +85,16 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define DEFAULT_WIDTH   (2592/2)
 #define DEFAULT_HEIGHT  (1944/2)
 
+const char* raspitex_optional_value(RASPITEX_STATE *state, const char* key)
+{
+	int i;
+	for(i=0;i<state->n_opt_values;i++)
+	{
+		if( strcmp(state->opt_values[i][0],key) == 0 ) return state->opt_values[i][1];
+	}
+	return "";
+}
+
 /**
  * Parse a possible command pair - command and parameter
  * @param arg1 Command
@@ -95,15 +105,12 @@ int raspitex_parse_cmdline(RASPITEX_STATE *state,
       const char *arg1, const char *arg2)
 {
 	//printf("raspitex_parse_cmdline %s %s\n",arg1,arg2);
-	if( strcmp(arg1,"-ccmd")==0 )
+	if( strcmp(arg1,"-set")==0 )
 	{
-		state->tracking_ccmd = atoi(arg2);
+		char key[64], value[64];
+		sscanf(arg2,"%s %s",state->opt_values[state->n_opt_values][0],state->opt_values[state->n_opt_values][1]);
+		++ state->n_opt_values;
 		return 2;
-	}
-	else if( strcmp(arg1,"-disptrack")==0 )
-	{
-		state->tracking_display = 1;
-		return 1;
 	}
 	else if( strcmp(arg1,"-script")==0 )
 	{
@@ -276,11 +283,6 @@ static int raspitex_draw(RASPITEX_STATE *state, MMAL_BUFFER_HEADER_T *buf)
          goto end;
 
       //raspitex_do_capture(state);
-
-	  if( state->tracking_display )
-	  {
-		eglSwapBuffers(state->display, state->surface);
-	  }
       update_fps();
    }
    else
@@ -582,17 +584,12 @@ void raspitex_set_defaults(RASPITEX_STATE *state)
 
    state->ops.create_native_window = raspitexutil_create_native_window;
    state->ops.gl_init = raspitexutil_gl_init_1_0;
-   state->ops.update_model = 0; //raspitexutil_update_model;
    state->ops.redraw = raspitexutil_redraw;
-   state->ops.capture = 0; //raspitexutil_capture_bgra;
    state->ops.gl_term = raspitexutil_gl_term;
    state->ops.destroy_native_window = raspitexutil_destroy_native_window;
    state->ops.close = raspitexutil_close;
    
-   // 4 iterations for per-pixel L2-cross generation
-   state->tracking_ccmd = 4;
-   state->tracking_display = 0;
-   strcpy(state->tracking_script,"default");
+   strcpy(state->tracking_script,"passthru");
 }
 
 /* Stops the rendering loop and destroys MMAL resources

@@ -1,6 +1,9 @@
-SHADER common_vs maskInitL2Cross_fs 1
-SHADER common_vs L2CrossIteration_fs CCMD
-CPU glReadPixels 0
+FBO tmp1
+FBO tmp2
+
+SHADER init common_vs maskInitL2Cross_fs tex=CAMERA tmp1 1
+SHADER scan common_vs L2CrossIteration_fs tex=tmp1,tmp2 tmp2,tmp1 $passes
+CPU glReadBack 0
 CPU l2CrossCenter 1
 CPU gpioPanTiltFollower 1
 SHADER common_vs drawL2Cross_fs DISPLAY

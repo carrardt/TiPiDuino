@@ -772,7 +772,7 @@ int create_image_processing(RASPITEX_STATE* state, const char* filename)
 	while( state->n_processing_steps<IMGPROC_MAX_STEPS  && !feof(fp) && fscanf(fp,"%s",tmp)==1 )
 	{
 		memset( & state->processing_step[state->n_processing_steps] , 0, sizeof(ProcessingStep) );
-		
+
 		if( strcasecmp(tmp,"SHADER")==0 )
 		{
 			char vsFileName[64];
@@ -781,9 +781,7 @@ int create_image_processing(RASPITEX_STATE* state, const char* filename)
 			char * vs = 0;
 			char * fs = 0;
 			fscanf(fp,"%s %s %s\n",vsFileName,fsFileName,tmp);
-			if( strcasecmp(tmp,"DISABLED")==0 ) { count=0; }
-			else if( strcasecmp(tmp,"CCMD")==0 ) { count=SHADER_CCMD_PASSES; }
-			else if( strcasecmp(tmp,"DISPLAY")==0 ) { count=SHADER_DISPLAY_PASS; }
+			if( tmp[0]=='$' ) { count=atoi( raspitex_optional_value(state,tmp+1) ); }
 			else { count=atoi(tmp); }
 			state->processing_step[state->n_processing_steps].numberOfPasses = count;
 			{

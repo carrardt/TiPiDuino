@@ -80,8 +80,7 @@ typedef struct RASPITEXUTIL_SHADER_PROGRAM_T
 
 
 #define SHADER_PASS_DISABLED    		0
-#define SHADER_CCMD_PASSES 			   -1
-#define SHADER_DISPLAY_PASS 		   -2
+#define SHADER_DISPLAY_PASS 		   -1
 #define CPU_PROCESSING_PASS 		 -100
 
 #define PROCESSING_MAIN_THREAD		    0
@@ -166,6 +165,7 @@ typedef struct RASPITEX_CAPTURE
 } RASPITEX_CAPTURE;
 
 
+#define MAX_OPT_VALUES 16
 /**
  * Contains the internal state and configuration for the GL rendered
  * preview window.
@@ -187,9 +187,9 @@ typedef struct RASPITEX_STATE
    int32_t preview_height;             /// preview y-plane height in pixels
    
    /* processing options*/
-   int tracking_ccmd;
-   int tracking_display;
-   char tracking_script[64];
+	int n_opt_values;
+	char opt_values[MAX_OPT_VALUES][2][32];
+    char tracking_script[64];
 	FBOTexture ping_pong_fbo[2];
 	FBOTexture window_fbo;
 	ProcessingStep processing_step[IMGPROC_MAX_STEPS];
@@ -246,5 +246,6 @@ void raspitex_display_help();
 int raspitex_parse_cmdline(RASPITEX_STATE *state,
       const char *arg1, const char *arg2);
 int raspitex_capture(RASPITEX_STATE *state, FILE* output_file);
+const char* raspitex_optional_value(RASPITEX_STATE *state, const char* key);
 
 #endif /* RASPITEX_H_ */

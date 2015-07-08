@@ -1,6 +1,6 @@
 SHADER common_vs maskInitL2Cross_fs 1
-SHADER common_vs L2CrossIteration_fs CCMD
+SHADER common_vs L2CrossIteration_fs $CCMD
 CPU glReadBack 0
 CPU l2CrossCenter 1
 CPU syncThread 0
-SHADER common_vs drawL2Cross_fs DISPLAY
+SHADER common_vs drawL2Cross_fs -1
