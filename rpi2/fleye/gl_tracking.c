@@ -51,42 +51,9 @@ static const EGLint tracking_egl_config_attribs[] =
    EGL_NONE
 };
 
-static int shader_uniform1i(RASPITEXUTIL_SHADER_PROGRAM_T* shader, int i, GLint value)
-{
-    GLCHK(glUseProgram(shader->program));
-    if( shader->uniform_locations[i]!=-1 )
-    {
-		GLCHK(glUniform1i(shader->uniform_locations[i], value));
-		return 0;
-	}
-	else { return -1; }
-}
-
-static int shader_uniform1f(RASPITEXUTIL_SHADER_PROGRAM_T* shader, int i, GLfloat value)
-{
-    GLCHK(glUseProgram(shader->program));
-    if( shader->uniform_locations[i]!=-1 )
-    {
-		GLCHK(glUniform1f(shader->uniform_locations[i], value));
-		return 0;
-	}
-	else { return -1; }
-}
-
-static int shader_uniform2f(RASPITEXUTIL_SHADER_PROGRAM_T* shader, int i, GLfloat v0, GLfloat v1)
-{
-    GLCHK(glUseProgram(shader->program));
-    if( shader->uniform_locations[i]!=-1 )
-    {
-		GLCHK(glUniform2f(shader->uniform_locations[i], v0, v1));
-		return 0;
-	}
-	else { return -1; }
-}
-
-
 static int tracking_init(RASPITEX_STATE *state)
 {	
+	RASPITEX_FBO dispWinFBO;
    int i,rc;
     state->egl_config_attribs = tracking_egl_config_attribs;
     rc = raspitexutil_gl_init_2_0(state);
@@ -96,33 +63,39 @@ static int tracking_init(RASPITEX_STATE *state)
 		return rc;
 	}
 
-	state->window_fbo.tex = 0;
-	state->window_fbo.fb = 0;
-	state->window_fbo.format = GL_NONE;
-	state->window_fbo.rb = 0;
-	state->window_fbo.width = state->width;
-	state->window_fbo.height = state->height;
+	{ char tmp[64]; sprintf(tmp,"%d",state->width); raspitex_add_optional_value(state,"WIDTH",tmp); }
+	{ char tmp[64]; sprintf(tmp,"%d",state->height); raspitex_add_optional_value(state,"HEIGHT",tmp); }
 
+	// configure camera input texture
    GLCHK( glBindTexture(GL_TEXTURE_EXTERNAL_OES, state->texture) );
    GLCHK( glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE) );
    GLCHK( glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE) );
-   // GLCHK( glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MIN_FILTER, GL_NEAREST) );
-   // GLCHK( glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MAG_FILTER, GL_NEAREST) );
    GLCHK( glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MIN_FILTER, GL_LINEAR) );
    GLCHK( glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MAG_FILTER, GL_LINEAR) );
    GLCHK( glBindTexture(GL_TEXTURE_EXTERNAL_OES,0) );
+   
+   // define input image as an available input texture named "INPUT"
+	state->processing_texture[0].texid = state->texture;
+	state->processing_texture[0].target = GL_TEXTURE_EXTERNAL_OES;
+	state->processing_texture[0].format = GL_RGB;
+	strcpy(state->processing_texture[0].name,"CAMERA");
+
+	// define display window an available output named "DISPLAY"
+	// define null texture associated with final display (not a real FBO)
+	state->processing_texture[1].texid = 0;
+	state->processing_texture[1].target = GL_TEXTURE_2D;
+	state->processing_texture[1].format = GL_RGB;
+	strcpy(state->processing_texture[1].name,"DISPLAY");
+	state->processing_fbo[0].texture = & state->processing_texture[1];
+	state->processing_fbo[0].width = state->width;
+	state->processing_fbo[0].height = state->height;
+	state->processing_fbo[0].fb = 0;
+
+	state->nFBO = 1;
+	state->nTextures = 2;
 
 	create_image_processing( state, state->tracking_script );
 
-	for(i=0;i<2;i++)
-	{
-		rc = create_fbo(state,&(state->ping_pong_fbo[i]),GL_RGBA,state->width,state->height);
-		if (rc != 0)
-		{
-			vcos_log_error("ping pong FBO failed\n");
-			return rc;
-		}
-	}
 	GLCHK( glDisable(GL_DEPTH_TEST) );
 	
 	// allocate space for CPU processing
@@ -164,45 +137,153 @@ static int tracking_init(RASPITEX_STATE *state)
     return rc;
 }
 
-static void apply_shader_pass(RASPITEX_STATE *state, RASPITEXUTIL_SHADER_PROGRAM_T* shader, GLenum srcTarget, GLuint srcTex, FBOTexture* destFBO)
-{        
+static CompiledShaderCache* get_compiled_shader(ShaderPass* shaderPass,RASPITEX_Texture** inputs)
+{
+	const char* image_external_pragma = "";
+	char textureUniformProlog[1024]={'\0',};
+	char* fragmentSource = 0;
+	int i;
+	for(i=0;i<shaderPass->compileCacheSize;i++)
+	{
+		int j,found=1;
+		for(j=0;j<shaderPass->nInputs && found;j++)
+		{
+			if( shaderPass->shaderCahe[i].textureTargets[j] != inputs[j]->target ) found=0;
+		}
+		if(found) return & shaderPass->shaderCahe[i];
+	}
+	if(shaderPass->compileCacheSize>=SHADER_COMPILE_CACHE_SIZE)
+	{
+		vcos_log_error("Shader cache is full");
+		return 0;
+	}
+
+	CompiledShaderCache* compiledShader = & shaderPass->shaderCahe[ shaderPass->compileCacheSize ++ ];
+	for(i=0;i<shaderPass->nInputs;i++)
+	{
+		const char* samplerType = 0;
+		//const char* texlookup = "texture2D";
+		char uniformDeclare[128];
+		switch( inputs[i]->target )
+		{
+			case GL_TEXTURE_2D:
+				samplerType = "sampler2D";
+				break;
+			case GL_TEXTURE_EXTERNAL_OES:
+				samplerType = "samplerExternalOES";
+				image_external_pragma = "#extension GL_OES_EGL_image_external : require\n";
+				break;
+			default:
+				vcos_log_error("unhandled texture target");
+				break;
+		}
+		compiledShader->textureTargets[i]=inputs[i]->target;
+		sprintf(uniformDeclare,"uniform %s %s;\n",samplerType,shaderPass->inputs[i].uniformName);
+		strcat(textureUniformProlog,uniformDeclare);
+	}
+	fragmentSource = malloc( strlen(image_external_pragma) + strlen(shaderPass->fragmentSourceWithoutTextures) + strlen(textureUniformProlog) + 8 );
+	sprintf(fragmentSource,"%s\n%s\n%s\n",image_external_pragma,textureUniformProlog,shaderPass->fragmentSourceWithoutTextures);
+
+	// printf("%s FS:\n%s",shaderPass->finalTexture->name,fragmentSource);
+	// compile assembled final shader program
+	create_image_shader( & compiledShader->shader, shaderPass->vertexSource, fragmentSource );
+	free(fragmentSource);
+
+	for(i=0;i<shaderPass->nInputs;i++)
+	{
+		compiledShader->samplerUniformLocations[i] = glGetUniformLocation(compiledShader->shader.program, shaderPass->inputs[i].uniformName);
+		//printf("sampler uniform '%s' -> location %d\n",shaderPass->inputs[i].uniformName,compiledShader->samplerUniformLocations[i]);
+	}
+
+	return compiledShader;
+}
+
+static void apply_shader_pass(RASPITEX_STATE *state, ShaderPass* shaderPass, int passCounter, int* needSwapBuffers)
+{
+	RASPITEX_Texture* inputs[MAX_TEXTURES]={0,};
+	RASPITEX_FBO* destFBO=0;
+	CompiledShaderCache* compiledShader=0;
+	int i=0;
+	GLint loc=-1;
+
+	for(i=0;i<shaderPass->nInputs;i++)
+	{
+		inputs[i] = shaderPass->inputs[i].texPool[ passCounter % shaderPass->inputs[i].poolSize ];
+	}
+	compiledShader = get_compiled_shader( shaderPass, inputs );
+	
+	destFBO = shaderPass->fboPool[ passCounter % shaderPass->fboPoolSize ];
+
+	// bind FBO and discard color buffer content (not using blending and writing everything)
     GLCHK(glBindFramebuffer(GL_FRAMEBUFFER,destFBO->fb));
 	{
 		GLenum attachements[1];
-		attachements[0] = (destFBO->fb==0) ? GL_COLOR_EXT : GL_COLOR_ATTACHMENT0 ;
+		if( destFBO->fb==0 ) // FBO is the native window displayed on screen
+		{
+			attachements[0] = GL_COLOR_EXT;
+			*needSwapBuffers = 1;
+		}
+		else
+		{
+			attachements[0] = GL_COLOR_ATTACHMENT0;
+		}
 		GLCHK( glDiscardFramebufferEXT(GL_FRAMEBUFFER,1,attachements) );
 	}
-	
+
+	// set viewport to full surface
     GLCHK(glViewport(0,0,destFBO->width,destFBO->height));
 
-    GLCHK(glUseProgram(shader->program));
-    
-    GLCHK(glEnable(srcTarget));
-    GLCHK(glBindTexture(srcTarget, srcTex));
-    
-    GLCHK(glEnableVertexAttribArray(shader->attribute_locations[0]));
-    GLCHK(glVertexAttribPointer(shader->attribute_locations[0], 2, GL_FLOAT, GL_FALSE, 0, varray));
-        
-    GLCHK(glDrawArrays(GL_POINTS, 0, 1));
-    
-    GLCHK(glDisableVertexAttribArray(shader->attribute_locations[0]));
-    
-    GLCHK(glBindTexture(srcTarget,0));
-    GLCHK(glDisable(srcTarget));
-	
+	// select compiled shader program to use
+    GLCHK(glUseProgram(compiledShader->shader.program));
+
+	// enable input textures
+	for(i=shaderPass->nInputs-1;i>=0;i--)
+	{
+		if( compiledShader->samplerUniformLocations[i] != -1 )
+		{
+			GLCHK( glActiveTexture( GL_TEXTURE0 + i ) );
+			GLCHK( glEnable(inputs[i]->target) );
+			GLCHK( glBindTexture(inputs[i]->target, inputs[i]->texid) );
+			GLCHK( glUniform1i(compiledShader->samplerUniformLocations[i], i) );
+		}
+	}
+
+	// set uniform values
+	double p2i = 1<<passCounter;
+	if( (loc=compiledShader->shader.uniform_locations[0]) != -1 ) { GLCHK( glUniform2f(loc, 1.0 / destFBO->width, 1.0 / destFBO->height ) ); }
+	if( (loc=compiledShader->shader.uniform_locations[1]) != -1 ) { GLCHK( glUniform2f(loc, destFBO->width, destFBO->height ) ); }
+	if( (loc=compiledShader->shader.uniform_locations[2]) != -1 ) { GLCHK( glUniform1f(loc, passCounter ) ); }
+	if( (loc=compiledShader->shader.uniform_locations[3]) != -1 ) { GLCHK( glUniform1f(loc, p2i ) ); }
+	if( (loc=compiledShader->shader.uniform_locations[4]) != -1 ) { GLCHK( glUniform2f(loc, p2i/destFBO->width, p2i/destFBO->height ) ); }
+	if( (loc=compiledShader->shader.uniform_locations[5]) != -1 ) { GLCHK( glUniform2fv(loc, 1, state->cpu_tracking_state.objectCenter[0] ) ); }
+	if( (loc=compiledShader->shader.uniform_locations[6]) != -1 ) { GLCHK( glUniform2fv(loc, 1, state->cpu_tracking_state.objectCenter[1] ) ); }
+
+	// draw geometry (a single point sprite covering entire surface)
+	// TODO: make geometry customizable
+    GLCHK( glEnableVertexAttribArray(compiledShader->shader.attribute_locations[0]));
+    GLCHK( glVertexAttribPointer(compiledShader->shader.attribute_locations[0], 2, GL_FLOAT, GL_FALSE, 0, varray));
+    GLCHK( glDrawArrays(GL_POINTS, 0, 1));
+    GLCHK( glDisableVertexAttribArray(compiledShader->shader.attribute_locations[0]));
+
+	// detach textures
+ 	for(i=shaderPass->nInputs-1;i>=0;i--)
+	{
+ 		if( compiledShader->samplerUniformLocations[i] != -1 )
+		{
+			GLCHK( glActiveTexture( GL_TEXTURE0 + i ) );
+			GLCHK( glBindTexture(inputs[i]->target,0) );
+			GLCHK( glDisable(inputs[i]->target) );
+		}
+	}
+	GLCHK( glActiveTexture( GL_TEXTURE0 ) ); // back to default
+
+	// TODO: test if this is necessary
     GLCHK(glFinish());
 }
 
 static int tracking_redraw(RASPITEX_STATE *state)
 {
-	static int FrameN=0;
-	int fboIndex = 0;
-	int step,i;
-	GLint inTexTarget = GL_TEXTURE_EXTERNAL_OES;
-	GLint inTex = state->texture;
-	FBOTexture* destFBO = & state->ping_pong_fbo[fboIndex];
-	int w = state->width;
-	int h = state->height;
+	int step = 0;
 	int swapBuffers = 0;
 
 	// wait previous async cycle to be finished
@@ -219,7 +300,7 @@ static int tracking_redraw(RASPITEX_STATE *state)
     //glClear(GL_COLOR_BUFFER_BIT /*| GL_DEPTH_BUFFER_BIT*/);
     GLCHK( glActiveTexture(GL_TEXTURE0) );
 
-	for(step=0; step<state->n_processing_steps; ++step)
+	for(step=0; step<state->nProcessingSteps; ++step)
 	{
 		int nPasses = state->processing_step[step].numberOfPasses;
 
@@ -238,38 +319,18 @@ static int tracking_redraw(RASPITEX_STATE *state)
 				vcos_semaphore_post(& state->cpu_tracking_state.start_processing_sem);
 			}
 		}
-		else if( nPasses != 0 )
+		else 
 		{
-			destFBO = & state->ping_pong_fbo[fboIndex];
-			
-			if( nPasses == SHADER_DISPLAY_PASS )
-			{
-				nPasses = 1;
-				destFBO = & state->window_fbo;
-				swapBuffers = 1;
-			}
-
-			//printf("shader step %d : %d passes\n",step,nPasses);
-			RASPITEXUTIL_SHADER_PROGRAM_T* shader = & state->processing_step[step].gl_shader;
-
-			shader_uniform1i( shader, 0, 0 ); // sampler always refers to active texture 0
-			shader_uniform2f( shader, 1, 1.0 / w, 1.0 / h ); 
-			shader_uniform2f( shader, 2, w, h ); 
-			shader_uniform2f( shader, 6, state->cpu_tracking_state.objectCenter[0][0] , state->cpu_tracking_state.objectCenter[0][1] ); 
-			shader_uniform2f( shader, 7, state->cpu_tracking_state.objectCenter[1][0] , state->cpu_tracking_state.objectCenter[1][1] ); 
-
+			int i;
+			ShaderPass* shaderPass = & state->processing_step[step].shaderPass;
 			for(i=0;i<nPasses;i++)
 			{
-				//printf("%s : pass #%d\n",state->imageProcessing->gpu_pass[gpu_shader_index].shaderFile,i);
-				double p2i = 1<<i;
-				shader_uniform1f( shader, 3, i);
-				shader_uniform1f( shader, 4, p2i);
-				shader_uniform2f( shader, 5, p2i/w , p2i/h );
-				apply_shader_pass(state, shader, inTexTarget, inTex, destFBO );
-				inTexTarget = destFBO->target;
-				inTex = destFBO->tex;
-				fboIndex = ( fboIndex + 1 ) % 2; 
+				apply_shader_pass( state, shaderPass, i, &swapBuffers);
 			}
+			RASPITEX_FBO* finalFBO = shaderPass->fboPool[(nPasses-1)%shaderPass->fboPoolSize];
+			shaderPass->finalTexture->texid = finalFBO->texture->texid;
+			shaderPass->finalTexture->target = finalFBO->texture->target;
+			shaderPass->finalTexture->format = finalFBO->texture->format;
 		}
 	}
 	

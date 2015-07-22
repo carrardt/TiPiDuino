@@ -95,6 +95,14 @@ const char* raspitex_optional_value(RASPITEX_STATE *state, const char* key)
 	return "";
 }
 
+int raspitex_add_optional_value(RASPITEX_STATE *state, const char* key, const char* value)
+{
+	strcpy(state->opt_values[state->n_opt_values][0],key);
+	strcpy(state->opt_values[state->n_opt_values][1],value);
+	++ state->n_opt_values;
+	return state->n_opt_values ;
+}
+
 /**
  * Parse a possible command pair - command and parameter
  * @param arg1 Command
@@ -108,8 +116,8 @@ int raspitex_parse_cmdline(RASPITEX_STATE *state,
 	if( strcmp(arg1,"-set")==0 )
 	{
 		char key[64], value[64];
-		sscanf(arg2,"%s %s",state->opt_values[state->n_opt_values][0],state->opt_values[state->n_opt_values][1]);
-		++ state->n_opt_values;
+		sscanf(arg2,"%s %s",key,value);
+		raspitex_add_optional_value(state,key,value);
 		return 2;
 	}
 	else if( strcmp(arg1,"-script")==0 )
@@ -568,6 +576,7 @@ void raspitex_destroy(RASPITEX_STATE *state)
  */
 void raspitex_set_defaults(RASPITEX_STATE *state)
 {
+   
    memset(state, 0, sizeof(*state));
    state->version_major = RASPITEX_VERSION_MAJOR;
    state->version_minor = RASPITEX_VERSION_MINOR;

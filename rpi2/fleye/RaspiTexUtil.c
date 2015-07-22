@@ -31,6 +31,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <bcm_host.h>
 #include <GLES2/gl2.h>
 #include <dlfcn.h>
+#include <string.h>
 
 VCOS_LOG_CAT_T raspitex_log_category;
 
@@ -519,23 +520,23 @@ char* readShader(const char* fileName)
  * @param p The shader program state.
  * @return Zero if successful.
  */
-int raspitexutil_build_shader_program(RASPITEXUTIL_SHADER_PROGRAM_T *p)
+int raspitexutil_build_shader_program(RASPITEXUTIL_SHADER_PROGRAM_T *p, const char* vertex_source, const char* fragment_source)
 {
     GLint status;
     int i = 0;
     char log[1024];
     int logLen = 0;
     vcos_assert(p);
-    vcos_assert(p->vertex_source);
-    vcos_assert(p->fragment_source);
+    vcos_assert(vertex_source);
+    vcos_assert(fragment_source);
 
-    if (! (p && p->vertex_source && p->fragment_source))
+    if (! (p && vertex_source && fragment_source))
         goto fail;
 
     p->vs = p->fs = 0;
 
     p->vs = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(p->vs, 1, &p->vertex_source, NULL);
+    glShaderSource(p->vs, 1, &vertex_source, NULL);
     glCompileShader(p->vs);
     glGetShaderiv(p->vs, GL_COMPILE_STATUS, &status);
     if (! status) {
@@ -545,7 +546,7 @@ int raspitexutil_build_shader_program(RASPITEXUTIL_SHADER_PROGRAM_T *p)
     }
 
     p->fs = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(p->fs, 1, &p->fragment_source, NULL);
+    glShaderSource(p->fs, 1, &fragment_source, NULL);
     glCompileShader(p->fs);
 
     glGetShaderiv(p->fs, GL_COMPILE_STATUS, &status);
@@ -562,15 +563,17 @@ int raspitexutil_build_shader_program(RASPITEXUTIL_SHADER_PROGRAM_T *p)
     glGetProgramiv(p->program, GL_LINK_STATUS, &status);
     if (! status)
     {
+		char* tmp=0;
 		char* str=0;
 		char* pendl=0;
 		int line=1;
         vcos_log_error("Failed to link shader program");
         glGetProgramInfoLog(p->program, sizeof(log), &logLen, log);
         vcos_log_error("%s", log);
+        
         printf("Vertex shader:\n");
-
-        str=p->vertex_source;
+        tmp=strdup(vertex_source);
+        str=tmp;
         pendl=0;
         line=1;
         while( (pendl=strchr(str,'\n'))!=0 )
@@ -579,9 +582,11 @@ int raspitexutil_build_shader_program(RASPITEXUTIL_SHADER_PROGRAM_T *p)
 			printf("%d: %s\n",line++,str);
 			str = pendl+1;
 		}
+		free(tmp);
+		
         printf("Fragment shader:\n");
-
-        str=p->fragment_source;
+        tmp=strdup(fragment_source);
+        str=tmp;
         pendl=0;
         line=1;
         while( (pendl=strchr(str,'\n'))!=0 )
@@ -590,6 +595,7 @@ int raspitexutil_build_shader_program(RASPITEXUTIL_SHADER_PROGRAM_T *p)
 			printf("%d: %s\n",line++,str);
 			str = pendl+1;
 		}
+		free(tmp);
 
         goto fail;
     }
@@ -639,25 +645,30 @@ fail:
     return -1;
 }
 
-int create_fbo(RASPITEX_STATE *state, FBOTexture* fbo, GLint colorFormat, GLint w, GLint h)
+int add_fbo(RASPITEX_STATE *state, const char* name, GLint colorFormat, GLint w, GLint h)
 {
-   fbo->format = colorFormat;
+	RASPITEX_Texture* tex = & state->processing_texture[state->nTextures];
+	strcpy(tex->name, name);
+	tex->format = colorFormat;
+	tex->target = GL_TEXTURE_2D;
+	tex->texid = 0;
+	
+	RASPITEX_FBO* fbo = & state->processing_fbo[state->nFBO];
    fbo->width = w;
    fbo->height = h;
-   fbo->target = 0;
-   fbo->rb = 0;
+   fbo->fb = 0;
+   fbo->texture = tex;
 
    glGenFramebuffers(1, & fbo->fb);
 
-	glGenTextures(1, & fbo->tex );
-	fbo->target = GL_TEXTURE_2D;
-	glBindTexture(fbo->target, fbo->tex);
-	glTexImage2D(fbo->target, 0, fbo->format, fbo->width, fbo->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
-	glTexParameteri(fbo->target, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(fbo->target, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glTexParameteri(fbo->target, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(fbo->target, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glBindTexture(fbo->target, 0);
+	glGenTextures(1, & tex->texid );
+	glBindTexture(tex->target, tex->texid);
+	glTexImage2D(tex->target, 0, tex->format, fbo->width, fbo->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+	glTexParameteri(tex->target, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(tex->target, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameteri(tex->target, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(tex->target, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glBindTexture(tex->target, 0);
 
 	/*if( depthFormat != GL_NONE )
 	{
@@ -682,7 +693,7 @@ int create_fbo(RASPITEX_STATE *state, FBOTexture* fbo, GLint colorFormat, GLint 
 
     // Associate the textures with the FBO.
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
-                    fbo->target, fbo->tex, 0);
+                    tex->target, tex->texid, 0);
 
 	// no depth buffer
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
@@ -691,9 +702,16 @@ int create_fbo(RASPITEX_STATE *state, FBOTexture* fbo, GLint colorFormat, GLint 
 	GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
 	glBindFramebuffer(GL_FRAMEBUFFER,0);
 	
-    if ( status == GL_FRAMEBUFFER_COMPLETE ) return 0;
-    else return 1;
-    
+    if ( status == GL_FRAMEBUFFER_COMPLETE )
+    {
+		++ state->nTextures ;
+		++ state->nFBO ;
+		return 0;
+	}
+    else 
+    {
+		return 1;
+	}
     
 /*
 glGenTextures(1, (GLuint *) 0x777ada0c);
@@ -704,40 +722,70 @@ glFramebufferTexture2DOES(GL_FRAMEBUFFER_OES, GL_COLOR_ATTACHMENT0_OES, GL_TEXTU
  */
 }
 
+RASPITEX_FBO* get_named_fbo(RASPITEX_STATE *state, const char * name)
+{
+	int i;
+	for(i=0;i<state->nFBO;i++)
+	{
+		if( strcasecmp(name,state->processing_fbo[i].texture->name)==0 )
+		{
+			return & state->processing_fbo[i];
+		}
+	}
+	return 0;
+}
+
+RASPITEX_Texture* get_named_texture(RASPITEX_STATE *state, const char * name)
+{
+	int i;
+	for(i=0;i<state->nTextures;i++)
+	{
+		if( strcasecmp(name,state->processing_texture[i].name)==0 )
+		{
+			return & state->processing_texture[i];
+		}
+	}
+	return 0;
+}
+
 int create_image_shader(RASPITEXUTIL_SHADER_PROGRAM_T* shader, const char* vs, const char* fs)
 {
 	int i;
 	// generate score values corresponding to color matching of target
 	memset(shader,0,sizeof(RASPITEXUTIL_SHADER_PROGRAM_T));
 	
-	shader->vertex_source = vs;
 	shader->attribute_names[0] = "vertex";
 	
-	shader->fragment_source = fs;
-	shader->uniform_names[0] = "tex";
-	shader->uniform_names[1] = "step";
-	shader->uniform_names[2] = "size";
-	shader->uniform_names[3] = "iter";
-	shader->uniform_names[4] = "iter2i";
-	shader->uniform_names[5] = "step2i";
-	shader->uniform_names[6] = "obj0Center";
-	shader->uniform_names[7] = "obj1Center";
+	shader->uniform_names[0] = "step";
+	shader->uniform_names[1] = "size";
+	shader->uniform_names[2] = "iter";
+	shader->uniform_names[3] = "iter2i";
+	shader->uniform_names[4] = "step2i";
+	shader->uniform_names[5] = "obj0Center";
+	shader->uniform_names[6] = "obj1Center";
 
-    int rc = raspitexutil_build_shader_program(shader);    
+    int rc = raspitexutil_build_shader_program(shader,vs,fs);    
 	return rc;
+}
+
+void strsplit(char* str, int delim, char** ptrs, int bufsize, int* n)
+{
+	*n = 0;
+	int eos = 0;
+	while( !eos && (*n) < bufsize )
+	{
+		ptrs[*n] = str;
+		++ (*n);
+		str = strchrnul(str,delim);
+		eos = ( *str == '\0' );
+		*str = '\0';
+		str = str+1;
+	}
 }
 
 int create_image_processing(RASPITEX_STATE* state, const char* filename)
 {
-	const char* tex2d_prolog =
-		"uniform sampler2D tex;\n"
-		;
-	
-	const char* texExternal_prolog = 
-		"#extension GL_OES_EGL_image_external : require\n"
-		"uniform samplerExternalOES tex;\n"
-		;
-	
+	// TODO: transferer dans inc_fs et inc_vs
 	const char* uniforms = 	
 		"uniform vec2 step;\n"
 		"uniform vec2 size;\n"
@@ -764,28 +812,46 @@ int create_image_processing(RASPITEX_STATE* state, const char* filename)
 	}
 	printf("using processing script %s\n",tmp);
 
-	state->n_processing_steps = 0;
+	state->nProcessingSteps = 0;
 	state->cpu_tracking_state.cpuFunc = 0;
 	state->cpu_tracking_state.nAvailCpuFuncs = 0;
 	state->cpu_tracking_state.nFinishedCpuFuncs = 0;
 
-	while( state->n_processing_steps<IMGPROC_MAX_STEPS  && !feof(fp) && fscanf(fp,"%s",tmp)==1 )
+	while( state->nProcessingSteps<IMGPROC_MAX_STEPS  && !feof(fp) && fscanf(fp,"%s",tmp)==1 )
 	{
-		memset( & state->processing_step[state->n_processing_steps] , 0, sizeof(ProcessingStep) );
+		memset( & state->processing_step[state->nProcessingSteps] , 0, sizeof(ProcessingStep) );
 
 		if( strcasecmp(tmp,"SHADER")==0 )
 		{
-			char vsFileName[64];
-			char fsFileName[64];
+			char vsFileName[64]={'\0',};
+			char fsFileName[64]={'\0',};
+			char inputTextureBlock[256]={'\0',};
+			char outputFBOBlock[256]={'\0',};
 			int count = 0;
 			char * vs = 0;
 			char * fs = 0;
-			fscanf(fp,"%s %s %s\n",vsFileName,fsFileName,tmp);
+			ShaderPass* shaderPass = & state->processing_step[state->nProcessingSteps].shaderPass;
+			
+			shaderPass->compileCacheSize = 0;
+			state->processing_step[state->nProcessingSteps].exec_thread = PROCESSING_GPU;
+
+			// one texture will be allocated and named upon the shader
+			// texture will always have properties of the last texture the shader has rendered to
+			shaderPass->finalTexture = & state->processing_texture[state->nTextures++];
+			shaderPass->finalTexture->format = GL_RGB;
+			shaderPass->finalTexture->target = GL_TEXTURE_2D;
+			shaderPass->finalTexture->texid = 0; // will disable corresponding texture unit
+
+			// read shader pass description line
+			fscanf(fp,"%s %s %s %s %s %s\n",shaderPass->finalTexture->name,vsFileName,fsFileName,inputTextureBlock,outputFBOBlock,tmp);
+
+			// read pass count, possibly a variable ($something)
 			if( tmp[0]=='$' ) { count=atoi( raspitex_optional_value(state,tmp+1) ); }
 			else { count=atoi(tmp); }
-			state->processing_step[state->n_processing_steps].numberOfPasses = count;
+			state->processing_step[state->nProcessingSteps].numberOfPasses = count;
+			
+			// assemble vertex and fragment sources
 			{
-				const char* texProlog = "// No texture prolog\n";
 				char* user_vs = 0;
 				char* user_fs = 0;
 				char* inc_fs = 0;
@@ -801,27 +867,79 @@ int create_image_processing(RASPITEX_STATE* state, const char* filename)
 
 				user_fs = readShader(fsFileName);
 				inc_fs = readShader("inc_fs");
-				texProlog = ( state->n_processing_steps == 0 ) ? texExternal_prolog : tex2d_prolog ;
-				fs_size = strlen(texProlog) + strlen(uniforms) + strlen(inc_fs) + strlen(user_fs) ;
+				fs_size = strlen(uniforms) + strlen(inc_fs) + strlen(user_fs) ;
 				fs = malloc( fs_size + 8 );
-				sprintf(fs,"%s\n%s\n%s\n%s\n",texProlog,uniforms,inc_fs,user_fs);
+				sprintf(fs,"%s\n%s\n%s\n",uniforms,inc_fs,user_fs);
 				free(inc_fs);
 				free(user_fs);
 				//printf("Fragment Shader:\n%s",fs);
 			}
-			printf("Compiling shader : %s/%s ...\n",vsFileName,fsFileName);
-			rc = create_image_shader( & state->processing_step[state->n_processing_steps].gl_shader, vs, fs );
-			if( rc != 0 )
+			//printf("Compiling shader : %s/%s ...\n",vsFileName,fsFileName);
+			//rc = create_image_shader( & state->processing_step[state->n_processing_steps].gl_shader, vs, fs );
+			shaderPass->vertexSource = vs;
+			shaderPass->fragmentSourceWithoutTextures = fs;
+			
+			// decode input blocks
+			// exemple: tex1=CAMERA,fbo1:tex2=mask_fbo
 			{
-				vcos_log_error("failed to compile shader");
-				return rc;
+				char* texBlocks[SHADER_MAX_INPUT_TEXTURES];
+				int ti;
+				strsplit(inputTextureBlock,':',texBlocks, SHADER_MAX_INPUT_TEXTURES, & shaderPass->nInputs);
+				for(ti=0;ti<shaderPass->nInputs;ti++)
+				{
+					char* texInput[2];
+					int check2 = 0;
+					strsplit( texBlocks[ti], '=', texInput, 2, & check2 );
+					if( check2==2 )
+					{
+						char* texPoolNames[MAX_TEXTURES];
+						int pi;
+						strcpy( shaderPass->inputs[ti].uniformName, texInput[0] );
+						strsplit(texInput[1],',',texPoolNames, MAX_TEXTURES, & shaderPass->inputs[ti].poolSize);
+						for(pi=0;pi<shaderPass->inputs[ti].poolSize;pi++)
+						{
+							shaderPass->inputs[ti].texPool[pi] = get_named_texture(state,texPoolNames[pi]);
+						}
+					}
+					else
+					{
+						vcos_log_error("syntax error: expected '='");
+						return rc;
+					}
+				}
 			}
+			// decode outputBlock
+			{
+				char* outputFBONames[MAX_TEXTURES];
+				int oi;
+				strsplit(outputFBOBlock,',',outputFBONames,MAX_TEXTURES, & shaderPass->fboPoolSize);
+				for(oi=0;oi<shaderPass->fboPoolSize;oi++)
+				{
+					shaderPass->fboPool[oi] = get_named_fbo(state,outputFBONames[oi]);
+				}
+			}
+			++ state->nProcessingSteps;
 		}
+		else if( strcasecmp(tmp,"FBO")==0 )
+		{
+			char name[TEXTURE_NAME_MAX_LEN];
+			char widthStr[64];
+			char heightStr[64];
+			fscanf(fp,"%s %s %s\n",name,widthStr,heightStr);
+			int w = atoi( (widthStr[0]=='$') ? raspitex_optional_value(state,widthStr+1) : widthStr );
+			int h = atoi( (heightStr[0]=='$') ? raspitex_optional_value(state,heightStr+1) : heightStr );
+			add_fbo(state,name,GL_RGBA,w,h);
+		}
+		// add a TEXTURE keyword to load an image ? might be usefull
+		/*else if( strcasecmp(tmp,"TEXTURE")==0 )
+		{
+			...
+		}*/		
 		else if( strcasecmp(tmp,"CPU")==0 )
 		{
 			char tmp2[256];
-			state->processing_step[state->n_processing_steps].numberOfPasses = CPU_PROCESSING_PASS;
-			fscanf(fp,"%s %d\n",tmp, & state->processing_step[state->n_processing_steps].exec_thread );
+			state->processing_step[state->nProcessingSteps].numberOfPasses = CPU_PROCESSING_PASS;
+			fscanf(fp,"%s %d\n",tmp, & state->processing_step[state->nProcessingSteps].exec_thread );
 			sprintf(tmp2,"./lib%s.so",tmp);
 			printf("loading dynamic library %s ...\n",tmp2);
 			void * handle = dlopen(tmp2, RTLD_LOCAL | RTLD_NOW);
@@ -831,8 +949,8 @@ int create_image_processing(RASPITEX_STATE* state, const char* filename)
 				return -1;
 			}
 			sprintf(tmp2,"%s_run",tmp);
-			state->processing_step[state->n_processing_steps].cpu_processing = dlsym(handle,tmp2);
-			if( state->processing_step[state->n_processing_steps].cpu_processing == NULL)
+			state->processing_step[state->nProcessingSteps].cpu_processing = dlsym(handle,tmp2);
+			if( state->processing_step[state->nProcessingSteps].cpu_processing == NULL)
 			{
 				vcos_log_error("can't find function %s",tmp2);
 				return -1;
@@ -843,18 +961,49 @@ int create_image_processing(RASPITEX_STATE* state, const char* filename)
 			{
 				(*init_plugin) ();
 			}
+			
+			++ state->nProcessingSteps;
 		}
 		else
 		{
 			vcos_log_error("bad processing step type '%s'",tmp);
 			return -1;
 		}
-				
-		++ state->n_processing_steps;
 	}
 
 	fclose(fp);
-	printf("processing pipeline has %d steps\n",state->n_processing_steps);
+	printf("processing pipeline has %d steps\n",state->nProcessingSteps);
+
+	printf("Frame Buffers:\n");
+	int i;
+	for(i=0;i<state->nFBO;i++) { printf("\t%s %dx%d\n",state->processing_fbo[i].texture->name,state->processing_fbo[i].width,state->processing_fbo[i].height); }
+	printf("Textures:\n");
+	for(i=0;i<state->nTextures;i++) { printf("\t%s %d\n",state->processing_texture[i].name,state->processing_texture[i].texid); }
+
+	printf("Processing steps:\n");
+	for(i=0;i<state->nProcessingSteps;i++)
+	{
+		if(state->processing_step[i].numberOfPasses == CPU_PROCESSING_PASS)
+		{
+			printf("\tCPU %p\n",state->processing_step[i].cpu_processing);
+		}
+		else
+		{
+			printf("\tShader %s %d\n",state->processing_step[i].shaderPass.finalTexture->name,state->processing_step[i].numberOfPasses);
+			int j;
+			for(j=0;j<state->processing_step[i].shaderPass.nInputs;j++)
+			{
+				printf("\t\t%s <-",state->processing_step[i].shaderPass.inputs[j].uniformName, state->processing_step[i].shaderPass.inputs[j].poolSize);
+				int k;
+				for(k=0;k<state->processing_step[i].shaderPass.inputs[j].poolSize;k++)
+				{
+					printf("%s%s",((k>0)?", ":""),state->processing_step[i].shaderPass.inputs[j].texPool[k]->name);
+				}
+				printf("\n");
+			}
+		}
+	}
+
 
 	return 0;
 }

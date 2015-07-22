@@ -1,6 +1,8 @@
-SHADER common_vs maskInitL2Cross_fs 1
-SHADER common_vs L2CrossIteration_fs $CCMD
-CPU glReadBack 0
-CPU l2CrossCenter 1
-CPU syncThread 0
-SHADER common_vs drawL2Cross_fs -1
+FBO 	fbo1 $WIDTH $HEIGHT
+FBO 	fbo2 $WIDTH $HEIGHT
+SHADER 	init 		common_vs maskInitL2Cross_fs 	tex=CAMERA 		fbo1 		1
+SHADER	l2cross 	common_vs L2CrossIteration_fs 	tex=fbo1,fbo2 	fbo2,fbo1 	$CCMD
+CPU 	glReadBack 		0
+CPU 	l2CrossCenter 	1
+CPU 	syncThread 		0
+SHADER 	display 	common_vs drawL2Cross_fs 		tex_l2cross=l2cross:tex_camera=CAMERA 	DISPLAY 	1

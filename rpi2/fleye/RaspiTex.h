@@ -41,27 +41,31 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define RASPITEX_VERSION_MAJOR 1
 #define RASPITEX_VERSION_MINOR 0
 
-typedef struct FBOTexture
-{
-	GLuint width, height; // dimensions
-	GLuint format; // texture internal format
-	GLenum target; // target associated with texture. 0 if renderbuffer
-	GLuint tex; // texture
-	GLuint rb; // renderbuffer
-	GLuint fb; // frame buffer
-} FBOTexture;
+#define MAX_TEXTURES 16
+#define MAX_FBOS 16
+
+#define SHADER_MAX_INPUT_TEXTURES 4
+#define SHADER_MAX_OUTPUT_FBOS 4
+#define UNIFORM_NAME_MAX_LEN 64
+#define TEXTURE_NAME_MAX_LEN 64
 
 #define SHADER_MAX_ATTRIBUTES 16
 #define SHADER_MAX_UNIFORMS   16
+
+#define SHADER_COMPILE_CACHE_SIZE 16
+#define IMGPROC_MAX_STEPS 16
+
+#define CPU_PROCESSING_PASS 			-1
+#define PROCESSING_GPU		    		-1
+#define PROCESSING_MAIN_THREAD		    0
+#define PROCESSING_ASYNC_THREAD			1
+
 /**
  * Container for a simple shader program. The uniform and attribute locations
  * are automatically setup by raspitex_build_shader_program.
  */
 typedef struct RASPITEXUTIL_SHADER_PROGRAM_T
 {
-   const char *vertex_source;       /// Pointer to vertex shader source
-   const char *fragment_source;     /// Pointer to fragment shader source
-
    /// Array of uniform names for raspitex_build_shader_program to process
    const char *uniform_names[SHADER_MAX_UNIFORMS];
    /// Array of attribute names for raspitex_build_shader_program to process
@@ -79,23 +83,59 @@ typedef struct RASPITEXUTIL_SHADER_PROGRAM_T
 } RASPITEXUTIL_SHADER_PROGRAM_T;
 
 
-#define SHADER_PASS_DISABLED    		0
-#define SHADER_DISPLAY_PASS 		   -1
-#define CPU_PROCESSING_PASS 		 -100
+typedef struct RASPITEX_Texture
+{
+	char name[TEXTURE_NAME_MAX_LEN];
+	GLuint format;
+	GLenum target;
+	GLuint texid;
+} RASPITEX_Texture;
 
-#define PROCESSING_MAIN_THREAD		    0
-#define PROCESSING_ASYNC_THREAD			1
+typedef struct RASPITEX_FBO
+{
+	// name given by texture->name
+	GLuint width, height; // dimensions
+	GLuint fb; // frame buffer
+	RASPITEX_Texture* texture;
+} RASPITEX_FBO;
+
+typedef struct TextureInput
+{
+	char uniformName[UNIFORM_NAME_MAX_LEN];
+	int poolSize; // number of input textures to cycle through
+	RASPITEX_Texture* texPool[MAX_TEXTURES];
+} TextureInput;
+
+typedef struct CompiledShaderCache
+{
+	int textureTargets[SHADER_MAX_INPUT_TEXTURES];
+	int samplerUniformLocations[SHADER_MAX_INPUT_TEXTURES];
+	RASPITEXUTIL_SHADER_PROGRAM_T shader;
+} CompiledShaderCache;
+
+typedef struct ShaderPass
+{
+	int nInputs;
+	TextureInput inputs[SHADER_MAX_INPUT_TEXTURES];
+	char* vertexSource;
+	char* fragmentSourceWithoutTextures;
+	int compileCacheSize;
+	CompiledShaderCache shaderCahe[SHADER_COMPILE_CACHE_SIZE];
+	int fboPoolSize;
+	RASPITEX_FBO* fboPool[MAX_FBOS];
+	RASPITEX_Texture* finalTexture;
+} ShaderPass;
+
 
 typedef struct ProcessingStep
 {
-	int numberOfPasses; // 0=disabled, -1=ccmd command line parameter
-	int exec_thread;
-	int read_fb;
-	RASPITEXUTIL_SHADER_PROGRAM_T gl_shader;
+	int exec_thread; // 0=main thread, 1=async thread, -1=not a cpu pass (gpu shader)
+	int numberOfPasses; 
+	ShaderPass shaderPass;
 	void(*cpu_processing)(CPU_TRACKING_STATE*);
 } ProcessingStep;
 
-#define IMGPROC_MAX_STEPS 16
+
 
 struct RASPITEX_STATE;
 
@@ -190,10 +230,12 @@ typedef struct RASPITEX_STATE
 	int n_opt_values;
 	char opt_values[MAX_OPT_VALUES][2][32];
     char tracking_script[64];
-	FBOTexture ping_pong_fbo[2];
-	FBOTexture window_fbo;
+	int nProcessingSteps;
 	ProcessingStep processing_step[IMGPROC_MAX_STEPS];
-	int n_processing_steps;
+	int nTextures;
+	RASPITEX_Texture processing_texture[MAX_TEXTURES+IMGPROC_MAX_STEPS];
+	int nFBO;
+	RASPITEX_FBO processing_fbo[MAX_FBOS];
 	VCOS_THREAD_T cpuTrackingThread;
 	CPU_TRACKING_STATE cpu_tracking_state;
 
@@ -247,5 +289,6 @@ int raspitex_parse_cmdline(RASPITEX_STATE *state,
       const char *arg1, const char *arg2);
 int raspitex_capture(RASPITEX_STATE *state, FILE* output_file);
 const char* raspitex_optional_value(RASPITEX_STATE *state, const char* key);
+int raspitex_add_optional_value(RASPITEX_STATE *state, const char* key, const char* value);
 
 #endif /* RASPITEX_H_ */

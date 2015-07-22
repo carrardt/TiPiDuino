@@ -1,12 +1,9 @@
-FBO tmp1
-FBO tmp2
-
-SHADER init common_vs maskInitL2Cross_fs tex=CAMERA tmp1 1
-SHADER scan common_vs L2CrossIteration_fs tex=tmp1,tmp2 tmp2,tmp1 $passes
-CPU glReadBack 0
-CPU l2CrossCenter 1
-CPU gpioPanTiltFollower 1
-SHADER common_vs drawL2Cross_fs DISPLAY
-CPU waitAsync 0
-CPU glDrawObjectCenter 0
-
+FBO 	fbo1 $WIDTH $HEIGHT
+FBO 	fbo2 $WIDTH $HEIGHT
+SHADER 	init 		common_vs maskInitL2Cross_fs 	tex=CAMERA 		fbo1 		1
+SHADER	l2cross 	common_vs L2CrossIteration_fs 	tex=fbo1,fbo2 	fbo2,fbo1 	$CCMD
+CPU 	glReadBack 			0
+CPU 	l2CrossCenter 		1
+CPU 	gpioPanTiltFollower 1
+CPU 	syncThread 			0
+SHADER 	display 	common_vs drawL2Cross_fs 		tex_l2cross=l2cross:tex_camera=CAMERA 	DISPLAY 	1

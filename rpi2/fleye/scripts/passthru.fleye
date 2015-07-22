@@ -1,2 +1,1 @@
-SHADER common_vs passthru_fs DISPLAY
-
+SHADER final common_vs passthru_fs tex=CAMERA DISPLAY 1
