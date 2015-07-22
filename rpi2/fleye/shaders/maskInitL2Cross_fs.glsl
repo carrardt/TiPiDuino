@@ -24,7 +24,7 @@ float laserMask(vec3 p)
 void main(void)
 {
 	vec2 texcoord = normalizedWindowCoord();
-	texcoord.y = 1.0 - texcoord.y;
+	//texcoord.y = 1.0 - texcoord.y;
 	vec3 ftex =( texture2D(tex, vec2(texcoord.x-step.x*0.5, texcoord.y-step.y*0.5) ).xyz
 			   + texture2D(tex, vec2(texcoord.x-step.x*0.5, texcoord.y+step.y*0.5) ).xyz
 			   + texture2D(tex, vec2(texcoord.x+step.x*0.5, texcoord.y-step.y*0.5) ).xyz

@@ -1,2 +1,2 @@
-SHADER common_vs wincoord_fs DISPLAY
+SHADER final common_vs wincoord_fs none DISPLAY 1
 

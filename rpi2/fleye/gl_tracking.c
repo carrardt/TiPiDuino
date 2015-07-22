@@ -35,10 +35,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <EGL/eglext.h>
 #include "cpu_tracking.h"
 
-static GLfloat varray[8] =
-{
-   0.0f, 0.0f
-};
+#define MAX_POINT_SIZE 512
 
 static const EGLint tracking_egl_config_attribs[] =
 {
@@ -142,7 +139,8 @@ static CompiledShaderCache* get_compiled_shader(ShaderPass* shaderPass,RASPITEX_
 	const char* image_external_pragma = "";
 	char textureUniformProlog[1024]={'\0',};
 	char* fragmentSource = 0;
-	int i;
+	int i,rc;
+	
 	for(i=0;i<shaderPass->compileCacheSize;i++)
 	{
 		int j,found=1;
@@ -150,7 +148,11 @@ static CompiledShaderCache* get_compiled_shader(ShaderPass* shaderPass,RASPITEX_
 		{
 			if( shaderPass->shaderCahe[i].textureTargets[j] != inputs[j]->target ) found=0;
 		}
-		if(found) return & shaderPass->shaderCahe[i];
+		if(found)
+		{
+			//printf("found precompiled shader %d\n",i);
+			return & shaderPass->shaderCahe[i];
+		}
 	}
 	if(shaderPass->compileCacheSize>=SHADER_COMPILE_CACHE_SIZE)
 	{
@@ -175,6 +177,7 @@ static CompiledShaderCache* get_compiled_shader(ShaderPass* shaderPass,RASPITEX_
 				break;
 			default:
 				vcos_log_error("unhandled texture target");
+				return 0;
 				break;
 		}
 		compiledShader->textureTargets[i]=inputs[i]->target;
@@ -186,17 +189,25 @@ static CompiledShaderCache* get_compiled_shader(ShaderPass* shaderPass,RASPITEX_
 
 	// printf("%s FS:\n%s",shaderPass->finalTexture->name,fragmentSource);
 	// compile assembled final shader program
-	create_image_shader( & compiledShader->shader, shaderPass->vertexSource, fragmentSource );
+	rc = create_image_shader( & compiledShader->shader, shaderPass->vertexSource, fragmentSource );
 	free(fragmentSource);
+	if( rc != 0)
+	{
+		vcos_log_error("failed to build shader");
+		return 0;
+	}
 
 	for(i=0;i<shaderPass->nInputs;i++)
 	{
 		compiledShader->samplerUniformLocations[i] = glGetUniformLocation(compiledShader->shader.program, shaderPass->inputs[i].uniformName);
-		//printf("sampler uniform '%s' -> location %d\n",shaderPass->inputs[i].uniformName,compiledShader->samplerUniformLocations[i]);
+		// printf("sampler uniform '%s' -> location %d\n",shaderPass->inputs[i].uniformName,compiledShader->samplerUniformLocations[i]);
 	}
 
 	return compiledShader;
 }
+
+static GLfloat tstrip[8] = { -1,-1, -1,1, 1,-1, 1,1 };
+static GLfloat center[2] = { 0.0f, 0.0f };
 
 static void apply_shader_pass(RASPITEX_STATE *state, ShaderPass* shaderPass, int passCounter, int* needSwapBuffers)
 {
@@ -261,8 +272,16 @@ static void apply_shader_pass(RASPITEX_STATE *state, ShaderPass* shaderPass, int
 	// draw geometry (a single point sprite covering entire surface)
 	// TODO: make geometry customizable
     GLCHK( glEnableVertexAttribArray(compiledShader->shader.attribute_locations[0]));
-    GLCHK( glVertexAttribPointer(compiledShader->shader.attribute_locations[0], 2, GL_FLOAT, GL_FALSE, 0, varray));
-    GLCHK( glDrawArrays(GL_POINTS, 0, 1));
+	if( destFBO->width > MAX_POINT_SIZE || destFBO->height > MAX_POINT_SIZE )
+	{
+		GLCHK( glVertexAttribPointer(compiledShader->shader.attribute_locations[0], 2, GL_FLOAT, GL_FALSE, 0, tstrip));
+		GLCHK( glDrawArrays(GL_TRIANGLE_STRIP, 0, 4));
+	}
+	else
+	{
+		GLCHK( glVertexAttribPointer(compiledShader->shader.attribute_locations[0], 2, GL_FLOAT, GL_FALSE, 0, center));
+		GLCHK( glDrawArrays(GL_POINTS, 0, 1));
+	}
     GLCHK( glDisableVertexAttribArray(compiledShader->shader.attribute_locations[0]));
 
 	// detach textures
@@ -327,10 +346,19 @@ static int tracking_redraw(RASPITEX_STATE *state)
 			{
 				apply_shader_pass( state, shaderPass, i, &swapBuffers);
 			}
-			RASPITEX_FBO* finalFBO = shaderPass->fboPool[(nPasses-1)%shaderPass->fboPoolSize];
-			shaderPass->finalTexture->texid = finalFBO->texture->texid;
-			shaderPass->finalTexture->target = finalFBO->texture->target;
-			shaderPass->finalTexture->format = finalFBO->texture->format;
+			if( nPasses>0 && shaderPass->fboPoolSize>0 )
+			{
+				RASPITEX_FBO* finalFBO = shaderPass->fboPool[(nPasses-1)%shaderPass->fboPoolSize];
+				shaderPass->finalTexture->texid = finalFBO->texture->texid;
+				shaderPass->finalTexture->target = finalFBO->texture->target;
+				shaderPass->finalTexture->format = finalFBO->texture->format;
+			}
+			else
+			{
+				shaderPass->finalTexture->texid = 0;
+				shaderPass->finalTexture->target = GL_TEXTURE_2D;
+				shaderPass->finalTexture->format = GL_RGB;
+			}
 		}
 	}
 	

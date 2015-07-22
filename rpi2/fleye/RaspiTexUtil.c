@@ -881,6 +881,7 @@ int create_image_processing(RASPITEX_STATE* state, const char* filename)
 			
 			// decode input blocks
 			// exemple: tex1=CAMERA,fbo1:tex2=mask_fbo
+			if( strcmp(inputTextureBlock,"none") != 0 )
 			{
 				char* texBlocks[SHADER_MAX_INPUT_TEXTURES];
 				int ti;
@@ -908,6 +909,11 @@ int create_image_processing(RASPITEX_STATE* state, const char* filename)
 					}
 				}
 			}
+			else
+			{
+				shaderPass->nInputs = 0;
+			}
+			
 			// decode outputBlock
 			{
 				char* outputFBONames[MAX_TEXTURES];

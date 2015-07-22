@@ -6,8 +6,11 @@ project (Fleye)
 # 60+ fps configs
 # ./fleye -v -ex fixedfps -w 1296 -h 972 -p 0,0,384,256 --set "CCMD 5" --script l2crosscenter
 #
-# pixel coord precision test
-# ./fleye -v -ex fixedfps -w 1296 -h 972 -p 32,32,416,288 --ccmd 5 --disptrack --script wincoord
+# pixel coord precision tests
+# ./fleye -v -ex fixedfps -w 1296 -h 972 -p 32,32,800,544 --script wincoord
+# ./fleye -v -ex fixedfps -w 1296 -h 972 -p 32,32,800,544 --script normcoord
+# ./fleye -v -ex fixedfps -w 1296 -h 972 -p 32,32,352,272 --script wincoord
+# ./fleye -v -ex fixedfps -w 1296 -h 972 -p 32,32,352,272 --script normcoord
 
 SET(COMPILE_DEFINITIONS "-Werror")
 

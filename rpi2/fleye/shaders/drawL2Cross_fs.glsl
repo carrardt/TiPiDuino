@@ -27,8 +27,9 @@ vec3 rgblut(float x)
 void main(void)
 {
 	vec2 texcoord = normalizedWindowCoord();
+	texcoord.y = 1.0 - texcoord.y;
 	vec4 S = texture2D( tex_l2cross , texcoord );
-	vec4 P = texture2D( tex_camera , vec2(texcoord.x,1.0-texcoord.y) );
+	vec4 P = texture2D( tex_camera , texcoord );
 
 	//float d =  clamp( ( min( min(S.x,S.y) , min(S.z,S.w) ) - 0.5 ) * 2.0 , 0.0 , 1.0 );
 	float d1 =  clamp( ( max( S.x , S.y ) - 0.5 ) * 2.0 , 0.0 , 1.0 );

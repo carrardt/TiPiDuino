@@ -1,2 +1,2 @@
-SHADER common_vs normcoord_fs DISPLAY
+SHADER final common_vs normcoord_fs none DISPLAY 1
 
