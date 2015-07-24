@@ -206,14 +206,28 @@ static CompiledShaderCache* get_compiled_shader(ShaderPass* shaderPass,RASPITEX_
 	return compiledShader;
 }
 
-static GLfloat tstrip[8] = { -1,-1, -1,1, 1,-1, 1,1 };
-static GLfloat center[2] = { 0.0f, 0.0f };
+// default drawing function
+void gl_fill(struct RASPITEX_STATE* state,CompiledShaderCache* compiledShader, int pass)
+{
+	static GLfloat tstrip[12] = {
+		-1,-1,0,
+		-1,1,0, 
+		1,-1,0, 
+		1,1,0
+		};
 
-static void apply_shader_pass(RASPITEX_STATE *state, ShaderPass* shaderPass, int passCounter, int* needSwapBuffers)
+    GLCHK( glEnableVertexAttribArray(compiledShader->shader.attribute_locations[0]));
+	GLCHK( glVertexAttribPointer(compiledShader->shader.attribute_locations[0], 3, GL_FLOAT, GL_FALSE, 0, tstrip));
+	GLCHK( glDrawArrays(GL_TRIANGLE_STRIP, 0, 4));
+    GLCHK( glDisableVertexAttribArray(compiledShader->shader.attribute_locations[0]));
+}
+
+static void apply_shader_pass(RASPITEX_STATE *state, ProcessingStep* procStep, int passCounter, int* needSwapBuffers)
 {
 	RASPITEX_Texture* inputs[MAX_TEXTURES]={0,};
 	RASPITEX_FBO* destFBO=0;
 	CompiledShaderCache* compiledShader=0;
+	ShaderPass* shaderPass = & procStep->shaderPass;
 	int i=0;
 	GLint loc=-1;
 
@@ -266,23 +280,9 @@ static void apply_shader_pass(RASPITEX_STATE *state, ShaderPass* shaderPass, int
 	if( (loc=compiledShader->shader.uniform_locations[2]) != -1 ) { GLCHK( glUniform1f(loc, passCounter ) ); }
 	if( (loc=compiledShader->shader.uniform_locations[3]) != -1 ) { GLCHK( glUniform1f(loc, p2i ) ); }
 	if( (loc=compiledShader->shader.uniform_locations[4]) != -1 ) { GLCHK( glUniform2f(loc, p2i/destFBO->width, p2i/destFBO->height ) ); }
-	if( (loc=compiledShader->shader.uniform_locations[5]) != -1 ) { GLCHK( glUniform2fv(loc, 1, state->cpu_tracking_state.objectCenter[0] ) ); }
-	if( (loc=compiledShader->shader.uniform_locations[6]) != -1 ) { GLCHK( glUniform2fv(loc, 1, state->cpu_tracking_state.objectCenter[1] ) ); }
 
-	// draw geometry (a single point sprite covering entire surface)
-	// TODO: make geometry customizable
-    GLCHK( glEnableVertexAttribArray(compiledShader->shader.attribute_locations[0]));
-	if( destFBO->width > MAX_POINT_SIZE || destFBO->height > MAX_POINT_SIZE )
-	{
-		GLCHK( glVertexAttribPointer(compiledShader->shader.attribute_locations[0], 2, GL_FLOAT, GL_FALSE, 0, tstrip));
-		GLCHK( glDrawArrays(GL_TRIANGLE_STRIP, 0, 4));
-	}
-	else
-	{
-		GLCHK( glVertexAttribPointer(compiledShader->shader.attribute_locations[0], 2, GL_FLOAT, GL_FALSE, 0, center));
-		GLCHK( glDrawArrays(GL_POINTS, 0, 1));
-	}
-    GLCHK( glDisableVertexAttribArray(compiledShader->shader.attribute_locations[0]));
+	// call custom drawing function
+	( * procStep->gl_draw ) (state,compiledShader,passCounter);
 
 	// detach textures
  	for(i=shaderPass->nInputs-1;i>=0;i--)
@@ -344,7 +344,7 @@ static int tracking_redraw(RASPITEX_STATE *state)
 			ShaderPass* shaderPass = & state->processing_step[step].shaderPass;
 			for(i=0;i<nPasses;i++)
 			{
-				apply_shader_pass( state, shaderPass, i, &swapBuffers);
+				apply_shader_pass( state, & state->processing_step[step], i, &swapBuffers);
 			}
 			if( nPasses>0 && shaderPass->fboPoolSize>0 )
 			{

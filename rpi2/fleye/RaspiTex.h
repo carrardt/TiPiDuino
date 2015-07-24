@@ -126,18 +126,16 @@ typedef struct ShaderPass
 	RASPITEX_Texture* finalTexture;
 } ShaderPass;
 
+struct RASPITEX_STATE;
 
 typedef struct ProcessingStep
 {
 	int exec_thread; // 0=main thread, 1=async thread, -1=not a cpu pass (gpu shader)
 	int numberOfPasses; 
 	ShaderPass shaderPass;
+	void(*gl_draw)(struct RASPITEX_STATE*,CompiledShaderCache*,int);
 	void(*cpu_processing)(CPU_TRACKING_STATE*);
 } ProcessingStep;
-
-
-
-struct RASPITEX_STATE;
 
 typedef struct RASPITEX_SCENE_OPS
 {

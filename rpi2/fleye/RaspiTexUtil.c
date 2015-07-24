@@ -761,8 +761,6 @@ int create_image_shader(RASPITEXUTIL_SHADER_PROGRAM_T* shader, const char* vs, c
 	shader->uniform_names[2] = "iter";
 	shader->uniform_names[3] = "iter2i";
 	shader->uniform_names[4] = "step2i";
-	shader->uniform_names[5] = "obj0Center";
-	shader->uniform_names[6] = "obj1Center";
 
     int rc = raspitexutil_build_shader_program(shader,vs,fs);    
 	return rc;
@@ -783,6 +781,7 @@ void strsplit(char* str, int delim, char** ptrs, int bufsize, int* n)
 	}
 }
 
+
 int create_image_processing(RASPITEX_STATE* state, const char* filename)
 {
 	// TODO: transferer dans inc_fs et inc_vs
@@ -792,12 +791,10 @@ int create_image_processing(RASPITEX_STATE* state, const char* filename)
 		"uniform float iter;\n"
 		"uniform float iter2i;\n"
 		"uniform vec2 step2i;\n"
-		"uniform vec2 obj0Center;\n"
-		"uniform vec2 obj1Center;\n"
 		;
 
 	const char* vs_attributes = 
-		"attribute vec2 vertex;\n"
+		"attribute vec3 vertex;\n"
 		;
 
 	int rc;
@@ -827,6 +824,7 @@ int create_image_processing(RASPITEX_STATE* state, const char* filename)
 			char fsFileName[64]={'\0',};
 			char inputTextureBlock[256]={'\0',};
 			char outputFBOBlock[256]={'\0',};
+			char drawMethod[128]={'\0',};
 			int count = 0;
 			char * vs = 0;
 			char * fs = 0;
@@ -843,7 +841,7 @@ int create_image_processing(RASPITEX_STATE* state, const char* filename)
 			shaderPass->finalTexture->texid = 0; // will disable corresponding texture unit
 
 			// read shader pass description line
-			fscanf(fp,"%s %s %s %s %s %s\n",shaderPass->finalTexture->name,vsFileName,fsFileName,inputTextureBlock,outputFBOBlock,tmp);
+			fscanf(fp,"%s %s %s %s %s %s %s\n",shaderPass->finalTexture->name,vsFileName,fsFileName,drawMethod,inputTextureBlock,outputFBOBlock,tmp);
 
 			// read pass count, possibly a variable ($something)
 			if( tmp[0]=='$' ) { count=atoi( raspitex_optional_value(state,tmp+1) ); }
@@ -878,6 +876,39 @@ int create_image_processing(RASPITEX_STATE* state, const char* filename)
 			//rc = create_image_shader( & state->processing_step[state->n_processing_steps].gl_shader, vs, fs );
 			shaderPass->vertexSource = vs;
 			shaderPass->fragmentSourceWithoutTextures = fs;
+			
+			// load drawing function
+			{
+				char * drawPlugin[2]={0,0};
+				const char* funcName = 0;
+				char tmp2[128];
+				int n=0;
+				void* handle = 0;
+				strsplit(drawMethod,':',drawPlugin,2,&n);
+				if( n==2 )
+				{
+					sprintf(tmp2,"./lib%s.so",drawPlugin[0]);
+					handle = dlopen(tmp2, RTLD_GLOBAL | RTLD_NOW);
+					if(handle==NULL)
+					{
+						vcos_log_error("failed to load plugin %s",tmp2);
+						return -1;
+					}
+					funcName = drawPlugin[1];
+				}
+				else
+				{
+					handle = dlopen(NULL, RTLD_GLOBAL | RTLD_NOW);
+					funcName = drawPlugin[0];
+				}
+				state->processing_step[state->nProcessingSteps].gl_draw = dlsym(handle,funcName);
+				if( state->processing_step[state->nProcessingSteps].gl_draw == NULL)
+				{
+					vcos_log_error("can't find function %s",drawPlugin[1]);
+					return -1;
+				}
+				printf("resolved function %s to %p\n",funcName,state->processing_step[state->nProcessingSteps].gl_draw);
+			}
 			
 			// decode input blocks
 			// exemple: tex1=CAMERA,fbo1:tex2=mask_fbo
@@ -948,7 +979,7 @@ int create_image_processing(RASPITEX_STATE* state, const char* filename)
 			fscanf(fp,"%s %d\n",tmp, & state->processing_step[state->nProcessingSteps].exec_thread );
 			sprintf(tmp2,"./lib%s.so",tmp);
 			printf("loading dynamic library %s ...\n",tmp2);
-			void * handle = dlopen(tmp2, RTLD_LOCAL | RTLD_NOW);
+			void * handle = dlopen(tmp2, RTLD_GLOBAL | RTLD_NOW);
 			if(handle==NULL)
 			{
 				vcos_log_error("failed to load plugin %s",tmp2);

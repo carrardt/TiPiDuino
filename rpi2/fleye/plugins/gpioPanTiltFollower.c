@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <math.h>
 #include "../cpu_tracking.h"
+#include "../RaspiTex.h"
 
 #include "../thirdparty/bcm2835.h"
 #include "../thirdparty/bcm2835.c"
@@ -16,17 +17,19 @@ static int autoCalibration = 1;
 static double ServoRefX = 0.5;
 static double ServoRefY = 0.25;
 
-static const double ServoDeltaX = 0.125;
-static const double ServoDeltaY = 0.125;
+static double ServoDeltaX = 0.125;
+static double ServoDeltaY = 0.125;
 
-static const double TargetPosX = 0.5;
-static const double TargetPosY = 0.5;
+static double TargetPosX = 0.5;
+static double TargetPosY = 0.5;
 
 static double refPosX=0.0, refPosY=0.0;
 static double DXPosX=0.0, DXPosY=0.0;
 static double DYPosX=0.0, DYPosY=0.0;
 
-static double ServoInvMat[2][2];
+static int autoCalibrationStateOld = -1;
+static int autoCalibrationState = 0;
+static int counter = 0;
 
 static void gpio_write_values(float xf, float yf, int laserSwitch)
 {
@@ -76,6 +79,18 @@ void gpioPanTiltFollower_setup()
 	bcm2835_gpio_write(i, LOW);
   }
 
+	autoCalibration = 1;
+
+	ServoRefX = 0.5;
+	ServoRefY = 0.5;
+	ServoDeltaX = 0.125;
+	ServoDeltaY = 0.125;
+	TargetPosX = 0.5;
+	TargetPosY = 0.5;
+	refPosX=0.0; refPosY=0.0;
+	DXPosX=0.0; DXPosY=0.0;
+	DYPosX=0.0; DYPosY=0.0;
+
   gpio_write_values(ServoRefX,ServoRefY,0);
   printf("GPIO pan/tilt follower ready\n");
 }
@@ -84,113 +99,64 @@ void gpioPanTiltFollower_setup()
 #define ACQUIRE_COUNT 128
 void gpioPanTiltFollower_run(CPU_TRACKING_STATE * state)
 {
-	double xf = atan( (state->objectCenter[0][0] - 0.5) ) + 0.5;
-	double yf = atan( (state->objectCenter[0][1] - 0.5) ) + 0.5;
 	if( state->objectCount < 1 ) return;
 
+	double xf = ( state->objectCenter[0][0] - 0.5 ) * 2.0;
+	double yf = ( state->objectCenter[0][1] - 0.5 ) * 2.0;
+	double dist2 = xf*xf + yf*yf;
+
 	if( autoCalibration )
-	{
-		static int autoCalibrationState = 0;
-		static int recCount = INIT_COUNT;
+	{		
+		if( autoCalibrationState != autoCalibrationStateOld )
+		{
+			printf("calibration step %d\n",autoCalibrationState);
+			autoCalibrationStateOld = autoCalibrationState;
+		}
 		
 		switch( autoCalibrationState )
 		{
 			case 0 :
-				gpio_write_values(ServoRefX,ServoRefY,0);
-				--recCount;
-				if(recCount==0)
+				if( dist2 > 0.0001 )
 				{
-					recCount = ACQUIRE_COUNT;
+					refPosX = xf;
+					refPosY = yf;
+					state->objectCenter[0][0] = 0.5;
+					state->objectCenter[0][1] = 0.5;
+					gpio_write_values(ServoRefX,ServoRefY,(counter++)%2);
+				}
+				else
+				{
+					gpio_write_values(ServoRefX,ServoRefY,0);
+					counter = 0;
 					++ autoCalibrationState;
+					refPosX = 0.0;
+					refPosY = 0.0;
 				}
 				break;
 				
 			case 1 :
 				refPosX += xf;
 				refPosY += yf;
-				-- recCount;
-				if(recCount==0)
+				++ counter;
+				if(counter==32)
 				{
-					recCount = ACQUIRE_COUNT;
-					refPosX /= ACQUIRE_COUNT;
-					refPosY /= ACQUIRE_COUNT;
+					refPosX /= counter;
+					refPosY /= counter;
 					++ autoCalibrationState;
+					counter=0;
 				}
 				break;
 
 			case 2 :
-				gpio_write_values(ServoRefX+ServoDeltaX,ServoRefY,0);
-				--recCount;
-				if(recCount==0)
-				{
-					recCount = ACQUIRE_COUNT;
-					++ autoCalibrationState;
-				}
-				break;
-
-			case 3 :
-				DXPosX += xf;
-				DXPosY += yf;
-				-- recCount;
-				if(recCount==0)
-				{
-					recCount = ACQUIRE_COUNT;
-					DXPosX /= ACQUIRE_COUNT;
-					DXPosY /= ACQUIRE_COUNT;
-					++ autoCalibrationState;
-				}
-				break;
-
-			case 4 :
-				gpio_write_values(ServoRefX,ServoRefY+ServoDeltaY,0);
-				--recCount;
-				if(recCount==0)
-				{
-					recCount = ACQUIRE_COUNT;
-					++ autoCalibrationState;
-				}
-				break;
-
-			case 5 :
-				DYPosX += xf;
-				DYPosY += yf;
-				-- recCount;
-				if(recCount==0)
-				{
-					recCount = ACQUIRE_COUNT;
-					DYPosX /= ACQUIRE_COUNT;
-					DYPosY /= ACQUIRE_COUNT;
-					++ autoCalibrationState;
-				}
-				break;
-				
-			case 6 :
-				DXPosX = (DXPosX-refPosX) / ServoDeltaX;
-				DXPosY = (DXPosY-refPosY) / ServoDeltaX;
-
-				DYPosX = (DYPosX-refPosX) / ServoDeltaY;
-				DYPosY = (DYPosY-refPosY) / ServoDeltaY;
-
-				printf("DX=%g,%g DY=%g,%g\n",DXPosX,DXPosY,DYPosX,DYPosY);
-				++ autoCalibrationState;
-				break;
-
-			case 7 :
-				gpio_write_values(ServoRefX,ServoRefY,0);
-				--recCount;
-				if(recCount==0)
-				{
-					recCount = ACQUIRE_COUNT;
-					++ autoCalibrationState;
-				}
-				break;
-			case 8 :
 				autoCalibration = 0;
 				break;
 		}
 	}
 	else
 	{
+		refPosX = xf;
+		refPosY = yf;
+		/*
 		double dx = TargetPosX - xf;
 		double dy = TargetPosY - yf ;
 		double l2norm = dx*dx+dy*dy;
@@ -208,6 +174,25 @@ void gpioPanTiltFollower_run(CPU_TRACKING_STATE * state)
 		if( ServoRefY < 0.0 ) ServoRefY=0.0;
 		else if( ServoRefY > 1.0 ) ServoRefY=1.0;
 		gpio_write_values( ServoRefX, ServoRefY, l2norm<0.001 ? 1 : 0 );
+		* */
 	}
 }
 
+void drawOverlay(struct RASPITEX_STATE* state,CompiledShaderCache* compiledShader, int pass)
+{
+	if( autoCalibrationState==0 || !autoCalibration )
+	{
+		GLfloat varray[12] = { -0.1,-0.1,0, 0.1,0.1,0, -0.1,0.1,0, 0.1,-0.1,0 };
+		int i;
+		for(i=0;i<4;i++)
+		{
+			varray[i*3+0] += refPosX;
+			varray[i*3+1] += refPosY;
+		}
+
+		glEnableVertexAttribArray(compiledShader->shader.attribute_locations[0]);
+		glVertexAttribPointer(compiledShader->shader.attribute_locations[0], 3, GL_FLOAT, GL_FALSE, 0, varray);
+		glDrawArrays(GL_LINES, 0, 4);
+		glDisableVertexAttribArray(compiledShader->shader.attribute_locations[0]);
+	}
+}
