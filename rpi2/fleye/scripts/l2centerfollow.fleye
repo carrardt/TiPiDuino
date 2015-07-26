@@ -7,4 +7,4 @@ CPU 	l2CrossCenter 		1
 CPU 	gpioPanTiltFollower 1
 CPU 	syncThread 			0
 SHADER 	display common_vs drawL2Cross_fs gl_fill tex_l2cross=l2cross:tex_camera=CAMERA 	DISPLAY 	1
-SHADER 	overay common_vs black_fs gpioPanTiltFollower:drawOverlay none DISPLAY 	1
+SHADER 	overay zhue_vs color_fs gpioPanTiltFollower:drawOverlay none DISPLAY 	1

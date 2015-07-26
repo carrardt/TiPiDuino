@@ -241,18 +241,14 @@ static void apply_shader_pass(RASPITEX_STATE *state, ProcessingStep* procStep, i
 
 	// bind FBO and discard color buffer content (not using blending and writing everything)
     GLCHK(glBindFramebuffer(GL_FRAMEBUFFER,destFBO->fb));
+    GLenum colorAttachment = (destFBO->fb==0) ? GL_COLOR_EXT : GL_COLOR_ATTACHMENT0;
+    if( destFBO->fb==0 )
 	{
-		GLenum attachements[1];
-		if( destFBO->fb==0 ) // FBO is the native window displayed on screen
-		{
-			attachements[0] = GL_COLOR_EXT;
-			*needSwapBuffers = 1;
-		}
-		else
-		{
-			attachements[0] = GL_COLOR_ATTACHMENT0;
-		}
-		GLCHK( glDiscardFramebufferEXT(GL_FRAMEBUFFER,1,attachements) );
+		*needSwapBuffers = 1;
+	}
+	else
+	{
+		GLCHK( glDiscardFramebufferEXT(GL_FRAMEBUFFER,1,&colorAttachment) );
 	}
 
 	// set viewport to full surface

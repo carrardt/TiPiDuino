@@ -14,18 +14,16 @@
 
 static int autoCalibration = 1;
 
-static double ServoRefX = 0.5;
-static double ServoRefY = 0.25;
+static double servoStateX = 0.5;
+static double servoStateY = 0.5;
 
-static double ServoDeltaX = 0.125;
-static double ServoDeltaY = 0.125;
+static double targetPrevX = 0.5;
+static double targetPrevY = 0.5;
+static double targetPosX = 0.5;
+static double targetPosY = 0.5;
 
-static double TargetPosX = 0.5;
-static double TargetPosY = 0.5;
-
-static double refPosX=0.0, refPosY=0.0;
-static double DXPosX=0.0, DXPosY=0.0;
-static double DYPosX=0.0, DYPosY=0.0;
+static double laserPosX = 0.5;
+static double laserPosY = 0.5;
 
 static int autoCalibrationStateOld = -1;
 static int autoCalibrationState = 0;
@@ -81,17 +79,7 @@ void gpioPanTiltFollower_setup()
 
 	autoCalibration = 1;
 
-	ServoRefX = 0.5;
-	ServoRefY = 0.5;
-	ServoDeltaX = 0.125;
-	ServoDeltaY = 0.125;
-	TargetPosX = 0.5;
-	TargetPosY = 0.5;
-	refPosX=0.0; refPosY=0.0;
-	DXPosX=0.0; DXPosY=0.0;
-	DYPosX=0.0; DYPosY=0.0;
-
-  gpio_write_values(ServoRefX,ServoRefY,0);
+  gpio_write_values(0.5,0.5,0);
   printf("GPIO pan/tilt follower ready\n");
 }
 
@@ -104,6 +92,9 @@ void gpioPanTiltFollower_run(CPU_TRACKING_STATE * state)
 	double xf = ( state->objectCenter[0][0] - 0.5 ) * 2.0;
 	double yf = ( state->objectCenter[0][1] - 0.5 ) * 2.0;
 	double dist2 = xf*xf + yf*yf;
+
+	laserPosX = ( state->objectCenter[1][0] - 0.5 ) * 2.0;
+	laserPosY = ( state->objectCenter[1][1] - 0.5 ) * 2.0;
 
 	if( autoCalibration )
 	{		
@@ -118,30 +109,30 @@ void gpioPanTiltFollower_run(CPU_TRACKING_STATE * state)
 			case 0 :
 				if( dist2 > 0.0001 )
 				{
-					refPosX = xf;
-					refPosY = yf;
-					state->objectCenter[0][0] = 0.5;
-					state->objectCenter[0][1] = 0.5;
-					gpio_write_values(ServoRefX,ServoRefY,(counter++)%2);
+					targetPosX = xf;
+					targetPosY = yf;
+					laserPosX = 0.0;
+					laserPosY = 0.0;
+					gpio_write_values(0.5,0.5,(counter++)%2);
 				}
 				else
 				{
-					gpio_write_values(ServoRefX,ServoRefY,0);
+					gpio_write_values(0.5,0.5,0);
 					counter = 0;
+					targetPosX = 0.0;
+					targetPosY = 0.0;
 					++ autoCalibrationState;
-					refPosX = 0.0;
-					refPosY = 0.0;
 				}
 				break;
 				
 			case 1 :
-				refPosX += xf;
-				refPosY += yf;
+				targetPosX += xf;
+				targetPosY += yf;
 				++ counter;
 				if(counter==32)
 				{
-					refPosX /= counter;
-					refPosY /= counter;
+					targetPosX /= counter;
+					targetPosY /= counter;
 					++ autoCalibrationState;
 					counter=0;
 				}
@@ -154,8 +145,26 @@ void gpioPanTiltFollower_run(CPU_TRACKING_STATE * state)
 	}
 	else
 	{
-		refPosX = xf;
-		refPosY = yf;
+		const double minCoef = 0.0001;
+		const double maxSqDist = 0.005;
+		double Dx = (xf-targetPrevX);
+		double Dy = (yf-targetPrevY);
+		double c = Dx*Dx+Dy*Dy;
+		if( c < minCoef ) c = minCoef;
+		double nf = 1.0 / (c+minCoef);
+		if( c < maxSqDist )
+		{
+			targetPosX = (targetPrevX*minCoef + xf*c) * nf;
+			targetPosY = (targetPrevY*minCoef + yf*c) * nf;
+		}
+		else
+		{
+			targetPosX = xf;
+			targetPosY = yf;
+		}
+		targetPrevX = targetPosX;
+		targetPrevY = targetPosY;
+		
 		/*
 		double dx = TargetPosX - xf;
 		double dy = TargetPosY - yf ;
@@ -178,21 +187,38 @@ void gpioPanTiltFollower_run(CPU_TRACKING_STATE * state)
 	}
 }
 
+
+
 void drawOverlay(struct RASPITEX_STATE* state,CompiledShaderCache* compiledShader, int pass)
 {
 	if( autoCalibrationState==0 || !autoCalibration )
 	{
-		GLfloat varray[12] = { -0.1,-0.1,0, 0.1,0.1,0, -0.1,0.1,0, 0.1,-0.1,0 };
+		GLfloat varray[24];
 		int i;
 		for(i=0;i<4;i++)
 		{
-			varray[i*3+0] += refPosX;
-			varray[i*3+1] += refPosY;
+			int x = i%2;
+			int y = ((i/2)+x)%2;
+			double ox = x ? -0.05 : 0.05;
+			double oy = y ? -0.05 : 0.05;
+			varray[i*3+0] = targetPosX +ox;
+			varray[i*3+1] = targetPosY +oy;
+			varray[i*3+2] = 0.333;
+		}
+		for(i=4;i<8;i++)
+		{
+			int x = i%2;
+			int y = ((i/2)+x)%2;
+			double ox = x ? -0.05 : 0.05;
+			double oy = y ? -0.05 : 0.05;
+			varray[i*3+0] = laserPosX+ox;
+			varray[i*3+1] = laserPosY+oy;
+			varray[i*3+2] = 0.0;
 		}
 
 		glEnableVertexAttribArray(compiledShader->shader.attribute_locations[0]);
 		glVertexAttribPointer(compiledShader->shader.attribute_locations[0], 3, GL_FLOAT, GL_FALSE, 0, varray);
-		glDrawArrays(GL_LINES, 0, 4);
+		glDrawArrays(GL_LINES, 0, 8);
 		glDisableVertexAttribArray(compiledShader->shader.attribute_locations[0]);
 	}
 }
