@@ -8,7 +8,7 @@
 #include "../cpu_tracking.h"
 
 static int memfd = -1;
-static const uint32_t memSize = 1<<30;
+static const uint32_t memSize = 1061158912;
 static const  uint32_t memOffset = 0;
 static volatile uint32_t* mappedMem = 0;
 
@@ -43,14 +43,27 @@ void scanGPU_run(CPU_TRACKING_STATE * state)
 	const uint32_t searchPattern = 0x004080C0;
 	uint32_t seqStart = 0;
 	uint32_t seqLen = 0;
+	uint32_t biggestSeqLen = 0;
+	uint32_t biggestSeqStart = 0;
 	uint32_t i;
 	printf("start scanning %u 32bit words @%p...\n",N,mappedMem);
 	for(i=0;i<N;i++)
 	{
-		if( seqLen==0 ) seqStart=i;
 		if( mappedMem[i]==searchPattern ) ++seqLen;
-		else seqLen=0;
-		if( ( i & ((1<<20)-1) ) == 0 ){ printf("%p\n",mappedMem+i); fflush(stdout);}
+		else {
+			if( seqLen > biggestSeqLen )
+			{
+				biggestSeqLen = seqLen;
+				biggestSeqStart = seqStart;
+			}
+			seqLen=0;
+			seqStart = i+1;
+		}
+		if( ( i & ((1<<20)-1) ) == 0 )
+		{
+			printf("%p : start=%u, len=%u\n",mappedMem+i,biggestSeqStart,biggestSeqLen);
+			fflush(stdout);
+		}
 	}
 	printf(" Start=%u Len=%u\n",seqStart,seqLen);
 }
