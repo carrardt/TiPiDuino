@@ -11,6 +11,7 @@ project (Fleye)
 # ./fleye -v -ex fixedfps -w 1296 -h 972 -p 32,32,800,544 --script normcoord
 # ./fleye -v -ex fixedfps -w 1296 -h 972 -p 32,32,352,272 --script wincoord
 # ./fleye -v -ex fixedfps -w 1296 -h 972 -p 32,32,352,272 --script normcoord
+# sudo ./fleye -v -ex fixedfps -drc off -w 1296 -h 972 -p 0,0,384,256 --set "CCMD 5" --script l2centerfollow 
 
 SET(COMPILE_DEFINITIONS "-Werror")
 

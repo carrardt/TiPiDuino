@@ -1,5 +1,7 @@
 #include <stdio.h>
 #include <math.h>
+#include <sys/time.h>
+
 #include "../cpu_tracking.h"
 #include "../RaspiTex.h"
 
@@ -21,6 +23,10 @@ static double targetPrevX = 0.5;
 static double targetPrevY = 0.5;
 static double targetPosX = 0.5;
 static double targetPosY = 0.5;
+static double targetSpeedX = 0.0;
+static double targetSpeedY = 0.0;
+static double targetDirX = 0.0;
+static double targetDirY = 0.0;
 
 static double laserPosX = 0.5;
 static double laserPosY = 0.5;
@@ -28,6 +34,8 @@ static double laserPosY = 0.5;
 static int autoCalibrationStateOld = -1;
 static int autoCalibrationState = 0;
 static int counter = 0;
+
+static struct timeval prevTime={0,0};
 
 static void gpio_write_values(float xf, float yf, int laserSwitch)
 {
@@ -81,12 +89,19 @@ void gpioPanTiltFollower_setup()
 
   gpio_write_values(0.5,0.5,0);
   printf("GPIO pan/tilt follower ready\n");
+
+  gettimeofday(&prevTime,NULL);
 }
 
 #define INIT_COUNT 256
 #define ACQUIRE_COUNT 128
 void gpioPanTiltFollower_run(CPU_TRACKING_STATE * state)
 {
+	struct timeval T2;
+	gettimeofday(&T2,NULL);
+	double deltaT = (T2.tv_sec-prevTime.tv_sec)*1000.0 + (T2.tv_usec-prevTime.tv_usec)*0.001;
+	prevTime = T2;
+
 	if( state->objectCount < 1 ) return;
 
 	double xf = ( state->objectCenter[0][0] - 0.5 ) * 2.0;
@@ -145,25 +160,43 @@ void gpioPanTiltFollower_run(CPU_TRACKING_STATE * state)
 	}
 	else
 	{
-		const double minCoef = 0.0001;
-		const double maxSqDist = 0.005;
-		double Dx = (xf-targetPrevX);
-		double Dy = (yf-targetPrevY);
-		double c = Dx*Dx+Dy*Dy;
-		if( c < minCoef ) c = minCoef;
-		double nf = 1.0 / (c+minCoef);
-		if( c < maxSqDist )
+		const double MaxUncertainty = 1000.0;
+		double Dx = (xf-targetPrevX) / deltaT;
+		double Dy = (yf-targetPrevY) / deltaT;
+		double d2 = Dx*Dx+Dy*Dy;
+		double d = sqrt(d2);
+		double motionStability = 0.0;
+		double Nx = 0.0;
+		double Ny = 0.0;
+		if( d > 1e-8 )
 		{
-			targetPosX = (targetPrevX*minCoef + xf*c) * nf;
-			targetPosY = (targetPrevY*minCoef + yf*c) * nf;
+			Nx = Dx / d;
+			Ny = Dy / d;
+			double dirStability = ( Nx * targetDirX + Ny * targetDirY );
+			double Ax = ( Dx - targetSpeedX ) / deltaT;
+			double Ay = ( Dy - targetSpeedY ) / deltaT;
+			double accelNorm = sqrt(Ax*Ax+Ay*Ay);
+			// motionStability = ( M_PI - angle ) * d;
+			// printf("instability=%5.5f, angle=%5.5f, accel=%5.5f,\n",motionUncertainty,angle,accel);
 		}
 		else
 		{
-			targetPosX = xf;
-			targetPosY = yf;
+			
 		}
+		
+		double prevCoef = 1000.0;
+		
+		targetPosX = xf;
+		targetPosY = yf;
+		
+		
+		targetSpeedX = Dx;
+		targetSpeedY = Dy;
+		targetDirX	 = Nx;
+		targetDirY	 = Ny;
 		targetPrevX = targetPosX;
 		targetPrevY = targetPosY;
+		
 		
 		/*
 		double dx = TargetPosX - xf;

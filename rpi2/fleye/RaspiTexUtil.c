@@ -842,6 +842,7 @@ int create_image_processing(RASPITEX_STATE* state, const char* filename)
 
 			// read shader pass description line
 			fscanf(fp,"%s %s %s %s %s %s %s\n",shaderPass->finalTexture->name,vsFileName,fsFileName,drawMethod,inputTextureBlock,outputFBOBlock,tmp);
+			printf("SHADER: %s %s %s %s %s %s %s\n",shaderPass->finalTexture->name,vsFileName,fsFileName,drawMethod,inputTextureBlock,outputFBOBlock,tmp);
 
 			// read pass count, possibly a variable ($something)
 			if( tmp[0]=='$' ) { count=atoi( raspitex_optional_value(state,tmp+1) ); }
