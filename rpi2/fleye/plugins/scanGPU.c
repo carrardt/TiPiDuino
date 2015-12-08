@@ -26,7 +26,7 @@ void scanGPU_setup()
 		strerror(errno)) ;
 		exit(1);
 	}
-	mappedMem = mmap(NULL, memSize, (PROT_READ | PROT_WRITE), MAP_SHARED, memfd, memOffset);
+	mappedMem = mmap(NULL, memSize, (PROT_READ /*| PROT_WRITE*/), MAP_SHARED, memfd, memOffset);
 	if( mappedMem == 0 )
     {
 		fprintf(stderr, "scanGPU: Unable to map memory: %s\n",
@@ -40,7 +40,6 @@ void scanGPU_setup()
 void scanGPU_run(CPU_TRACKING_STATE * state)
 {
 	const uint32_t N = memSize / sizeof(uint32_t);
-	const uint32_t searchPattern = 0x004080C0;
 	uint32_t seqStart = 0;
 	uint32_t seqLen = 0;
 	uint32_t biggestSeqLen = 0;
@@ -49,7 +48,7 @@ void scanGPU_run(CPU_TRACKING_STATE * state)
 	printf("start scanning %u 32bit words @%p...\n",N,mappedMem);
 	for(i=0;i<N;i++)
 	{
-		if( mappedMem[i]==searchPattern ) ++seqLen;
+		if( mappedMem[i]==PATTERN_DWORD ) ++seqLen;
 		else {
 			if( seqLen > biggestSeqLen )
 			{
@@ -65,5 +64,6 @@ void scanGPU_run(CPU_TRACKING_STATE * state)
 			fflush(stdout);
 		}
 	}
-	printf(" Start=%u Len=%u\n",seqStart,seqLen);
+	printf(" Start=%u Len=%u\n",biggestSeqStart,biggestSeqLen);
 }
+
