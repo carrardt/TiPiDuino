@@ -46,9 +46,13 @@ extern "C" {
 #endif
 
 #include "fleye/config.h"
-#include "fleye/texture.h"
-#include "fleye/fbo.h"
-#include "fleye/processingstep.h"
+struct ImageProcessingState;
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+struct RASPITEX_STATE;
 
 typedef struct RASPITEX_SCENE_OPS
 {
@@ -115,8 +119,6 @@ typedef struct RASPITEX_CAPTURE
    int request;
 } RASPITEX_CAPTURE;
 
-
-#define MAX_OPT_VALUES 16
 /**
  * Contains the internal state and configuration for the GL rendered
  * preview window.
@@ -141,15 +143,9 @@ typedef struct RASPITEX_STATE
 	int n_opt_values;
 	char opt_values[MAX_OPT_VALUES][2][32];
     char tracking_script[64];
-	int nProcessingSteps;
-	ProcessingStep processing_step[IMGPROC_MAX_STEPS];
-	int nTextures;
-	RASPITEX_Texture processing_texture[MAX_TEXTURES+IMGPROC_MAX_STEPS];
-	int nFBO;
-	RASPITEX_FBO processing_fbo[MAX_FBOS];
-	VCOS_THREAD_T cpuTrackingThread;
-	CPU_TRACKING_STATE cpu_tracking_state;
-
+    
+    struct ImageProcessingState* ip;
+    
    /* Display rectangle for the native window */
    int32_t x;                          /// x-offset in pixels
    int32_t y;                          /// y-offset in pixels

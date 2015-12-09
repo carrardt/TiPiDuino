@@ -1,11 +1,12 @@
-#ifndef __fleye_gl_tracking_h
-#define __fleye_gl_tracking_h
+#ifndef __fleye_glworker_h
+#define __fleye_glworker_h
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-extern int glworker_open(RASPITEX_STATE *state);
+struct RASPITEX_STATE;
+extern int glworker_load( struct RASPITEX_STATE * state );
 
 #ifdef __cplusplus
 }

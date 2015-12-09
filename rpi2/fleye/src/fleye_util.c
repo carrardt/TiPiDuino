@@ -27,11 +27,13 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "fleye_util.h"
-#include "RaspiTex.h"
+#include "fleye_core.h"
 #include <bcm_host.h>
 #include <GLES2/gl2.h>
 #include <dlfcn.h>
 #include <string.h>
+
+#include "fleye/imageprocessing.h"
 
 VCOS_LOG_CAT_T fleye_log_category;
 
@@ -647,13 +649,13 @@ fail:
 
 int add_fbo(RASPITEX_STATE *state, const char* name, GLint colorFormat, GLint w, GLint h)
 {
-	RASPITEX_Texture* tex = & state->processing_texture[state->nTextures];
+	RASPITEX_Texture* tex = & state->ip->processing_texture[state->ip->nTextures];
 	strcpy(tex->name, name);
 	tex->format = colorFormat;
 	tex->target = GL_TEXTURE_2D;
 	tex->texid = 0;
 	
-	RASPITEX_FBO* fbo = & state->processing_fbo[state->nFBO];
+	RASPITEX_FBO* fbo = & state->ip->processing_fbo[state->ip->nFBO];
    fbo->width = w;
    fbo->height = h;
    fbo->fb = 0;
@@ -704,8 +706,8 @@ int add_fbo(RASPITEX_STATE *state, const char* name, GLint colorFormat, GLint w,
 	
     if ( status == GL_FRAMEBUFFER_COMPLETE )
     {
-		++ state->nTextures ;
-		++ state->nFBO ;
+		++ state->ip->nTextures ;
+		++ state->ip->nFBO ;
 		return 0;
 	}
     else 
@@ -725,11 +727,11 @@ glFramebufferTexture2DOES(GL_FRAMEBUFFER_OES, GL_COLOR_ATTACHMENT0_OES, GL_TEXTU
 RASPITEX_FBO* get_named_fbo(RASPITEX_STATE *state, const char * name)
 {
 	int i;
-	for(i=0;i<state->nFBO;i++)
+	for(i=0;i<state->ip->nFBO;i++)
 	{
-		if( strcasecmp(name,state->processing_fbo[i].texture->name)==0 )
+		if( strcasecmp(name,state->ip->processing_fbo[i].texture->name)==0 )
 		{
-			return & state->processing_fbo[i];
+			return & state->ip->processing_fbo[i];
 		}
 	}
 	return 0;
@@ -738,11 +740,11 @@ RASPITEX_FBO* get_named_fbo(RASPITEX_STATE *state, const char * name)
 RASPITEX_Texture* get_named_texture(RASPITEX_STATE *state, const char * name)
 {
 	int i;
-	for(i=0;i<state->nTextures;i++)
+	for(i=0;i<state->ip->nTextures;i++)
 	{
-		if( strcasecmp(name,state->processing_texture[i].name)==0 )
+		if( strcasecmp(name,state->ip->processing_texture[i].name)==0 )
 		{
-			return & state->processing_texture[i];
+			return & state->ip->processing_texture[i];
 		}
 	}
 	return 0;
@@ -809,14 +811,14 @@ int create_image_processing(RASPITEX_STATE* state, const char* filename)
 	}
 	printf("using processing script %s\n",tmp);
 
-	state->nProcessingSteps = 0;
-	state->cpu_tracking_state.cpuFunc = 0;
-	state->cpu_tracking_state.nAvailCpuFuncs = 0;
-	state->cpu_tracking_state.nFinishedCpuFuncs = 0;
+	state->ip->nProcessingSteps = 0;
+	state->ip->cpu_tracking_state.cpuFunc = 0;
+	state->ip->cpu_tracking_state.nAvailCpuFuncs = 0;
+	state->ip->cpu_tracking_state.nFinishedCpuFuncs = 0;
 
-	while( state->nProcessingSteps<IMGPROC_MAX_STEPS  && !feof(fp) && fscanf(fp,"%s",tmp)==1 )
+	while( state->ip->nProcessingSteps<IMGPROC_MAX_STEPS  && !feof(fp) && fscanf(fp,"%s",tmp)==1 )
 	{
-		memset( & state->processing_step[state->nProcessingSteps] , 0, sizeof(ProcessingStep) );
+		memset( & state->ip->processing_step[state->ip->nProcessingSteps] , 0, sizeof(ProcessingStep) );
 
 		if( strcasecmp(tmp,"SHADER")==0 )
 		{
@@ -828,14 +830,14 @@ int create_image_processing(RASPITEX_STATE* state, const char* filename)
 			int count = 0;
 			char * vs = 0;
 			char * fs = 0;
-			ShaderPass* shaderPass = & state->processing_step[state->nProcessingSteps].shaderPass;
+			ShaderPass* shaderPass = & state->ip->processing_step[state->ip->nProcessingSteps].shaderPass;
 			
 			shaderPass->compileCacheSize = 0;
-			state->processing_step[state->nProcessingSteps].exec_thread = PROCESSING_GPU;
+			state->ip->processing_step[state->ip->nProcessingSteps].exec_thread = PROCESSING_GPU;
 
 			// one texture will be allocated and named upon the shader
 			// texture will always have properties of the last texture the shader has rendered to
-			shaderPass->finalTexture = & state->processing_texture[state->nTextures++];
+			shaderPass->finalTexture = & state->ip->processing_texture[state->ip->nTextures++];
 			shaderPass->finalTexture->format = GL_RGB;
 			shaderPass->finalTexture->target = GL_TEXTURE_2D;
 			shaderPass->finalTexture->texid = 0; // will disable corresponding texture unit
@@ -847,7 +849,7 @@ int create_image_processing(RASPITEX_STATE* state, const char* filename)
 			// read pass count, possibly a variable ($something)
 			if( tmp[0]=='$' ) { count=atoi( fleye_optional_value(state,tmp+1) ); }
 			else { count=atoi(tmp); }
-			state->processing_step[state->nProcessingSteps].numberOfPasses = count;
+			state->ip->processing_step[state->ip->nProcessingSteps].numberOfPasses = count;
 			
 			// assemble vertex and fragment sources
 			{
@@ -874,7 +876,7 @@ int create_image_processing(RASPITEX_STATE* state, const char* filename)
 				//printf("Fragment Shader:\n%s",fs);
 			}
 			//printf("Compiling shader : %s/%s ...\n",vsFileName,fsFileName);
-			//rc = create_image_shader( & state->processing_step[state->n_processing_steps].gl_shader, vs, fs );
+			//rc = create_image_shader( & state->ip->processing_step[state->n_processing_steps].gl_shader, vs, fs );
 			shaderPass->vertexSource = vs;
 			shaderPass->fragmentSourceWithoutTextures = fs;
 			
@@ -902,13 +904,13 @@ int create_image_processing(RASPITEX_STATE* state, const char* filename)
 					handle = dlopen(NULL, RTLD_GLOBAL | RTLD_NOW);
 					funcName = drawPlugin[0];
 				}
-				state->processing_step[state->nProcessingSteps].gl_draw = dlsym(handle,funcName);
-				if( state->processing_step[state->nProcessingSteps].gl_draw == NULL)
+				state->ip->processing_step[state->ip->nProcessingSteps].gl_draw = dlsym(handle,funcName);
+				if( state->ip->processing_step[state->ip->nProcessingSteps].gl_draw == NULL)
 				{
 					vcos_log_error("can't find function %s",drawPlugin[1]);
 					return -1;
 				}
-				printf("resolved function %s to %p\n",funcName,state->processing_step[state->nProcessingSteps].gl_draw);
+				printf("resolved function %s to %p\n",funcName,state->ip->processing_step[state->ip->nProcessingSteps].gl_draw);
 			}
 			
 			// decode input blocks
@@ -956,7 +958,7 @@ int create_image_processing(RASPITEX_STATE* state, const char* filename)
 					shaderPass->fboPool[oi] = get_named_fbo(state,outputFBONames[oi]);
 				}
 			}
-			++ state->nProcessingSteps;
+			++ state->ip->nProcessingSteps;
 		}
 		else if( strcasecmp(tmp,"FBO")==0 )
 		{
@@ -976,8 +978,8 @@ int create_image_processing(RASPITEX_STATE* state, const char* filename)
 		else if( strcasecmp(tmp,"CPU")==0 )
 		{
 			char tmp2[256];
-			state->processing_step[state->nProcessingSteps].numberOfPasses = CPU_PROCESSING_PASS;
-			fscanf(fp,"%s %d\n",tmp, & state->processing_step[state->nProcessingSteps].exec_thread );
+			state->ip->processing_step[state->ip->nProcessingSteps].numberOfPasses = CPU_PROCESSING_PASS;
+			fscanf(fp,"%s %d\n",tmp, & state->ip->processing_step[state->ip->nProcessingSteps].exec_thread );
 			sprintf(tmp2,"./lib%s.so",tmp);
 			printf("loading dynamic library %s ...\n",tmp2);
 			void * handle = dlopen(tmp2, RTLD_GLOBAL | RTLD_NOW);
@@ -987,8 +989,8 @@ int create_image_processing(RASPITEX_STATE* state, const char* filename)
 				return -1;
 			}
 			sprintf(tmp2,"%s_run",tmp);
-			state->processing_step[state->nProcessingSteps].cpu_processing = dlsym(handle,tmp2);
-			if( state->processing_step[state->nProcessingSteps].cpu_processing == NULL)
+			state->ip->processing_step[state->ip->nProcessingSteps].cpu_processing = dlsym(handle,tmp2);
+			if( state->ip->processing_step[state->ip->nProcessingSteps].cpu_processing == NULL)
 			{
 				vcos_log_error("can't find function %s",tmp2);
 				return -1;
@@ -1000,7 +1002,7 @@ int create_image_processing(RASPITEX_STATE* state, const char* filename)
 				(*init_plugin) ();
 			}
 			
-			++ state->nProcessingSteps;
+			++ state->ip->nProcessingSteps;
 		}
 		else
 		{
@@ -1010,32 +1012,32 @@ int create_image_processing(RASPITEX_STATE* state, const char* filename)
 	}
 
 	fclose(fp);
-	printf("processing pipeline has %d steps\n",state->nProcessingSteps);
+	printf("processing pipeline has %d steps\n",state->ip->nProcessingSteps);
 
 	printf("Frame Buffers:\n");
 	int i;
-	for(i=0;i<state->nFBO;i++) { printf("\t%s %dx%d\n",state->processing_fbo[i].texture->name,state->processing_fbo[i].width,state->processing_fbo[i].height); }
+	for(i=0;i<state->ip->nFBO;i++) { printf("\t%s %dx%d\n",state->ip->processing_fbo[i].texture->name,state->ip->processing_fbo[i].width,state->ip->processing_fbo[i].height); }
 	printf("Textures:\n");
-	for(i=0;i<state->nTextures;i++) { printf("\t%s %d\n",state->processing_texture[i].name,state->processing_texture[i].texid); }
+	for(i=0;i<state->ip->nTextures;i++) { printf("\t%s %d\n",state->ip->processing_texture[i].name,state->ip->processing_texture[i].texid); }
 
 	printf("Processing steps:\n");
-	for(i=0;i<state->nProcessingSteps;i++)
+	for(i=0;i<state->ip->nProcessingSteps;i++)
 	{
-		if(state->processing_step[i].numberOfPasses == CPU_PROCESSING_PASS)
+		if(state->ip->processing_step[i].numberOfPasses == CPU_PROCESSING_PASS)
 		{
-			printf("\tCPU %p\n",state->processing_step[i].cpu_processing);
+			printf("\tCPU %p\n",state->ip->processing_step[i].cpu_processing);
 		}
 		else
 		{
-			printf("\tShader %s %d\n",state->processing_step[i].shaderPass.finalTexture->name,state->processing_step[i].numberOfPasses);
+			printf("\tShader %s %d\n",state->ip->processing_step[i].shaderPass.finalTexture->name,state->ip->processing_step[i].numberOfPasses);
 			int j;
-			for(j=0;j<state->processing_step[i].shaderPass.nInputs;j++)
+			for(j=0;j<state->ip->processing_step[i].shaderPass.nInputs;j++)
 			{
-				printf("\t\t%s <-",state->processing_step[i].shaderPass.inputs[j].uniformName, state->processing_step[i].shaderPass.inputs[j].poolSize);
+				printf("\t\t%s <-",state->ip->processing_step[i].shaderPass.inputs[j].uniformName, state->ip->processing_step[i].shaderPass.inputs[j].poolSize);
 				int k;
-				for(k=0;k<state->processing_step[i].shaderPass.inputs[j].poolSize;k++)
+				for(k=0;k<state->ip->processing_step[i].shaderPass.inputs[j].poolSize;k++)
 				{
-					printf("%s%s",((k>0)?", ":""),state->processing_step[i].shaderPass.inputs[j].texPool[k]->name);
+					printf("%s%s",((k>0)?", ":""),state->ip->processing_step[i].shaderPass.inputs[j].texPool[k]->name);
 				}
 				printf("\n");
 			}

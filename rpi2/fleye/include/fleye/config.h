@@ -1,10 +1,6 @@
 #ifndef __fleye_config_h
 #define __fleye_config_h
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #define RASPITEX_VERSION_MAJOR 1
 #define RASPITEX_VERSION_MINOR 0
 
@@ -27,9 +23,7 @@ extern "C" {
 #define PROCESSING_MAIN_THREAD		    0
 #define PROCESSING_ASYNC_THREAD			1
 
-#ifdef __cplusplus
-}
-#endif
+#define MAX_OPT_VALUES 16
 
 #endif
 

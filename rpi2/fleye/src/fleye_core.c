@@ -26,7 +26,6 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "RaspiTex.h"
 #include "RaspiCLI.h"
 #include <math.h>
 #include <stdio.h>
@@ -37,11 +36,15 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <EGL/eglext.h>
 #include <GLES/gl.h>
 #include <GLES/glext.h>
-#include "fleye_util.h"
 #include "interface/vcos/vcos.h"
+#include "interface/mmal/mmal.h"
 #include "interface/mmal/mmal_buffer.h"
 #include "interface/mmal/util/mmal_util.h"
 #include "interface/mmal/util/mmal_util_params.h"
+
+#include "fleye_core.h"
+#include "fleye_util.h"
+#include "fleye/glworker.h"
 
 /**
  * \file GPUTracking.c
@@ -511,7 +514,7 @@ int fleye_init(RASPITEX_STATE *state)
    int rc;
    vcos_init();
 
-   vcos_log_register("RaspiTex", VCOS_LOG_CATEGORY);
+   vcos_log_register("fleye_core", VCOS_LOG_CATEGORY);
    vcos_log_set_level(VCOS_LOG_CATEGORY,
          state->verbose ? VCOS_LOG_INFO : VCOS_LOG_WARN);
    vcos_log_trace("%s", VCOS_FUNCTION);
@@ -526,7 +529,7 @@ int fleye_init(RASPITEX_STATE *state)
    if (status != VCOS_SUCCESS)
       goto error;
 
-	rc = tracking_open(state);
+   rc = glworker_load(state);
 
    if (rc != 0)
       goto error;
@@ -574,8 +577,10 @@ void fleye_destroy(RASPITEX_STATE *state)
  */
 void fleye_set_defaults(RASPITEX_STATE *state)
 {
-   
+   // set to zero
    memset(state, 0, sizeof(*state));
+
+	// initialize only non-zero values
    state->version_major = RASPITEX_VERSION_MAJOR;
    state->version_minor = RASPITEX_VERSION_MINOR;
    state->display = EGL_NO_DISPLAY;

@@ -36,10 +36,13 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <string.h>
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
-#include "RaspiTex.h"
 #include "interface/vcos/vcos.h"
 
 extern VCOS_LOG_CAT_T fleye_log_category;
+
+#include "fleye_core.h"
+#include "fleye/shaderprogram.h"
+#include "fleye/fbo.h"
 
 /* Uncomment to enable extra GL error checking */
 //#define CHECK_GL_ERRORS

@@ -3,7 +3,7 @@
 #include <sys/time.h>
 
 #include "fleye/cpuworker.h"
-#include "RaspiTex.h"
+#include "fleye/shaderpass.h"
 
 #include "../thirdparty/bcm2835.h"
 #include "../thirdparty/bcm2835.c"
@@ -220,9 +220,7 @@ void gpioPanTiltFollower_run(CPU_TRACKING_STATE * state)
 	}
 }
 
-
-
-void drawOverlay(struct RASPITEX_STATE* state,CompiledShaderCache* compiledShader, int pass)
+void drawOverlay(CompiledShaderCache* compiledShader, int pass)
 {
 	if( autoCalibrationState==0 || !autoCalibration )
 	{

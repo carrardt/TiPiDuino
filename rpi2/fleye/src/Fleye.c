@@ -58,7 +58,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "RaspiCamControl.h"
 #include "RaspiPreview.h"
 #include "RaspiCLI.h"
-#include "RaspiTex.h"
+#include "fleye_core.h"
 
 #include <semaphore.h>
 
