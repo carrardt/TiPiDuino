@@ -26,8 +26,12 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef RASPITEX_H_
-#define RASPITEX_H_
+#ifndef fleye_RASPITEX_H_
+#define fleye_RASPITEX_H_
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #include <stdio.h>
 #include <EGL/egl.h>
@@ -36,106 +40,15 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <GLES/glext.h>
 #include "EGL/eglext_brcm.h"
 #include "interface/mmal/mmal.h"
-#include "cpu_tracking.h"
 
-#define RASPITEX_VERSION_MAJOR 1
-#define RASPITEX_VERSION_MINOR 0
+#ifdef __cplusplus
+}
+#endif
 
-#define MAX_TEXTURES 16
-#define MAX_FBOS 16
-
-#define SHADER_MAX_INPUT_TEXTURES 4
-#define SHADER_MAX_OUTPUT_FBOS 4
-#define UNIFORM_NAME_MAX_LEN 64
-#define TEXTURE_NAME_MAX_LEN 64
-
-#define SHADER_MAX_ATTRIBUTES 16
-#define SHADER_MAX_UNIFORMS   16
-
-#define SHADER_COMPILE_CACHE_SIZE 16
-#define IMGPROC_MAX_STEPS 16
-
-#define CPU_PROCESSING_PASS 			-1
-#define PROCESSING_GPU		    		-1
-#define PROCESSING_MAIN_THREAD		    0
-#define PROCESSING_ASYNC_THREAD			1
-
-/**
- * Container for a simple shader program. The uniform and attribute locations
- * are automatically setup by raspitex_build_shader_program.
- */
-typedef struct RASPITEXUTIL_SHADER_PROGRAM_T
-{
-   /// Array of uniform names for raspitex_build_shader_program to process
-   const char *uniform_names[SHADER_MAX_UNIFORMS];
-   /// Array of attribute names for raspitex_build_shader_program to process
-   const char *attribute_names[SHADER_MAX_ATTRIBUTES];
-
-   GLint vs;                        /// Vertex shader handle
-   GLint fs;                        /// Fragment shader handle
-   GLint program;                   /// Shader program handle
-
-   /// The locations for uniforms defined in uniform_names
-   GLint uniform_locations[SHADER_MAX_UNIFORMS];
-
-   /// The locations for attributes defined in attribute_names
-   GLint attribute_locations[SHADER_MAX_ATTRIBUTES];
-} RASPITEXUTIL_SHADER_PROGRAM_T;
-
-
-typedef struct RASPITEX_Texture
-{
-	char name[TEXTURE_NAME_MAX_LEN];
-	GLuint format;
-	GLenum target;
-	GLuint texid;
-} RASPITEX_Texture;
-
-typedef struct RASPITEX_FBO
-{
-	// name given by texture->name
-	GLuint width, height; // dimensions
-	GLuint fb; // frame buffer
-	RASPITEX_Texture* texture;
-} RASPITEX_FBO;
-
-typedef struct TextureInput
-{
-	char uniformName[UNIFORM_NAME_MAX_LEN];
-	int poolSize; // number of input textures to cycle through
-	RASPITEX_Texture* texPool[MAX_TEXTURES];
-} TextureInput;
-
-typedef struct CompiledShaderCache
-{
-	int textureTargets[SHADER_MAX_INPUT_TEXTURES];
-	int samplerUniformLocations[SHADER_MAX_INPUT_TEXTURES];
-	RASPITEXUTIL_SHADER_PROGRAM_T shader;
-} CompiledShaderCache;
-
-typedef struct ShaderPass
-{
-	int nInputs;
-	TextureInput inputs[SHADER_MAX_INPUT_TEXTURES];
-	char* vertexSource;
-	char* fragmentSourceWithoutTextures;
-	int compileCacheSize;
-	CompiledShaderCache shaderCahe[SHADER_COMPILE_CACHE_SIZE];
-	int fboPoolSize;
-	RASPITEX_FBO* fboPool[MAX_FBOS];
-	RASPITEX_Texture* finalTexture;
-} ShaderPass;
-
-struct RASPITEX_STATE;
-
-typedef struct ProcessingStep
-{
-	int exec_thread; // 0=main thread, 1=async thread, -1=not a cpu pass (gpu shader)
-	int numberOfPasses; 
-	ShaderPass shaderPass;
-	void(*gl_draw)(struct RASPITEX_STATE*,CompiledShaderCache*,int);
-	void(*cpu_processing)(CPU_TRACKING_STATE*);
-} ProcessingStep;
+#include "fleye/config.h"
+#include "fleye/texture.h"
+#include "fleye/fbo.h"
+#include "fleye/processingstep.h"
 
 typedef struct RASPITEX_SCENE_OPS
 {
@@ -275,18 +188,22 @@ typedef struct RASPITEX_STATE
 
 } RASPITEX_STATE;
 
-int raspitex_init(RASPITEX_STATE *state);
-void raspitex_destroy(RASPITEX_STATE *state);
-int raspitex_start(RASPITEX_STATE *state);
-void raspitex_stop(RASPITEX_STATE *state);
-void raspitex_set_defaults(RASPITEX_STATE *state);
-int raspitex_configure_preview_port(RASPITEX_STATE *state,
+int fleye_init(RASPITEX_STATE *state);
+void fleye_destroy(RASPITEX_STATE *state);
+int fleye_start(RASPITEX_STATE *state);
+void fleye_stop(RASPITEX_STATE *state);
+void fleye_set_defaults(RASPITEX_STATE *state);
+int fleye_configure_preview_port(RASPITEX_STATE *state,
       MMAL_PORT_T *preview_port);
-void raspitex_display_help();
-int raspitex_parse_cmdline(RASPITEX_STATE *state,
+void fleye_display_help();
+int fleye_parse_cmdline(RASPITEX_STATE *state,
       const char *arg1, const char *arg2);
-int raspitex_capture(RASPITEX_STATE *state, FILE* output_file);
-const char* raspitex_optional_value(RASPITEX_STATE *state, const char* key);
-int raspitex_add_optional_value(RASPITEX_STATE *state, const char* key, const char* value);
+int fleye_capture(RASPITEX_STATE *state, FILE* output_file);
+const char* fleye_optional_value(RASPITEX_STATE *state, const char* key);
+int fleye_add_optional_value(RASPITEX_STATE *state, const char* key, const char* value);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* RASPITEX_H_ */

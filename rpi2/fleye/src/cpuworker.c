@@ -1,5 +1,6 @@
-#include "cpu_tracking.h"
 #include <stdio.h>
+
+#include "fleye/cpuworker.h"
 
 void *cpuTrackingWorker(void *arg)
 {

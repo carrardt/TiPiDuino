@@ -5,7 +5,8 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <sys/mman.h>
-#include "../cpu_tracking.h"
+
+#include "fleye/cpuworker.h"
 
 static int memfd = -1;
 static const uint32_t memSize = 1061158912;
@@ -33,7 +34,7 @@ void scanGPU_setup()
 		strerror(errno)) ;
 		exit(1);
 	}
-	memoryFlag = PATTERN_DWORD;
+	//memoryFlag = PATTERN_DWORD;
 	printf("scanGPU: fd=%d mapping=%p\n",memfd,mappedMem);
 }
 

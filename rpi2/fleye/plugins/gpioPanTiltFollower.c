@@ -2,8 +2,8 @@
 #include <math.h>
 #include <sys/time.h>
 
-#include "../cpu_tracking.h"
-#include "../RaspiTex.h"
+#include "fleye/cpuworker.h"
+#include "RaspiTex.h"
 
 #include "../thirdparty/bcm2835.h"
 #include "../thirdparty/bcm2835.c"

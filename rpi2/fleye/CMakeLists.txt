@@ -20,14 +20,28 @@ SET(VCINC "${VCROOT}/include")
 SET(VCLIB "${VCROOT}/lib")
 set (MMAL_LIBS mmal_core mmal_util mmal_vc_client)
 
-include_directories(${VCINC} ${VCINC}/interface/vcos/pthreads ${VCINC}/interface/vmcs_host/linux)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include ${VCINC} ${VCINC}/interface/vcos/pthreads ${VCINC}/interface/vmcs_host/linux)
 add_definitions(-DGLSL_SRC_DIR=\"${CMAKE_CURRENT_BINARY_DIR}\" -pthread)
 link_directories(${VCLIB})
 
-add_executable(fleye Fleye.c gl_tracking.c cpu_tracking.c RaspiCamControl.c RaspiCLI.c RaspiPreview.c RaspiTex.c RaspiTexUtil.c)
+SET(FLEYE_SRC
+	src/Fleye.c
+	src/glworker.c
+	src/cpuworker.c
+	src/RaspiCamControl.c
+	src/RaspiCLI.c
+	src/RaspiPreview.c
+	src/fleye_core.c
+	src/fleye_util.c )
+
+SET(TESTGPIO_SRC
+	src/test_gpio.c
+	thirdparty/bcm2835.c )
+
+add_executable(fleye ${FLEYE_SRC})
 target_link_libraries(fleye ${MMAL_LIBS} vcos bcm_host GLESv2 EGL pthread m dl)
 
-add_executable(test_gpio test_gpio.c thirdparty/bcm2835.c)
+add_executable(test_gpio ${TESTGPIO_SRC})
 
 # copy shader files
 file(GLOB_RECURSE GLSL_SOURCE_FILES "*.glsl")

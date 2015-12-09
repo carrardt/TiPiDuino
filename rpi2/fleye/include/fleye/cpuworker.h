@@ -1,6 +1,11 @@
 #ifndef __FLEYE_CPU_TRACKING_H
 #define __FLEYE_CPU_TRACKING_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+
 #include <GLES2/gl2.h>
 #include "interface/vcos/vcos.h"
 
@@ -36,5 +41,10 @@ typedef struct CPU_TRACKING_STATE
 } CPU_TRACKING_STATE;
 
 extern void *cpuTrackingWorker(void *arg);
+
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

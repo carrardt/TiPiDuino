@@ -133,7 +133,7 @@ typedef struct
 
    MMAL_POOL_T *encoder_pool; /// Pointer to the pool of buffers used by encoder output port
 
-   RASPITEX_STATE raspitex_state; /// GL renderer state and parameters
+   RASPITEX_STATE fleye_state; /// GL renderer state and parameters
 
 } RASPISTILL_STATE;
 
@@ -203,7 +203,7 @@ static void default_status(RASPISTILL_STATE *state)
    raspicamcontrol_set_defaults(&state->camera_parameters);
 
    // Set initial GL preview state
-   raspitex_set_defaults(&state->raspitex_state);
+   fleye_set_defaults(&state->fleye_state);
 }
 
 /**
@@ -330,7 +330,7 @@ static int parse_cmdline(int argc, const char **argv, RASPISTILL_STATE *state)
 
          // Still unused, try GL preview options
          if (!parms_used)
-            parms_used = raspitex_parse_cmdline(&state->raspitex_state, &argv[i][1], second_arg);
+            parms_used = fleye_parse_cmdline(&state->fleye_state, &argv[i][1], second_arg);
 
          // If no parms were used, this must be a bad parameters
          if (!parms_used)
@@ -344,21 +344,21 @@ static int parse_cmdline(int argc, const char **argv, RASPISTILL_STATE *state)
    }
 
    /* GL preview parameters use preview parameters as defaults unless overriden */
-   if (! state->raspitex_state.gl_win_defined)
+   if (! state->fleye_state.gl_win_defined)
    {
-      state->raspitex_state.x       = state->preview_parameters.previewWindow.x;
-      state->raspitex_state.y       = state->preview_parameters.previewWindow.y;
-      state->raspitex_state.width   = state->preview_parameters.previewWindow.width;
-      state->raspitex_state.height  = state->preview_parameters.previewWindow.height;
+      state->fleye_state.x       = state->preview_parameters.previewWindow.x;
+      state->fleye_state.y       = state->preview_parameters.previewWindow.y;
+      state->fleye_state.width   = state->preview_parameters.previewWindow.width;
+      state->fleye_state.height  = state->preview_parameters.previewWindow.height;
    }
    /* Also pass the preview information through so GL renderer can determine
     * the real resolution of the multi-media image */
-   state->raspitex_state.preview_x       = state->preview_parameters.previewWindow.x;
-   state->raspitex_state.preview_y       = state->preview_parameters.previewWindow.y;
-   state->raspitex_state.preview_width   = state->preview_parameters.previewWindow.width;
-   state->raspitex_state.preview_height  = state->preview_parameters.previewWindow.height;
-   state->raspitex_state.opacity         = state->preview_parameters.opacity;
-   state->raspitex_state.verbose         = state->verbose;
+   state->fleye_state.preview_x       = state->preview_parameters.previewWindow.x;
+   state->fleye_state.preview_y       = state->preview_parameters.previewWindow.y;
+   state->fleye_state.preview_width   = state->preview_parameters.previewWindow.width;
+   state->fleye_state.preview_height  = state->preview_parameters.previewWindow.height;
+   state->fleye_state.opacity         = state->preview_parameters.opacity;
+   state->fleye_state.verbose         = state->verbose;
 
    if (!valid)
    {
@@ -390,7 +390,7 @@ static void display_valid_parameters(char *app_name)
    raspicamcontrol_display_help();
 
    // Now display GL preview help
-   raspitex_display_help();
+   fleye_display_help();
 
    fprintf(stderr, "\n");
 
@@ -657,7 +657,7 @@ static MMAL_STATUS_T create_camera_component(RASPISTILL_STATE *state)
    }
 
    
-      status = raspitex_configure_preview_port(&state->raspitex_state, preview_port);
+      status = fleye_configure_preview_port(&state->fleye_state, preview_port);
       if (status != MMAL_SUCCESS)
       {
          fprintf(stderr, "Failed to configure preview port for GL rendering");
@@ -936,7 +936,7 @@ int main(int argc, const char **argv)
       dump_status(&state);
    }
 
-      raspitex_init(&state.raspitex_state);
+      fleye_init(&state.fleye_state);
 
    // OK, we have a nice set of parameters. Now set up our components
    // We have three components. Camera, Preview and encoder.
@@ -1005,7 +1005,7 @@ int main(int argc, const char **argv)
             fprintf(stderr, "Starting preview...\n"); fflush(stderr);
 		 }
          /* If GL preview is requested then start the GL threads */
-         if ( raspitex_start(&state.raspitex_state) != 0 )
+         if ( fleye_start(&state.fleye_state) != 0 )
             goto error;
 
          if (status != MMAL_SUCCESS)
@@ -1042,8 +1042,8 @@ error:
 
       //if (state.useGL)
       //{
-         raspitex_stop(&state.raspitex_state);
-         raspitex_destroy(&state.raspitex_state);
+         fleye_stop(&state.fleye_state);
+         fleye_destroy(&state.fleye_state);
       //}
 
       // Disable all our ports that are not handled by connections

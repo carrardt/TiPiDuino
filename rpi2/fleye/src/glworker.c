@@ -28,12 +28,13 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //#define CHECK_GL_ERRORS 1
 
 #include "RaspiTex.h"
-#include "RaspiTexUtil.h"
+#include "fleye_util.h"
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
-#include "cpu_tracking.h"
+
+#include "fleye/cpuworker.h"
 
 #define MAX_POINT_SIZE 512
 
@@ -53,15 +54,17 @@ static int tracking_init(RASPITEX_STATE *state)
 	RASPITEX_FBO dispWinFBO;
    int i,rc;
     state->egl_config_attribs = tracking_egl_config_attribs;
-    rc = raspitexutil_gl_init_2_0(state);
+    rc = fleyeutil_gl_init_2_0(state);
+    eglSwapInterval(state->display,0); // no VSync
+
     if (rc != 0)
     {
 		vcos_log_error("unable to init GLES2\n");
 		return rc;
 	}
 
-	{ char tmp[64]; sprintf(tmp,"%d",state->width); raspitex_add_optional_value(state,"WIDTH",tmp); }
-	{ char tmp[64]; sprintf(tmp,"%d",state->height); raspitex_add_optional_value(state,"HEIGHT",tmp); }
+	{ char tmp[64]; sprintf(tmp,"%d",state->width); fleye_add_optional_value(state,"WIDTH",tmp); }
+	{ char tmp[64]; sprintf(tmp,"%d",state->height); fleye_add_optional_value(state,"HEIGHT",tmp); }
 
 	// configure camera input texture
    GLCHK( glBindTexture(GL_TEXTURE_EXTERNAL_OES, state->texture) );
@@ -375,7 +378,7 @@ int tracking_open(RASPITEX_STATE *state)
 {
    state->ops.gl_init = tracking_init;
    state->ops.redraw = tracking_redraw;
-   state->ops.update_texture = raspitexutil_update_texture;
+   state->ops.update_texture = fleyeutil_update_texture;
    state->ops.update_y_texture = 0;
    state->ops.update_u_texture = 0;
    state->ops.update_v_texture = 0;

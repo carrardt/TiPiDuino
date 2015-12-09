@@ -29,7 +29,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef RASPITEX_UTIL_H_
 #define RASPITEX_UTIL_H_
 
-#define VCOS_LOG_CATEGORY (&raspitex_log_category)
+#define VCOS_LOG_CATEGORY (&fleye_log_category)
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -39,7 +39,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "RaspiTex.h"
 #include "interface/vcos/vcos.h"
 
-extern VCOS_LOG_CAT_T raspitex_log_category;
+extern VCOS_LOG_CAT_T fleye_log_category;
 
 /* Uncomment to enable extra GL error checking */
 //#define CHECK_GL_ERRORS
@@ -61,31 +61,31 @@ while(0)
 #endif /* CHECK_GL_ERRORS */
 
 /* Default GL scene ops functions */
-int raspitexutil_create_native_window(RASPITEX_STATE *raspitex_state);
-int raspitexutil_gl_init_1_0(RASPITEX_STATE *raspitex_state);
-int raspitexutil_gl_init_2_0(RASPITEX_STATE *raspitex_state);
-int raspitexutil_update_model(RASPITEX_STATE* raspitex_state);
-int raspitexutil_redraw(RASPITEX_STATE* raspitex_state);
-void raspitexutil_gl_term(RASPITEX_STATE *raspitex_state);
-void raspitexutil_destroy_native_window(RASPITEX_STATE *raspitex_state);
-int raspitexutil_create_textures(RASPITEX_STATE *raspitex_state);
-int raspitexutil_update_texture(RASPITEX_STATE *raspitex_state,
+int fleyeutil_create_native_window(RASPITEX_STATE *fleye_state);
+int fleyeutil_gl_init_1_0(RASPITEX_STATE *fleye_state);
+int fleyeutil_gl_init_2_0(RASPITEX_STATE *fleye_state);
+int fleyeutil_update_model(RASPITEX_STATE* fleye_state);
+int fleyeutil_redraw(RASPITEX_STATE* fleye_state);
+void fleyeutil_gl_term(RASPITEX_STATE *fleye_state);
+void fleyeutil_destroy_native_window(RASPITEX_STATE *fleye_state);
+int fleyeutil_create_textures(RASPITEX_STATE *fleye_state);
+int fleyeutil_update_texture(RASPITEX_STATE *fleye_state,
       EGLClientBuffer mm_buf);
-int raspitexutil_update_y_texture(RASPITEX_STATE *raspitex_state,
+int fleyeutil_update_y_texture(RASPITEX_STATE *fleye_state,
       EGLClientBuffer mm_buf);
-int raspitexutil_update_u_texture(RASPITEX_STATE *raspitex_state,
+int fleyeutil_update_u_texture(RASPITEX_STATE *fleye_state,
       EGLClientBuffer mm_buf);
-int raspitexutil_update_v_texture(RASPITEX_STATE *raspitex_state,
+int fleyeutil_update_v_texture(RASPITEX_STATE *fleye_state,
       EGLClientBuffer mm_buf);
-int raspitexutil_capture_bgra(struct RASPITEX_STATE *state,
+int fleyeutil_capture_bgra(struct RASPITEX_STATE *state,
       uint8_t **buffer, size_t *buffer_size);
-void raspitexutil_close(RASPITEX_STATE* raspitex_state);
+void fleyeutil_close(RASPITEX_STATE* fleye_state);
 
 /* Utility functions */
 char* readShader(const char* fileName);
-int raspitexutil_build_shader_program(RASPITEXUTIL_SHADER_PROGRAM_T *p, const char* vs, const char* fs);
+int fleyeutil_build_shader_program(RASPITEXUTIL_SHADER_PROGRAM_T *p, const char* vs, const char* fs);
 int create_image_shader(RASPITEXUTIL_SHADER_PROGRAM_T* shader, const char* vs, const char* fs);
-void raspitexutil_brga_to_rgba(uint8_t *buffer, size_t size);
+void fleyeutil_brga_to_rgba(uint8_t *buffer, size_t size);
 int create_fbo(RASPITEX_STATE *state, RASPITEX_FBO* fbo, GLint colorFormat, GLint w, GLint h);
 int create_image_processing(RASPITEX_STATE* state, const char* filename);
 

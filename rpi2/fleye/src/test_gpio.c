@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <unistd.h>
-#include "thirdparty/bcm2835.h"
+#include "../thirdparty/bcm2835.h"
 
 #define SERVO_X_VALUE_MIN 250
 #define SERVO_X_ANGLE_MIN -45.0

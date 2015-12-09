@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include "../cpu_tracking.h"
+#include "fleye/cpuworker.h"
 
 void syncThread_setup()
 {

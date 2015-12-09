@@ -26,60 +26,60 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "RaspiTexUtil.h"
+#include "fleye_util.h"
 #include "RaspiTex.h"
 #include <bcm_host.h>
 #include <GLES2/gl2.h>
 #include <dlfcn.h>
 #include <string.h>
 
-VCOS_LOG_CAT_T raspitex_log_category;
+VCOS_LOG_CAT_T fleye_log_category;
 
 /**
- * \file RaspiTexUtil.c
+ * \file fleye_util.c
  *
- * Provides default implementations for the raspitex_scene_ops functions
+ * Provides default implementations for the fleye_scene_ops functions
  * and general utility functions.
  */
 
 /**
  * Deletes textures and EGL surfaces and context.
- * @param   raspitex_state  Pointer to the Raspi
+ * @param   fleye_state  Pointer to the Raspi
  */
-void raspitexutil_gl_term(RASPITEX_STATE *raspitex_state)
+void fleyeutil_gl_term(RASPITEX_STATE *fleye_state)
 {
    vcos_log_trace("%s", VCOS_FUNCTION);
 
    /* Delete OES textures */
-   glDeleteTextures(1, &raspitex_state->texture);
-   eglDestroyImageKHR(raspitex_state->display, raspitex_state->egl_image);
-   raspitex_state->egl_image = EGL_NO_IMAGE_KHR;
+   glDeleteTextures(1, &fleye_state->texture);
+   eglDestroyImageKHR(fleye_state->display, fleye_state->egl_image);
+   fleye_state->egl_image = EGL_NO_IMAGE_KHR;
 
-   glDeleteTextures(1, &raspitex_state->y_texture);
-   eglDestroyImageKHR(raspitex_state->display, raspitex_state->y_egl_image);
-   raspitex_state->y_egl_image = EGL_NO_IMAGE_KHR;
+   glDeleteTextures(1, &fleye_state->y_texture);
+   eglDestroyImageKHR(fleye_state->display, fleye_state->y_egl_image);
+   fleye_state->y_egl_image = EGL_NO_IMAGE_KHR;
 
-   glDeleteTextures(1, &raspitex_state->u_texture);
-   eglDestroyImageKHR(raspitex_state->display, raspitex_state->u_egl_image);
-   raspitex_state->u_egl_image = EGL_NO_IMAGE_KHR;
+   glDeleteTextures(1, &fleye_state->u_texture);
+   eglDestroyImageKHR(fleye_state->display, fleye_state->u_egl_image);
+   fleye_state->u_egl_image = EGL_NO_IMAGE_KHR;
 
-   glDeleteTextures(1, &raspitex_state->v_texture);
-   eglDestroyImageKHR(raspitex_state->display, raspitex_state->v_egl_image);
-   raspitex_state->v_egl_image = EGL_NO_IMAGE_KHR;
+   glDeleteTextures(1, &fleye_state->v_texture);
+   eglDestroyImageKHR(fleye_state->display, fleye_state->v_egl_image);
+   fleye_state->v_egl_image = EGL_NO_IMAGE_KHR;
 
    /* Terminate EGL */
-   eglMakeCurrent(raspitex_state->display, EGL_NO_SURFACE,
+   eglMakeCurrent(fleye_state->display, EGL_NO_SURFACE,
          EGL_NO_SURFACE, EGL_NO_CONTEXT);
-   eglDestroyContext(raspitex_state->display, raspitex_state->context);
-   eglDestroySurface(raspitex_state->display, raspitex_state->surface);
-   eglTerminate(raspitex_state->display);
+   eglDestroyContext(fleye_state->display, fleye_state->context);
+   eglDestroySurface(fleye_state->display, fleye_state->surface);
+   eglTerminate(fleye_state->display);
 }
 
 /** Creates a native window for the GL surface using dispmanx
- * @param raspitex_state A pointer to the GL preview state.
+ * @param fleye_state A pointer to the GL preview state.
  * @return Zero if successful, otherwise, -1 is returned.
  */
-int raspitexutil_create_native_window(RASPITEX_STATE *raspitex_state)
+int fleyeutil_create_native_window(RASPITEX_STATE *fleye_state)
 {
    VC_DISPMANX_ALPHA_T alpha = {DISPMANX_FLAGS_ALPHA_FIXED_ALL_PIXELS, 255, 0};
    VC_RECT_T src_rect = {0};
@@ -89,11 +89,11 @@ int raspitexutil_create_native_window(RASPITEX_STATE *raspitex_state)
    DISPMANX_ELEMENT_HANDLE_T elem;
    DISPMANX_UPDATE_HANDLE_T update;
 
-   alpha.opacity = raspitex_state->opacity;
-   dest_rect.x = raspitex_state->x;
-   dest_rect.y = raspitex_state->y;
-   dest_rect.width = raspitex_state->width;
-   dest_rect.height = raspitex_state->height;
+   alpha.opacity = fleye_state->opacity;
+   dest_rect.x = fleye_state->x;
+   dest_rect.y = fleye_state->y;
+   dest_rect.width = fleye_state->width;
+   dest_rect.height = fleye_state->height;
 
    vcos_log_trace("%s: %d,%d,%d,%d %d,%d,0x%x,0x%x", VCOS_FUNCTION,
          src_rect.x, src_rect.y, src_rect.width, src_rect.height,
@@ -102,8 +102,8 @@ int raspitexutil_create_native_window(RASPITEX_STATE *raspitex_state)
    src_rect.width = dest_rect.width << 16;
    src_rect.height = dest_rect.height << 16;
 
-   raspitex_state->disp = vc_dispmanx_display_open(disp_num);
-   if (raspitex_state->disp == DISPMANX_NO_HANDLE)
+   fleye_state->disp = vc_dispmanx_display_open(disp_num);
+   if (fleye_state->disp == DISPMANX_NO_HANDLE)
    {
       vcos_log_error("Failed to open display handle");
       goto error;
@@ -116,7 +116,7 @@ int raspitexutil_create_native_window(RASPITEX_STATE *raspitex_state)
       goto error;
    }
 
-   elem = vc_dispmanx_element_add(update, raspitex_state->disp, layer_num,
+   elem = vc_dispmanx_element_add(update, fleye_state->disp, layer_num,
          &dest_rect, 0, &src_rect, DISPMANX_PROTECTION_NONE, &alpha, NULL,
          DISPMANX_NO_ROTATE);
    if (elem == DISPMANX_NO_HANDLE)
@@ -125,12 +125,12 @@ int raspitexutil_create_native_window(RASPITEX_STATE *raspitex_state)
       goto error;
    }
 
-   raspitex_state->win.element = elem;
-   raspitex_state->win.width = raspitex_state->width;
-   raspitex_state->win.height = raspitex_state->height;
+   fleye_state->win.element = elem;
+   fleye_state->win.width = fleye_state->width;
+   fleye_state->win.height = fleye_state->height;
    vc_dispmanx_update_submit_sync(update);
 
-   raspitex_state->native_window = (EGLNativeWindowType*) &raspitex_state->win;
+   fleye_state->native_window = (EGLNativeWindowType*) &fleye_state->win;
 
    return 0;
 error:
@@ -138,27 +138,27 @@ error:
 }
 
 /** Destroys the pools of buffers used by the GL renderer.
- * @param raspitex_state A pointer to the GL preview state.
+ * @param fleye_state A pointer to the GL preview state.
  */
-void raspitexutil_destroy_native_window(RASPITEX_STATE *raspitex_state)
+void fleyeutil_destroy_native_window(RASPITEX_STATE *fleye_state)
 {
    vcos_log_trace("%s", VCOS_FUNCTION);
-   if (raspitex_state->disp != DISPMANX_NO_HANDLE)
+   if (fleye_state->disp != DISPMANX_NO_HANDLE)
    {
-      vc_dispmanx_display_close(raspitex_state->disp);
-      raspitex_state->disp = DISPMANX_NO_HANDLE;
+      vc_dispmanx_display_close(fleye_state->disp);
+      fleye_state->disp = DISPMANX_NO_HANDLE;
    }
 }
 
 /** Creates the EGL context and window surface for the native window
  * using specified arguments.
- * @param raspitex_state  A pointer to the GL preview state. This contains
+ * @param fleye_state  A pointer to the GL preview state. This contains
  *                        the native_window pointer.
  * @param attribs         The config attributes.
  * @param context_attribs The context attributes.
  * @return Zero if successful.
  */
-static int raspitexutil_gl_common(RASPITEX_STATE *raspitex_state,
+static int fleyeutil_gl_common(RASPITEX_STATE *fleye_state,
       const EGLint attribs[], const EGLint context_attribs[])
 {
    EGLConfig config;
@@ -166,50 +166,50 @@ static int raspitexutil_gl_common(RASPITEX_STATE *raspitex_state,
 
    vcos_log_trace("%s", VCOS_FUNCTION);
 
-   if (raspitex_state->native_window == NULL)
+   if (fleye_state->native_window == NULL)
    {
       vcos_log_error("%s: No native window", VCOS_FUNCTION);
       goto error;
    }
 
-   raspitex_state->display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
-   if (raspitex_state->display == EGL_NO_DISPLAY)
+   fleye_state->display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+   if (fleye_state->display == EGL_NO_DISPLAY)
    {
       vcos_log_error("%s: Failed to get EGL display", VCOS_FUNCTION);
       goto error;
    }
 
-   if (! eglInitialize(raspitex_state->display, 0, 0))
+   if (! eglInitialize(fleye_state->display, 0, 0))
    {
       vcos_log_error("%s: eglInitialize failed", VCOS_FUNCTION);
       goto error;
    }
 
-   if (! eglChooseConfig(raspitex_state->display, attribs, &config,
+   if (! eglChooseConfig(fleye_state->display, attribs, &config,
             1, &num_configs))
    {
       vcos_log_error("%s: eglChooseConfig failed", VCOS_FUNCTION);
       goto error;
    }
 
-   raspitex_state->surface = eglCreateWindowSurface(raspitex_state->display,
-         config, raspitex_state->native_window, NULL);
-   if (raspitex_state->surface == EGL_NO_SURFACE)
+   fleye_state->surface = eglCreateWindowSurface(fleye_state->display,
+         config, fleye_state->native_window, NULL);
+   if (fleye_state->surface == EGL_NO_SURFACE)
    {
       vcos_log_error("%s: eglCreateWindowSurface failed", VCOS_FUNCTION);
       goto error;
    }
 
-   raspitex_state->context = eglCreateContext(raspitex_state->display,
+   fleye_state->context = eglCreateContext(fleye_state->display,
          config, EGL_NO_CONTEXT, context_attribs);
-   if (raspitex_state->context == EGL_NO_CONTEXT)
+   if (fleye_state->context == EGL_NO_CONTEXT)
    {
       vcos_log_error("%s: eglCreateContext failed", VCOS_FUNCTION);
       goto error;
    }
 
-   if (!eglMakeCurrent(raspitex_state->display, raspitex_state->surface,
-            raspitex_state->surface, raspitex_state->context))
+   if (!eglMakeCurrent(fleye_state->display, fleye_state->surface,
+            fleye_state->surface, fleye_state->context))
    {
       vcos_log_error("%s: Failed to activate EGL context", VCOS_FUNCTION);
       goto error;
@@ -219,32 +219,32 @@ static int raspitexutil_gl_common(RASPITEX_STATE *raspitex_state,
 
 error:
    vcos_log_error("%s: EGL error 0x%08x", VCOS_FUNCTION, eglGetError());
-   raspitex_state->ops.gl_term(raspitex_state);
+   fleye_state->ops.gl_term(fleye_state);
    return -1;
 }
 
 /* Creates the RGBA and luma textures with some default parameters
- * @param raspitex_state A pointer to the GL preview state.
+ * @param fleye_state A pointer to the GL preview state.
  * @return Zero if successful.
  */
-int raspitexutil_create_textures(RASPITEX_STATE *raspitex_state)
+int fleyeutil_create_textures(RASPITEX_STATE *fleye_state)
 {
-   GLCHK(glGenTextures(1, &raspitex_state->y_texture));
-   GLCHK(glGenTextures(1, &raspitex_state->u_texture));
-   GLCHK(glGenTextures(1, &raspitex_state->v_texture));
-   GLCHK(glGenTextures(1, &raspitex_state->texture));
+   GLCHK(glGenTextures(1, &fleye_state->y_texture));
+   GLCHK(glGenTextures(1, &fleye_state->u_texture));
+   GLCHK(glGenTextures(1, &fleye_state->v_texture));
+   GLCHK(glGenTextures(1, &fleye_state->texture));
    return 0;
 }
 
 /**
  * Creates an OpenGL ES 1.X context.
- * @param raspitex_state A pointer to the GL preview state.
+ * @param fleye_state A pointer to the GL preview state.
  * @return Zero if successful.
  */
-int raspitexutil_gl_init_1_0(RASPITEX_STATE *raspitex_state)
+int fleyeutil_gl_init_1_0(RASPITEX_STATE *fleye_state)
 {
    int rc;
-   const EGLint* attribs = raspitex_state->egl_config_attribs;
+   const EGLint* attribs = fleye_state->egl_config_attribs;
 
    const EGLint default_attribs[] =
    {
@@ -266,12 +266,12 @@ int raspitexutil_gl_init_1_0(RASPITEX_STATE *raspitex_state)
    if (! attribs)
       attribs = default_attribs;
 
-   rc = raspitexutil_gl_common(raspitex_state, attribs, context_attribs);
+   rc = fleyeutil_gl_common(fleye_state, attribs, context_attribs);
    if (rc != 0)
       goto end;
 
    GLCHK(glEnable(GL_TEXTURE_EXTERNAL_OES));
-   rc = raspitexutil_create_textures(raspitex_state);
+   rc = fleyeutil_create_textures(fleye_state);
 
 end:
    return rc;
@@ -279,13 +279,13 @@ end:
 
 /**
  * Creates an OpenGL ES 2.X context.
- * @param raspitex_state A pointer to the GL preview state.
+ * @param fleye_state A pointer to the GL preview state.
  * @return Zero if successful.
  */
-int raspitexutil_gl_init_2_0(RASPITEX_STATE *raspitex_state)
+int fleyeutil_gl_init_2_0(RASPITEX_STATE *fleye_state)
 {
    int rc;
-   const EGLint* attribs = raspitex_state->egl_config_attribs;;
+   const EGLint* attribs = fleye_state->egl_config_attribs;;
 
    const EGLint default_attribs[] =
    {
@@ -308,11 +308,11 @@ int raspitexutil_gl_init_2_0(RASPITEX_STATE *raspitex_state)
       attribs = default_attribs;
 
    vcos_log_trace("%s", VCOS_FUNCTION);
-   rc = raspitexutil_gl_common(raspitex_state, attribs, context_attribs);
+   rc = fleyeutil_gl_common(fleye_state, attribs, context_attribs);
    if (rc != 0)
       goto end;
 
-   rc = raspitexutil_create_textures(raspitex_state);
+   rc = fleyeutil_create_textures(fleye_state);
 end:
    return rc;
 }
@@ -328,7 +328,7 @@ end:
  * @param texture Pointer to the texture to update from EGL image.
  * @return Zero if successful.
  */
-int raspitexutil_do_update_texture(EGLDisplay display, EGLenum target,
+int fleyeutil_do_update_texture(EGLDisplay display, EGLenum target,
       EGLClientBuffer mm_buf, GLuint *texture, EGLImageKHR *egl_image)
 {
    vcos_log_trace("%s: mm_buf %u", VCOS_FUNCTION, (unsigned) mm_buf);
@@ -348,89 +348,89 @@ int raspitexutil_do_update_texture(EGLDisplay display, EGLenum target,
 
 /**
  * Updates the RGBX texture to the specified MMAL buffer.
- * @param raspitex_state A pointer to the GL preview state.
+ * @param fleye_state A pointer to the GL preview state.
  * @param mm_buf The MMAL buffer.
  * @return Zero if successful.
  */
-int raspitexutil_update_texture(RASPITEX_STATE *raspitex_state,
+int fleyeutil_update_texture(RASPITEX_STATE *fleye_state,
       EGLClientBuffer mm_buf)
 {
-   return raspitexutil_do_update_texture(raspitex_state->display,
+   return fleyeutil_do_update_texture(fleye_state->display,
          EGL_IMAGE_BRCM_MULTIMEDIA, mm_buf,
-         &raspitex_state->texture, &raspitex_state->egl_image);
+         &fleye_state->texture, &fleye_state->egl_image);
 }
 
 /**
  * Updates the Y plane texture to the specified MMAL buffer.
- * @param raspitex_state A pointer to the GL preview state.
+ * @param fleye_state A pointer to the GL preview state.
  * @param mm_buf The MMAL buffer.
  * @return Zero if successful.
  */
-int raspitexutil_update_y_texture(RASPITEX_STATE *raspitex_state,
+int fleyeutil_update_y_texture(RASPITEX_STATE *fleye_state,
       EGLClientBuffer mm_buf)
 {
-   return raspitexutil_do_update_texture(raspitex_state->display,
+   return fleyeutil_do_update_texture(fleye_state->display,
          EGL_IMAGE_BRCM_MULTIMEDIA_Y, mm_buf,
-         &raspitex_state->y_texture, &raspitex_state->y_egl_image);
+         &fleye_state->y_texture, &fleye_state->y_egl_image);
 }
 
 /**
  * Updates the U plane texture to the specified MMAL buffer.
- * @param raspitex_state A pointer to the GL preview state.
+ * @param fleye_state A pointer to the GL preview state.
  * @param mm_buf The MMAL buffer.
  * @return Zero if successful.
  */
-int raspitexutil_update_u_texture(RASPITEX_STATE *raspitex_state,
+int fleyeutil_update_u_texture(RASPITEX_STATE *fleye_state,
       EGLClientBuffer mm_buf)
 {
-   return raspitexutil_do_update_texture(raspitex_state->display,
+   return fleyeutil_do_update_texture(fleye_state->display,
          EGL_IMAGE_BRCM_MULTIMEDIA_U, mm_buf,
-         &raspitex_state->u_texture, &raspitex_state->u_egl_image);
+         &fleye_state->u_texture, &fleye_state->u_egl_image);
 }
 
 /**
  * Updates the V plane texture to the specified MMAL buffer.
- * @param raspitex_state A pointer to the GL preview state.
+ * @param fleye_state A pointer to the GL preview state.
  * @param mm_buf The MMAL buffer.
  * @return Zero if successful.
  */
-int raspitexutil_update_v_texture(RASPITEX_STATE *raspitex_state,
+int fleyeutil_update_v_texture(RASPITEX_STATE *fleye_state,
       EGLClientBuffer mm_buf)
 {
-   return raspitexutil_do_update_texture(raspitex_state->display,
+   return fleyeutil_do_update_texture(fleye_state->display,
          EGL_IMAGE_BRCM_MULTIMEDIA_V, mm_buf,
-         &raspitex_state->v_texture, &raspitex_state->v_egl_image);
+         &fleye_state->v_texture, &fleye_state->v_egl_image);
 }
 
 /**
  * Default is a no-op
- * @param raspitex_state A pointer to the GL preview state.
+ * @param fleye_state A pointer to the GL preview state.
  * @return Zero.
  */
-int raspitexutil_update_model(RASPITEX_STATE* raspitex_state)
+int fleyeutil_update_model(RASPITEX_STATE* fleye_state)
 {
-   (void) raspitex_state;
+   (void) fleye_state;
    return 0;
 }
 
 /**
  * Default is a no-op
- * @param raspitex_state A pointer to the GL preview state.
+ * @param fleye_state A pointer to the GL preview state.
  * @return Zero.
  */
-int raspitexutil_redraw(RASPITEX_STATE* raspitex_state)
+int fleyeutil_redraw(RASPITEX_STATE* fleye_state)
 {
-   (void) raspitex_state;
+   (void) fleye_state;
    return 0;
 }
 
 /**
  * Default is a no-op
- * @param raspitex_state A pointer to the GL preview state.
+ * @param fleye_state A pointer to the GL preview state.
  */
-void raspitexutil_close(RASPITEX_STATE* raspitex_state)
+void fleyeutil_close(RASPITEX_STATE* fleye_state)
 {
-   (void) raspitex_state;
+   (void) fleye_state;
 }
 
 /**
@@ -438,7 +438,7 @@ void raspitexutil_close(RASPITEX_STATE* raspitex_state)
  * @param buffer The buffer to modify.
  * @param size Size of the buffer in bytes.
  */
-void raspitexutil_brga_to_rgba(uint8_t *buffer, size_t size)
+void fleyeutil_brga_to_rgba(uint8_t *buffer, size_t size)
 {
    uint8_t* out = buffer;
    uint8_t* end = buffer + size;
@@ -465,7 +465,7 @@ void raspitexutil_brga_to_rgba(uint8_t *buffer, size_t size)
  * @param buffer_size The size of the new buffer in bytes (out param)
  * @return Zero if successful.
  */
-int raspitexutil_capture_bgra(RASPITEX_STATE *state,
+int fleyeutil_capture_bgra(RASPITEX_STATE *state,
       uint8_t **buffer, size_t *buffer_size)
 {
    const int bytes_per_pixel = 4;
@@ -520,7 +520,7 @@ char* readShader(const char* fileName)
  * @param p The shader program state.
  * @return Zero if successful.
  */
-int raspitexutil_build_shader_program(RASPITEXUTIL_SHADER_PROGRAM_T *p, const char* vertex_source, const char* fragment_source)
+int fleyeutil_build_shader_program(RASPITEXUTIL_SHADER_PROGRAM_T *p, const char* vertex_source, const char* fragment_source)
 {
     GLint status;
     int i = 0;
@@ -762,7 +762,7 @@ int create_image_shader(RASPITEXUTIL_SHADER_PROGRAM_T* shader, const char* vs, c
 	shader->uniform_names[3] = "iter2i";
 	shader->uniform_names[4] = "step2i";
 
-    int rc = raspitexutil_build_shader_program(shader,vs,fs);    
+    int rc = fleyeutil_build_shader_program(shader,vs,fs);    
 	return rc;
 }
 
@@ -845,7 +845,7 @@ int create_image_processing(RASPITEX_STATE* state, const char* filename)
 			printf("SHADER: %s %s %s %s %s %s %s\n",shaderPass->finalTexture->name,vsFileName,fsFileName,drawMethod,inputTextureBlock,outputFBOBlock,tmp);
 
 			// read pass count, possibly a variable ($something)
-			if( tmp[0]=='$' ) { count=atoi( raspitex_optional_value(state,tmp+1) ); }
+			if( tmp[0]=='$' ) { count=atoi( fleye_optional_value(state,tmp+1) ); }
 			else { count=atoi(tmp); }
 			state->processing_step[state->nProcessingSteps].numberOfPasses = count;
 			
@@ -964,8 +964,8 @@ int create_image_processing(RASPITEX_STATE* state, const char* filename)
 			char widthStr[64];
 			char heightStr[64];
 			fscanf(fp,"%s %s %s\n",name,widthStr,heightStr);
-			int w = atoi( (widthStr[0]=='$') ? raspitex_optional_value(state,widthStr+1) : widthStr );
-			int h = atoi( (heightStr[0]=='$') ? raspitex_optional_value(state,heightStr+1) : heightStr );
+			int w = atoi( (widthStr[0]=='$') ? fleye_optional_value(state,widthStr+1) : widthStr );
+			int h = atoi( (heightStr[0]=='$') ? fleye_optional_value(state,heightStr+1) : heightStr );
 			add_fbo(state,name,GL_RGBA,w,h);
 		}
 		// add a TEXTURE keyword to load an image ? might be usefull

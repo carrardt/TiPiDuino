@@ -37,7 +37,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <EGL/eglext.h>
 #include <GLES/gl.h>
 #include <GLES/glext.h>
-#include "RaspiTexUtil.h"
+#include "fleye_util.h"
 #include "interface/vcos/vcos.h"
 #include "interface/mmal/mmal_buffer.h"
 #include "interface/mmal/util/mmal_util.h"
@@ -85,7 +85,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define DEFAULT_WIDTH   (2592/2)
 #define DEFAULT_HEIGHT  (1944/2)
 
-const char* raspitex_optional_value(RASPITEX_STATE *state, const char* key)
+const char* fleye_optional_value(RASPITEX_STATE *state, const char* key)
 {
 	int i;
 	for(i=0;i<state->n_opt_values;i++)
@@ -95,7 +95,7 @@ const char* raspitex_optional_value(RASPITEX_STATE *state, const char* key)
 	return "";
 }
 
-int raspitex_add_optional_value(RASPITEX_STATE *state, const char* key, const char* value)
+int fleye_add_optional_value(RASPITEX_STATE *state, const char* key, const char* value)
 {
 	strcpy(state->opt_values[state->n_opt_values][0],key);
 	strcpy(state->opt_values[state->n_opt_values][1],value);
@@ -109,15 +109,15 @@ int raspitex_add_optional_value(RASPITEX_STATE *state, const char* key, const ch
  * @param arg2 Parameter (could be NULL)
  * @return How many parameters were used, 0,1,2
  */
-int raspitex_parse_cmdline(RASPITEX_STATE *state,
+int fleye_parse_cmdline(RASPITEX_STATE *state,
       const char *arg1, const char *arg2)
 {
-	//printf("raspitex_parse_cmdline %s %s\n",arg1,arg2);
+	//printf("fleye_parse_cmdline %s %s\n",arg1,arg2);
 	if( strcmp(arg1,"-set")==0 )
 	{
 		char key[64], value[64];
 		sscanf(arg2,"%s %s",key,value);
-		raspitex_add_optional_value(state,key,value);
+		fleye_add_optional_value(state,key,value);
 		return 2;
 	}
 	else if( strcmp(arg1,"-script")==0 )
@@ -132,7 +132,7 @@ int raspitex_parse_cmdline(RASPITEX_STATE *state,
 /**
  * Display help for command line options
  */
-void raspitex_display_help()
+void fleye_display_help()
 {
 }
 
@@ -167,7 +167,7 @@ static void update_fps()
  * @param state RASPITEX STATE
  * @return Zero if successful.
  */
-static void raspitex_do_capture(RASPITEX_STATE *state)
+static void fleye_do_capture(RASPITEX_STATE *state)
 {
    uint8_t *buffer = NULL;
    size_t size = 0;
@@ -215,7 +215,7 @@ static int check_egl_image(RASPITEX_STATE *state)
  * @param video_frame MMAL buffer header containing the opaque buffer handle.
  * @return Zero if successful.
  */
-static int raspitex_draw(RASPITEX_STATE *state, MMAL_BUFFER_HEADER_T *buf)
+static int fleye_draw(RASPITEX_STATE *state, MMAL_BUFFER_HEADER_T *buf)
 {
    int rc = 0;
 
@@ -290,7 +290,7 @@ static int raspitex_draw(RASPITEX_STATE *state, MMAL_BUFFER_HEADER_T *buf)
       if (rc != 0)
          goto end;
 
-      //raspitex_do_capture(state);
+      //fleye_do_capture(state);
       update_fps();
    }
    else
@@ -322,7 +322,7 @@ static int preview_process_returned_bufs(RASPITEX_STATE* state)
       if (state->preview_stop == 0)
       {
          new_frame = 1;
-         rc = raspitex_draw(state, buf);
+         rc = fleye_draw(state, buf);
          if (rc != 0)
          {
             vcos_log_error("%s: Error drawing frame. Stopping.", VCOS_FUNCTION);
@@ -337,7 +337,7 @@ static int preview_process_returned_bufs(RASPITEX_STATE* state)
     * are returned.
     */
    if (! new_frame)
-      rc = raspitex_draw(state, NULL);
+      rc = fleye_draw(state, NULL);
    return rc;
 }
 
@@ -426,13 +426,13 @@ static void preview_output_cb(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buf)
 /* Registers a callback on the camera preview port to receive
  * notifications of new frames.
  * This must be called before rapitex_start and may not be called again
- * without calling raspitex_destroy first.
+ * without calling fleye_destroy first.
  *
  * @param state Pointer to the GL preview state.
  * @param port  Pointer to the camera preview port
  * @return Zero if successful.
  */
-int raspitex_configure_preview_port(RASPITEX_STATE *state,
+int fleye_configure_preview_port(RASPITEX_STATE *state,
       MMAL_PORT_T *preview_port)
 {
    MMAL_STATUS_T status;
@@ -501,13 +501,11 @@ end:
    return (status == MMAL_SUCCESS ? 0 : -1);
 }
 
-extern int tracking_open(RASPITEX_STATE *state);
-
 /* Initialises GL preview state and creates the dispmanx native window.
  * @param state Pointer to the GL preview state.
  * @return Zero if successful.
  */
-int raspitex_init(RASPITEX_STATE *state)
+int fleye_init(RASPITEX_STATE *state)
 {
    VCOS_STATUS_T status;
    int rc;
@@ -543,7 +541,7 @@ error:
 /* Destroys the pools of buffers used by the GL renderer.
  * @param  state Pointer to the GL preview state.
  */
-void raspitex_destroy(RASPITEX_STATE *state)
+void fleye_destroy(RASPITEX_STATE *state)
 {
    vcos_log_trace("%s", VCOS_FUNCTION);
    if (state->preview_pool)
@@ -574,7 +572,7 @@ void raspitex_destroy(RASPITEX_STATE *state)
  * @param state Pointer to the GL preview state.
  * @return Zero if successful.
  */
-void raspitex_set_defaults(RASPITEX_STATE *state)
+void fleye_set_defaults(RASPITEX_STATE *state)
 {
    
    memset(state, 0, sizeof(*state));
@@ -591,12 +589,12 @@ void raspitex_set_defaults(RASPITEX_STATE *state)
    state->width = DEFAULT_WIDTH;
    state->height = DEFAULT_HEIGHT;
 
-   state->ops.create_native_window = raspitexutil_create_native_window;
-   state->ops.gl_init = raspitexutil_gl_init_1_0;
-   state->ops.redraw = raspitexutil_redraw;
-   state->ops.gl_term = raspitexutil_gl_term;
-   state->ops.destroy_native_window = raspitexutil_destroy_native_window;
-   state->ops.close = raspitexutil_close;
+   state->ops.create_native_window = fleyeutil_create_native_window;
+   state->ops.gl_init = fleyeutil_gl_init_1_0;
+   state->ops.redraw = fleyeutil_redraw;
+   state->ops.gl_term = fleyeutil_gl_term;
+   state->ops.destroy_native_window = fleyeutil_destroy_native_window;
+   state->ops.close = fleyeutil_close;
    
    strcpy(state->tracking_script,"passthru");
 }
@@ -604,7 +602,7 @@ void raspitex_set_defaults(RASPITEX_STATE *state)
 /* Stops the rendering loop and destroys MMAL resources
  * @param state  Pointer to the GL preview state.
  */
-void raspitex_stop(RASPITEX_STATE *state)
+void fleye_stop(RASPITEX_STATE *state)
 {
    if (! state->preview_stop)
    {
@@ -616,12 +614,12 @@ void raspitex_stop(RASPITEX_STATE *state)
 
 /**
  * Starts the worker / GL renderer thread.
- * @pre raspitex_init was successful
- * @pre raspitex_configure_preview_port was successful
+ * @pre fleye_init was successful
+ * @pre fleye_configure_preview_port was successful
  * @param state Pointer to the GL preview state.
  * @return Zero on success, otherwise, -1 is returned
  * */
-int raspitex_start(RASPITEX_STATE *state)
+int fleye_start(RASPITEX_STATE *state)
 {
    VCOS_STATUS_T status;
 

@@ -1,6 +1,7 @@
 #include <GLES2/gl2.h>
 #include <stdio.h>
-#include "../cpu_tracking.h"
+
+#include "fleye/cpuworker.h"
 
 void glReadBack_setup()
 {
