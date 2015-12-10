@@ -10,14 +10,14 @@ extern "C" {
 
 struct RASPITEX_STATE;
 
-typedef struct ProcessingStep
+struct ProcessingStep
 {
 	int exec_thread; // 0=main thread, 1=async thread, -1=not a cpu pass (gpu shader)
 	int numberOfPasses; 
 	ShaderPass shaderPass;
-	void(*gl_draw)(CompiledShaderCache*,int);
+	void(*gl_draw)(struct CompiledShaderCache*,int);
 	void(*cpu_processing)(CPU_TRACKING_STATE*);
-} ProcessingStep;
+};
 
 #ifdef __cplusplus
 }

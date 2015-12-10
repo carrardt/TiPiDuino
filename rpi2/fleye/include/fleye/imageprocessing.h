@@ -4,9 +4,10 @@
 #include <EGL/egl.h>
 #include "fleye/config.h"
 #include "fleye/texture.h"
-#include "fleye/shaderprogram.h"
 #include "fleye/fbo.h"
 #include "fleye/processingstep.h"
+
+struct UserEnv;
 
 #ifdef __cplusplus
 extern "C" {
@@ -15,14 +16,16 @@ extern "C" {
 struct ImageProcessingState
 {
 	int nProcessingSteps;
-	ProcessingStep processing_step[IMGPROC_MAX_STEPS];
+	struct ProcessingStep processing_step[IMGPROC_MAX_STEPS];
 	int nTextures;
-	RASPITEX_Texture processing_texture[MAX_TEXTURES+IMGPROC_MAX_STEPS];
+	struct RASPITEX_Texture processing_texture[MAX_TEXTURES+IMGPROC_MAX_STEPS];
 	int nFBO;
-	RASPITEX_FBO processing_fbo[MAX_FBOS];
+	struct RASPITEX_FBO processing_fbo[MAX_FBOS];
 	VCOS_THREAD_T cpuTrackingThread;
-	CPU_TRACKING_STATE cpu_tracking_state;
+	struct CPU_TRACKING_STATE cpu_tracking_state;
 };
+
+extern int create_image_processing(struct ImageProcessingState* ip, struct UserEnv* env, const char* filename);
 
 #ifdef __cplusplus
 }

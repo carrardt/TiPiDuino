@@ -45,6 +45,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "fleye_core.h"
 #include "fleye_util.h"
 #include "fleye/glworker.h"
+#include "fleye/userenv.h"
 
 /**
  * \file GPUTracking.c
@@ -88,24 +89,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define DEFAULT_WIDTH   (2592/2)
 #define DEFAULT_HEIGHT  (1944/2)
 
-const char* fleye_optional_value(RASPITEX_STATE *state, const char* key)
-{
-	int i;
-	for(i=0;i<state->n_opt_values;i++)
-	{
-		if( strcmp(state->opt_values[i][0],key) == 0 ) return state->opt_values[i][1];
-	}
-	return "";
-}
-
-int fleye_add_optional_value(RASPITEX_STATE *state, const char* key, const char* value)
-{
-	strcpy(state->opt_values[state->n_opt_values][0],key);
-	strcpy(state->opt_values[state->n_opt_values][1],value);
-	++ state->n_opt_values;
-	return state->n_opt_values ;
-}
-
 /**
  * Parse a possible command pair - command and parameter
  * @param arg1 Command
@@ -120,7 +103,7 @@ int fleye_parse_cmdline(RASPITEX_STATE *state,
 	{
 		char key[64], value[64];
 		sscanf(arg2,"%s %s",key,value);
-		fleye_add_optional_value(state,key,value);
+		fleye_add_optional_value( & state->user_env,key,value);
 		return 2;
 	}
 	else if( strcmp(arg1,"-script")==0 )

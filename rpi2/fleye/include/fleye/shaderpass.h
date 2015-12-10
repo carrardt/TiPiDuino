@@ -1,42 +1,31 @@
 #ifndef __fleye_ShaderPass_H_
 #define __fleye_ShaderPass_H_
 
-#include <EGL/egl.h>
 #include "fleye/config.h"
-#include "fleye/texture.h"
-#include "fleye/shaderprogram.h"
-#include "fleye/fbo.h"
+#include "fleye/compiledshadercache.h"
+#include "fleye/textureinput.h"
+
+struct RASPITEX_Texture;
+struct RASPITEX_FBO;
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-typedef struct TextureInput
-{
-	char uniformName[UNIFORM_NAME_MAX_LEN];
-	int poolSize; // number of input textures to cycle through
-	RASPITEX_Texture* texPool[MAX_TEXTURES];
-} TextureInput;
-
-typedef struct CompiledShaderCache
-{
-	int textureTargets[SHADER_MAX_INPUT_TEXTURES];
-	int samplerUniformLocations[SHADER_MAX_INPUT_TEXTURES];
-	RASPITEXUTIL_SHADER_PROGRAM_T shader;
-} CompiledShaderCache;
-
-typedef struct ShaderPass
+struct ShaderPass
 {
 	int nInputs;
-	TextureInput inputs[SHADER_MAX_INPUT_TEXTURES];
+	struct TextureInput inputs[SHADER_MAX_INPUT_TEXTURES];
 	char* vertexSource;
 	char* fragmentSourceWithoutTextures;
 	int compileCacheSize;
-	CompiledShaderCache shaderCahe[SHADER_COMPILE_CACHE_SIZE];
+	struct CompiledShaderCache shaderCahe[SHADER_COMPILE_CACHE_SIZE];
 	int fboPoolSize;
-	RASPITEX_FBO* fboPool[MAX_FBOS];
-	RASPITEX_Texture* finalTexture;
-} ShaderPass;
+	struct RASPITEX_FBO* fboPool[MAX_FBOS];
+	struct RASPITEX_Texture* finalTexture;
+};
+
+typedef struct ShaderPass ShaderPass;
 
 #ifdef __cplusplus
 }

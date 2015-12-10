@@ -15,6 +15,17 @@ project (Fleye)
 
 SET(COMPILE_DEFINITIONS "-Werror")
 
+file(GLOB THIRDPARTY_SRC "src/thirdparty/*.c")
+add_library(thirdparty ${THIRDPARTY_SRC})
+
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src/thirdparty)
+
+file(GLOB TESTGPIO_SRC "src/gpiotest/*.c")
+add_executable(test_gpio ${TESTGPIO_SRC})
+target_link_libraries(test_gpio thirdparty)
+install(TARGETS test_gpio RUNTIME DESTINATION bin)
+
+# Raspberry Pi VideoCore HW Abstraction Layer
 SET(VCROOT "/opt/vc")
 SET(VCINC "${VCROOT}/include")
 SET(VCLIB "${VCROOT}/lib")
@@ -24,24 +35,10 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include ${VCINC} ${VCINC}/interf
 add_definitions(-DGLSL_SRC_DIR=\"${CMAKE_CURRENT_BINARY_DIR}\" -pthread)
 link_directories(${VCLIB})
 
-SET(FLEYE_SRC
-	src/Fleye.c
-	src/glworker.c
-	src/cpuworker.c
-	src/RaspiCamControl.c
-	src/RaspiCLI.c
-	src/RaspiPreview.c
-	src/fleye_core.c
-	src/fleye_util.c )
-
-SET(TESTGPIO_SRC
-	src/test_gpio.c
-	thirdparty/bcm2835.c )
-
+file(GLOB FLEYE_SRC "src/fleye/*.c")
 add_executable(fleye ${FLEYE_SRC})
-target_link_libraries(fleye ${MMAL_LIBS} vcos bcm_host GLESv2 EGL pthread m dl)
-
-add_executable(test_gpio ${TESTGPIO_SRC})
+target_link_libraries(fleye thirdparty ${MMAL_LIBS} vcos bcm_host GLESv2 EGL pthread m dl)
+install(TARGETS fleye RUNTIME DESTINATION bin)
 
 # copy shader files
 file(GLOB_RECURSE GLSL_SOURCE_FILES "*.glsl")
@@ -69,5 +66,4 @@ foreach(PLUGIN_SRC ${PLUGIN_SOURCE_FILES})
 	install(TARGETS ${PLUGIN_NAME} LIBRARY DESTINATION bin)
 endforeach(PLUGIN_SRC)
 
-install(TARGETS fleye RUNTIME DESTINATION bin)
 

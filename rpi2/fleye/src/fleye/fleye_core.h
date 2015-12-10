@@ -46,6 +46,8 @@ extern "C" {
 #endif
 
 #include "fleye/config.h"
+#include "fleye/userenv.h"
+
 struct ImageProcessingState;
 
 #ifdef __cplusplus
@@ -140,8 +142,7 @@ typedef struct RASPITEX_STATE
    int32_t preview_height;             /// preview y-plane height in pixels
    
    /* processing options*/
-	int n_opt_values;
-	char opt_values[MAX_OPT_VALUES][2][32];
+   struct UserEnv user_env;
     char tracking_script[64];
     
     struct ImageProcessingState* ip;
@@ -195,8 +196,6 @@ void fleye_display_help();
 int fleye_parse_cmdline(RASPITEX_STATE *state,
       const char *arg1, const char *arg2);
 int fleye_capture(RASPITEX_STATE *state, FILE* output_file);
-const char* fleye_optional_value(RASPITEX_STATE *state, const char* key);
-int fleye_add_optional_value(RASPITEX_STATE *state, const char* key, const char* value);
 
 #ifdef __cplusplus
 }
