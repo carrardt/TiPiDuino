@@ -220,7 +220,7 @@ void gpioPanTiltFollower_run(CPU_TRACKING_STATE * state)
 	}
 }
 
-void drawOverlay(CompiledShaderCache* compiledShader, int pass)
+void drawOverlay(struct CompiledShaderCache* compiledShader, int pass)
 {
 	if( autoCalibrationState==0 || !autoCalibration )
 	{

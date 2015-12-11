@@ -68,8 +68,8 @@ static int glworker_init(RASPITEX_STATE *state)
 		return rc;
 	}
 
-	{ char tmp[64]; sprintf(tmp,"%d",state->width); fleye_add_optional_value(state,"WIDTH",tmp); }
-	{ char tmp[64]; sprintf(tmp,"%d",state->height); fleye_add_optional_value(state,"HEIGHT",tmp); }
+	{ char tmp[64]; sprintf(tmp,"%d",state->width); fleye_add_optional_value(& state->user_env,"WIDTH",tmp); }
+	{ char tmp[64]; sprintf(tmp,"%d",state->height); fleye_add_optional_value(& state->user_env,"HEIGHT",tmp); }
 
 	// configure camera input texture
    GLCHK( glBindTexture(GL_TEXTURE_EXTERNAL_OES, state->texture) );
@@ -99,7 +99,7 @@ static int glworker_init(RASPITEX_STATE *state)
 	state->ip->nFBO = 1;
 	state->ip->nTextures = 2;
 
-	create_image_processing( state, state->tracking_script );
+	create_image_processing( state->ip, & state->user_env, state->tracking_script );
 
 	GLCHK( glDisable(GL_DEPTH_TEST) );
 	
@@ -143,7 +143,7 @@ static int glworker_init(RASPITEX_STATE *state)
 }
 
 // default drawing function
-void gl_fill(CompiledShaderCache* compiledShader, int pass)
+void gl_fill(struct CompiledShaderCache* compiledShader, int pass)
 {
 	static GLfloat tstrip[12] = {
 		-1,-1,0,
@@ -158,12 +158,12 @@ void gl_fill(CompiledShaderCache* compiledShader, int pass)
     GLCHK( glDisableVertexAttribArray(compiledShader->shader.attribute_locations[0]));
 }
 
-static void apply_shader_pass(RASPITEX_STATE *state, ProcessingStep* procStep, int passCounter, int* needSwapBuffers)
+static void apply_shader_pass(RASPITEX_STATE *state, struct ProcessingStep* procStep, int passCounter, int* needSwapBuffers)
 {
 	RASPITEX_Texture* inputs[MAX_TEXTURES]={0,};
 	RASPITEX_FBO* destFBO=0;
-	CompiledShaderCache* compiledShader=0;
-	ShaderPass* shaderPass = & procStep->shaderPass;
+	struct CompiledShaderCache* compiledShader=0;
+	struct ShaderPass* shaderPass = & procStep->shaderPass;
 	int i=0;
 	GLint loc=-1;
 

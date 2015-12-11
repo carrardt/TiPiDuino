@@ -1,7 +1,16 @@
-#include "fleye/shaderprogram.h"
-#include "fleye/compiledshadercache.h"
+#include <GLES2/gl2.h>
+#include <GLES2/gl2ext.h>
 
-CompiledShaderCache* get_compiled_shader(ShaderPass* shaderPass,RASPITEX_Texture** inputs)
+#include <stdio.h>
+#include <string.h>
+#include <malloc.h>
+
+#include "fleye/compiledshadercache.h"
+#include "fleye/shaderprogram.h"
+#include "fleye/shaderpass.h"
+#include "fleye/texture.h"
+
+struct CompiledShaderCache* get_compiled_shader(struct ShaderPass* shaderPass,struct RASPITEX_Texture** inputs)
 {
 	const char* image_external_pragma = "";
 	char textureUniformProlog[1024]={'\0',};
@@ -23,11 +32,11 @@ CompiledShaderCache* get_compiled_shader(ShaderPass* shaderPass,RASPITEX_Texture
 	}
 	if(shaderPass->compileCacheSize>=SHADER_COMPILE_CACHE_SIZE)
 	{
-		vcos_log_error("Shader cache is full");
+		fprintf(stderr,"Shader cache is full");
 		return 0;
 	}
 
-	CompiledShaderCache* compiledShader = & shaderPass->shaderCahe[ shaderPass->compileCacheSize ++ ];
+	struct CompiledShaderCache* compiledShader = & shaderPass->shaderCahe[ shaderPass->compileCacheSize ++ ];
 	for(i=0;i<shaderPass->nInputs;i++)
 	{
 		const char* samplerType = 0;
@@ -43,7 +52,7 @@ CompiledShaderCache* get_compiled_shader(ShaderPass* shaderPass,RASPITEX_Texture
 				image_external_pragma = "#extension GL_OES_EGL_image_external : require\n";
 				break;
 			default:
-				vcos_log_error("unhandled texture target");
+				fprintf(stderr,"unhandled texture target");
 				return 0;
 				break;
 		}
@@ -60,7 +69,7 @@ CompiledShaderCache* get_compiled_shader(ShaderPass* shaderPass,RASPITEX_Texture
 	free(fragmentSource);
 	if( rc != 0)
 	{
-		vcos_log_error("failed to build shader");
+		fprintf(stderr,"failed to build shader");
 		return 0;
 	}
 

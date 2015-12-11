@@ -84,12 +84,4 @@ int fleyeutil_capture_bgra(struct RASPITEX_STATE *state,
       uint8_t **buffer, size_t *buffer_size);
 void fleyeutil_close(RASPITEX_STATE* fleye_state);
 
-/* Utility functions */
-char* readShader(const char* fileName);
-int fleyeutil_build_shader_program(ShaderProgram *p, const char* vs, const char* fs);
-int create_image_shader(ShaderProgram* shader, const char* vs, const char* fs);
-void fleyeutil_brga_to_rgba(uint8_t *buffer, size_t size);
-int create_fbo(RASPITEX_STATE *state, RASPITEX_FBO* fbo, GLint colorFormat, GLint w, GLint h);
-int create_image_processing(RASPITEX_STATE* state, const char* filename);
-
 #endif /* RASPITEX_UTIL_H_ */
