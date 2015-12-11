@@ -1,5 +1,5 @@
-#ifndef __fleye_RASPITEX_FBO_H_
-#define __fleye_RASPITEX_FBO_H_
+#ifndef __fleye_FrameBufferObject_H_
+#define __fleye_FrameBufferObject_H_
 
 #include <GLES2/gl2.h>
 
@@ -10,16 +10,16 @@ extern "C" {
 struct RASPITEX_Texture;
 struct ImageProcessingState;
 
-typedef struct RASPITEX_FBO
+typedef struct FrameBufferObject
 {
 	// name given by texture->name
 	GLuint width, height; // dimensions
 	GLuint fb; // frame buffer
 	struct RASPITEX_Texture* texture;
-} RASPITEX_FBO;
+} FrameBufferObject;
 
 extern int add_fbo(struct ImageProcessingState* ip, const char* name, GLint colorFormat, GLint w, GLint h);
-extern RASPITEX_FBO* get_named_fbo(struct ImageProcessingState* ip, const char * name);
+extern FrameBufferObject* get_named_fbo(struct ImageProcessingState* ip, const char * name);
 
 #ifdef __cplusplus
 }

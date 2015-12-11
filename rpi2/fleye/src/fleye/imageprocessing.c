@@ -40,7 +40,7 @@ int create_image_processing(struct ImageProcessingState* ip, struct UserEnv* env
 	fp = fopen(tmp,"rb");
 	if( fp == 0 )
 	{
-		fprintf(stderr,"failed to open processing script %s",tmp);
+		fprintf(stderr,"failed to open processing script %s\n",tmp);
 		return -1;
 	}
 	printf("using processing script %s\n",tmp);
@@ -128,7 +128,7 @@ int create_image_processing(struct ImageProcessingState* ip, struct UserEnv* env
 					handle = dlopen(tmp2, RTLD_GLOBAL | RTLD_NOW);
 					if(handle==NULL)
 					{
-						fprintf(stderr,"failed to load plugin %s",tmp2);
+						fprintf(stderr,"failed to load plugin %s\n",tmp2);
 						return -1;
 					}
 					funcName = drawPlugin[1];
@@ -141,7 +141,7 @@ int create_image_processing(struct ImageProcessingState* ip, struct UserEnv* env
 				ip->processing_step[ip->nProcessingSteps].gl_draw = dlsym(handle,funcName);
 				if( ip->processing_step[ip->nProcessingSteps].gl_draw == NULL)
 				{
-					fprintf(stderr,"can't find function %s",drawPlugin[1]);
+					fprintf(stderr,"can't find function %s\n",drawPlugin[1]);
 					return -1;
 				}
 				printf("resolved function %s to %p\n",funcName,ip->processing_step[ip->nProcessingSteps].gl_draw);
@@ -172,7 +172,7 @@ int create_image_processing(struct ImageProcessingState* ip, struct UserEnv* env
 					}
 					else
 					{
-						fprintf(stderr,"syntax error: expected '='");
+						fprintf(stderr,"syntax error: expected '='\n");
 						return rc;
 					}
 				}
@@ -219,14 +219,14 @@ int create_image_processing(struct ImageProcessingState* ip, struct UserEnv* env
 			void * handle = dlopen(tmp2, RTLD_GLOBAL | RTLD_NOW);
 			if(handle==NULL)
 			{
-				fprintf(stderr,"failed to load plugin %s",tmp2);
+				fprintf(stderr,"failed to load plugin %s\n",tmp2);
 				return -1;
 			}
 			sprintf(tmp2,"%s_run",tmp);
 			ip->processing_step[ip->nProcessingSteps].cpu_processing = dlsym(handle,tmp2);
 			if( ip->processing_step[ip->nProcessingSteps].cpu_processing == NULL)
 			{
-				fprintf(stderr,"can't find function %s",tmp2);
+				fprintf(stderr,"can't find function %s\n",tmp2);
 				return -1;
 			}
 			sprintf(tmp2,"%s_setup",tmp);
@@ -240,7 +240,7 @@ int create_image_processing(struct ImageProcessingState* ip, struct UserEnv* env
 		}
 		else
 		{
-			fprintf(stderr,"bad processing step type '%s'",tmp);
+			fprintf(stderr,"bad processing step type '%s'\n",tmp);
 			return -1;
 		}
 	}

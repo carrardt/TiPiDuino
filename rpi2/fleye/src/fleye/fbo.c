@@ -13,7 +13,7 @@ int add_fbo(struct ImageProcessingState* ip, const char* name, GLint colorFormat
 	tex->target = GL_TEXTURE_2D;
 	tex->texid = 0;
 	
-	RASPITEX_FBO* fbo = & ip->processing_fbo[ip->nFBO];
+	FrameBufferObject* fbo = & ip->processing_fbo[ip->nFBO];
    fbo->width = w;
    fbo->height = h;
    fbo->fb = 0;
@@ -82,7 +82,7 @@ glFramebufferTexture2DOES(GL_FRAMEBUFFER_OES, GL_COLOR_ATTACHMENT0_OES, GL_TEXTU
  */
 }
 
-RASPITEX_FBO* get_named_fbo(struct ImageProcessingState* ip, const char * name)
+FrameBufferObject* get_named_fbo(struct ImageProcessingState* ip, const char * name)
 {
 	int i;
 	for(i=0;i<ip->nFBO;i++)

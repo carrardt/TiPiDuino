@@ -26,14 +26,16 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "fleye_util.h"
-#include "fleye_core.h"
-#include <bcm_host.h>
 #include <GLES2/gl2.h>
+#include <EGL/egl.h>
+#include <EGL/eglext.h>
+#include <bcm_host.h>
+
 #include <dlfcn.h>
 #include <string.h>
 
-VCOS_LOG_CAT_T fleye_log_category;
+#include "fleye_util.h"
+#include "fleye_core.h"
 
 /**
  * \file fleye_util.c
@@ -46,9 +48,9 @@ VCOS_LOG_CAT_T fleye_log_category;
  * Deletes textures and EGL surfaces and context.
  * @param   fleye_state  Pointer to the Raspi
  */
-void fleyeutil_gl_term(RASPITEX_STATE *fleye_state)
+void fleyeutil_gl_term(FleyeState *fleye_state)
 {
-   vcos_log_trace("%s", VCOS_FUNCTION);
+   printf("%s\n", __PRETTY_FUNCTION__);
 
    /* Delete OES textures */
    glDeleteTextures(1, &fleye_state->texture);
@@ -79,7 +81,7 @@ void fleyeutil_gl_term(RASPITEX_STATE *fleye_state)
  * @param fleye_state A pointer to the GL preview state.
  * @return Zero if successful, otherwise, -1 is returned.
  */
-int fleyeutil_create_native_window(RASPITEX_STATE *fleye_state)
+int fleyeutil_create_native_window(FleyeState *fleye_state)
 {
    VC_DISPMANX_ALPHA_T alpha = {DISPMANX_FLAGS_ALPHA_FIXED_ALL_PIXELS, 255, 0};
    VC_RECT_T src_rect = {0};
@@ -95,7 +97,7 @@ int fleyeutil_create_native_window(RASPITEX_STATE *fleye_state)
    dest_rect.width = fleye_state->width;
    dest_rect.height = fleye_state->height;
 
-   vcos_log_trace("%s: %d,%d,%d,%d %d,%d,0x%x,0x%x", VCOS_FUNCTION,
+   printf("%s: %d,%d,%d,%d %d,%d,0x%x,0x%x\n", __PRETTY_FUNCTION__,
          src_rect.x, src_rect.y, src_rect.width, src_rect.height,
          dest_rect.x, dest_rect.y, dest_rect.width, dest_rect.height);
 
@@ -105,14 +107,14 @@ int fleyeutil_create_native_window(RASPITEX_STATE *fleye_state)
    fleye_state->disp = vc_dispmanx_display_open(disp_num);
    if (fleye_state->disp == DISPMANX_NO_HANDLE)
    {
-      vcos_log_error("Failed to open display handle");
+      fprintf(stderr,"Failed to open display handle\n");
       goto error;
    }
 
    update = vc_dispmanx_update_start(0);
    if (update == DISPMANX_NO_HANDLE)
    {
-      vcos_log_error("Failed to open update handle");
+      fprintf(stderr,"Failed to open update handle\n");
       goto error;
    }
 
@@ -121,7 +123,7 @@ int fleyeutil_create_native_window(RASPITEX_STATE *fleye_state)
          DISPMANX_NO_ROTATE);
    if (elem == DISPMANX_NO_HANDLE)
    {
-      vcos_log_error("Failed to create element handle");
+      fprintf(stderr,"Failed to create element handle\n");
       goto error;
    }
 
@@ -140,9 +142,9 @@ error:
 /** Destroys the pools of buffers used by the GL renderer.
  * @param fleye_state A pointer to the GL preview state.
  */
-void fleyeutil_destroy_native_window(RASPITEX_STATE *fleye_state)
+void fleyeutil_destroy_native_window(FleyeState *fleye_state)
 {
-   vcos_log_trace("%s", VCOS_FUNCTION);
+   printf("%s\n", __PRETTY_FUNCTION__);
    if (fleye_state->disp != DISPMANX_NO_HANDLE)
    {
       vc_dispmanx_display_close(fleye_state->disp);
@@ -158,37 +160,37 @@ void fleyeutil_destroy_native_window(RASPITEX_STATE *fleye_state)
  * @param context_attribs The context attributes.
  * @return Zero if successful.
  */
-static int fleyeutil_gl_common(RASPITEX_STATE *fleye_state,
+static int fleyeutil_gl_common(FleyeState *fleye_state,
       const EGLint attribs[], const EGLint context_attribs[])
 {
    EGLConfig config;
    EGLint num_configs;
 
-   vcos_log_trace("%s", VCOS_FUNCTION);
+   printf("%s\n", __PRETTY_FUNCTION__);
 
    if (fleye_state->native_window == NULL)
    {
-      vcos_log_error("%s: No native window", VCOS_FUNCTION);
+      fprintf(stderr,"%s: No native window\n", __PRETTY_FUNCTION__);
       goto error;
    }
 
    fleye_state->display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
    if (fleye_state->display == EGL_NO_DISPLAY)
    {
-      vcos_log_error("%s: Failed to get EGL display", VCOS_FUNCTION);
+      fprintf(stderr,"%s: Failed to get EGL display\n", __PRETTY_FUNCTION__);
       goto error;
    }
 
    if (! eglInitialize(fleye_state->display, 0, 0))
    {
-      vcos_log_error("%s: eglInitialize failed", VCOS_FUNCTION);
+      fprintf(stderr,"%s: eglInitialize failed\n", __PRETTY_FUNCTION__);
       goto error;
    }
 
    if (! eglChooseConfig(fleye_state->display, attribs, &config,
             1, &num_configs))
    {
-      vcos_log_error("%s: eglChooseConfig failed", VCOS_FUNCTION);
+      fprintf(stderr,"%s: eglChooseConfig failed\n", __PRETTY_FUNCTION__);
       goto error;
    }
 
@@ -196,7 +198,7 @@ static int fleyeutil_gl_common(RASPITEX_STATE *fleye_state,
          config, fleye_state->native_window, NULL);
    if (fleye_state->surface == EGL_NO_SURFACE)
    {
-      vcos_log_error("%s: eglCreateWindowSurface failed", VCOS_FUNCTION);
+      fprintf(stderr,"%s: eglCreateWindowSurface failed\n", __PRETTY_FUNCTION__);
       goto error;
    }
 
@@ -204,22 +206,22 @@ static int fleyeutil_gl_common(RASPITEX_STATE *fleye_state,
          config, EGL_NO_CONTEXT, context_attribs);
    if (fleye_state->context == EGL_NO_CONTEXT)
    {
-      vcos_log_error("%s: eglCreateContext failed", VCOS_FUNCTION);
+      fprintf(stderr,"%s: eglCreateContext failed\n", __PRETTY_FUNCTION__);
       goto error;
    }
 
    if (!eglMakeCurrent(fleye_state->display, fleye_state->surface,
             fleye_state->surface, fleye_state->context))
    {
-      vcos_log_error("%s: Failed to activate EGL context", VCOS_FUNCTION);
+      fprintf(stderr,"%s: Failed to activate EGL context\n", __PRETTY_FUNCTION__);
       goto error;
    }
 
    return 0;
 
 error:
-   vcos_log_error("%s: EGL error 0x%08x", VCOS_FUNCTION, eglGetError());
-   fleye_state->ops.gl_term(fleye_state);
+   fprintf(stderr,"%s: EGL error 0x%08x\n", __PRETTY_FUNCTION__, eglGetError());
+   fleyeutil_gl_term(fleye_state);
    return -1;
 }
 
@@ -227,54 +229,10 @@ error:
  * @param fleye_state A pointer to the GL preview state.
  * @return Zero if successful.
  */
-int fleyeutil_create_textures(RASPITEX_STATE *fleye_state)
+int fleyeutil_create_textures(FleyeState *fleye_state)
 {
-   GLCHK(glGenTextures(1, &fleye_state->y_texture));
-   GLCHK(glGenTextures(1, &fleye_state->u_texture));
-   GLCHK(glGenTextures(1, &fleye_state->v_texture));
    GLCHK(glGenTextures(1, &fleye_state->texture));
    return 0;
-}
-
-/**
- * Creates an OpenGL ES 1.X context.
- * @param fleye_state A pointer to the GL preview state.
- * @return Zero if successful.
- */
-int fleyeutil_gl_init_1_0(RASPITEX_STATE *fleye_state)
-{
-   int rc;
-   const EGLint* attribs = fleye_state->egl_config_attribs;
-
-   const EGLint default_attribs[] =
-   {
-      EGL_RED_SIZE,   8,
-      EGL_GREEN_SIZE, 8,
-      EGL_BLUE_SIZE,  8,
-      EGL_ALPHA_SIZE, 8,
-      EGL_DEPTH_SIZE, 16,
-      EGL_RENDERABLE_TYPE, EGL_OPENGL_ES_BIT,
-      EGL_NONE
-   };
-
-   const EGLint context_attribs[] =
-   {
-      EGL_CONTEXT_CLIENT_VERSION, 1,
-      EGL_NONE
-   };
-
-   if (! attribs)
-      attribs = default_attribs;
-
-   rc = fleyeutil_gl_common(fleye_state, attribs, context_attribs);
-   if (rc != 0)
-      goto end;
-
-   GLCHK(glEnable(GL_TEXTURE_EXTERNAL_OES));
-   rc = fleyeutil_create_textures(fleye_state);
-
-end:
-   return rc;
 }
 
 /**
@@ -282,7 +240,7 @@ end:
  * @param fleye_state A pointer to the GL preview state.
  * @return Zero if successful.
  */
-int fleyeutil_gl_init_2_0(RASPITEX_STATE *fleye_state)
+int fleyeutil_gl_init_2_0(FleyeState *fleye_state)
 {
    int rc;
    const EGLint* attribs = fleye_state->egl_config_attribs;;
@@ -307,7 +265,7 @@ int fleyeutil_gl_init_2_0(RASPITEX_STATE *fleye_state)
    if (! attribs)
       attribs = default_attribs;
 
-   vcos_log_trace("%s", VCOS_FUNCTION);
+   printf("%s\n", __PRETTY_FUNCTION__);
    rc = fleyeutil_gl_common(fleye_state, attribs, context_attribs);
    if (rc != 0) return rc;
 
@@ -330,7 +288,7 @@ int fleyeutil_gl_init_2_0(RASPITEX_STATE *fleye_state)
 int fleyeutil_do_update_texture(EGLDisplay display, EGLenum target,
       EGLClientBuffer mm_buf, GLuint *texture, EGLImageKHR *egl_image)
 {
-   vcos_log_trace("%s: mm_buf %u", VCOS_FUNCTION, (unsigned) mm_buf);
+   //printf("%s: mm_buf %u\n", __PRETTY_FUNCTION__, (unsigned) mm_buf);
    GLCHK(glBindTexture(GL_TEXTURE_EXTERNAL_OES, *texture));
    if (*egl_image != EGL_NO_IMAGE_KHR)
    {
@@ -351,143 +309,10 @@ int fleyeutil_do_update_texture(EGLDisplay display, EGLenum target,
  * @param mm_buf The MMAL buffer.
  * @return Zero if successful.
  */
-int fleyeutil_update_texture(RASPITEX_STATE *fleye_state,
+int fleyeutil_update_texture(FleyeState *fleye_state,
       EGLClientBuffer mm_buf)
 {
    return fleyeutil_do_update_texture(fleye_state->display,
          EGL_IMAGE_BRCM_MULTIMEDIA, mm_buf,
          &fleye_state->texture, &fleye_state->egl_image);
-}
-
-/**
- * Updates the Y plane texture to the specified MMAL buffer.
- * @param fleye_state A pointer to the GL preview state.
- * @param mm_buf The MMAL buffer.
- * @return Zero if successful.
- */
-int fleyeutil_update_y_texture(RASPITEX_STATE *fleye_state,
-      EGLClientBuffer mm_buf)
-{
-   return fleyeutil_do_update_texture(fleye_state->display,
-         EGL_IMAGE_BRCM_MULTIMEDIA_Y, mm_buf,
-         &fleye_state->y_texture, &fleye_state->y_egl_image);
-}
-
-/**
- * Updates the U plane texture to the specified MMAL buffer.
- * @param fleye_state A pointer to the GL preview state.
- * @param mm_buf The MMAL buffer.
- * @return Zero if successful.
- */
-int fleyeutil_update_u_texture(RASPITEX_STATE *fleye_state,
-      EGLClientBuffer mm_buf)
-{
-   return fleyeutil_do_update_texture(fleye_state->display,
-         EGL_IMAGE_BRCM_MULTIMEDIA_U, mm_buf,
-         &fleye_state->u_texture, &fleye_state->u_egl_image);
-}
-
-/**
- * Updates the V plane texture to the specified MMAL buffer.
- * @param fleye_state A pointer to the GL preview state.
- * @param mm_buf The MMAL buffer.
- * @return Zero if successful.
- */
-int fleyeutil_update_v_texture(RASPITEX_STATE *fleye_state,
-      EGLClientBuffer mm_buf)
-{
-   return fleyeutil_do_update_texture(fleye_state->display,
-         EGL_IMAGE_BRCM_MULTIMEDIA_V, mm_buf,
-         &fleye_state->v_texture, &fleye_state->v_egl_image);
-}
-
-/**
- * Default is a no-op
- * @param fleye_state A pointer to the GL preview state.
- * @return Zero.
- */
-int fleyeutil_update_model(RASPITEX_STATE* fleye_state)
-{
-   (void) fleye_state;
-   return 0;
-}
-
-/**
- * Default is a no-op
- * @param fleye_state A pointer to the GL preview state.
- * @return Zero.
- */
-int fleyeutil_redraw(RASPITEX_STATE* fleye_state)
-{
-   (void) fleye_state;
-   return 0;
-}
-
-/**
- * Default is a no-op
- * @param fleye_state A pointer to the GL preview state.
- */
-void fleyeutil_close(RASPITEX_STATE* fleye_state)
-{
-   (void) fleye_state;
-}
-
-/**
- * Performs an in-place byte swap from BGRA to RGBA.
- * @param buffer The buffer to modify.
- * @param size Size of the buffer in bytes.
- */
-void fleyeutil_brga_to_rgba(uint8_t *buffer, size_t size)
-{
-   uint8_t* out = buffer;
-   uint8_t* end = buffer + size;
-
-   while (out < end)
-   {
-      uint8_t tmp = out[0];
-      out[0] = out[2];
-      out[2] = tmp;
-      out += 4;
-   }
-}
-
-/**
- * Uses glReadPixels to grab the current frame-buffer contents
- * and returns the result in a newly allocate buffer along with
- * the its size.
- * Data is returned in BGRA format for TGA output. PPM output doesn't
- * require the channel order swap but would require a vflip. The TGA
- * format also supports alpha. The byte swap is not done in this function
- * to avoid blocking the GL rendering thread.
- * @param state Pointer to the GL preview state.
- * @param buffer Address of pointer to set to pointer to new buffer.
- * @param buffer_size The size of the new buffer in bytes (out param)
- * @return Zero if successful.
- */
-int fleyeutil_capture_bgra(RASPITEX_STATE *state,
-      uint8_t **buffer, size_t *buffer_size)
-{
-   const int bytes_per_pixel = 4;
-
-   vcos_log_trace("%s: %dx%d %d", VCOS_FUNCTION,
-         state->width, state->height, bytes_per_pixel);
-
-   *buffer_size = state->width * state->height * bytes_per_pixel;
-   *buffer = calloc(*buffer_size, 1);
-   if (! *buffer)
-      goto error;
-
-   glReadPixels(0, 0, state->width, state->height, GL_RGBA,
-         GL_UNSIGNED_BYTE, *buffer);
-   if (glGetError() != GL_NO_ERROR)
-      goto error;
-
-   return 0;
-
-error:
-   *buffer_size = 0;
-   if (*buffer)
-      free(*buffer);
-   *buffer = NULL;
-   return -1;
 }

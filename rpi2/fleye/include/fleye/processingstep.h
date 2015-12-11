@@ -8,7 +8,7 @@
 extern "C" {
 #endif
 
-struct RASPITEX_STATE;
+struct FleyeState;
 
 struct ProcessingStep
 {

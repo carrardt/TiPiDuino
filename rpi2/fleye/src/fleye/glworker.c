@@ -50,9 +50,9 @@ static const EGLint glworker_egl_config_attribs[] =
    EGL_NONE
 };
 
-static int glworker_init(RASPITEX_STATE *state)
+int glworker_init(FleyeState *state)
 {	
-   RASPITEX_FBO dispWinFBO;
+   FrameBufferObject dispWinFBO;
    int i,rc;
    
    state->ip = (struct ImageProcessingState*) malloc( sizeof(struct ImageProcessingState) );
@@ -64,7 +64,7 @@ static int glworker_init(RASPITEX_STATE *state)
 
     if (rc != 0)
     {
-		vcos_log_error("unable to init GLES2\n");
+		fprintf(stderr,"unable to init GLES2\n");
 		return rc;
 	}
 
@@ -121,21 +121,21 @@ static int glworker_init(RASPITEX_STATE *state)
 	rc = vcos_semaphore_create(& state->ip->cpu_tracking_state.start_processing_sem,"start_processing_sem", 1);
 	if (rc != VCOS_SUCCESS)
 	{
-		 vcos_log_error("Failed to create start_processing_sem semaphor %d",rc);
+		 fprintf(stderr,"Failed to create start_processing_sem semaphor %d",rc);
 		 return rc;
 	}
 
 	rc = vcos_semaphore_create(& state->ip->cpu_tracking_state.end_processing_sem,"end_processing_sem", 1);
 	if (rc != VCOS_SUCCESS)
 	{
-		 vcos_log_error("Failed to create end_processing_sem semaphor %d",rc);
+		 fprintf(stderr,"Failed to create end_processing_sem semaphor %d",rc);
 		 return rc;
 	}
 
 	rc = vcos_thread_create(& state->ip->cpuTrackingThread, "cpu-tracking-worker", NULL, cpuTrackingWorker, & state->ip->cpu_tracking_state);
 	if (rc != VCOS_SUCCESS)
 	{
-      vcos_log_error("Failed to start cpu processing thread %d",rc);
+      fprintf(stderr,"Failed to start cpu processing thread %d",rc);
       return rc;
 	}
 
@@ -158,10 +158,10 @@ void gl_fill(struct CompiledShaderCache* compiledShader, int pass)
     GLCHK( glDisableVertexAttribArray(compiledShader->shader.attribute_locations[0]));
 }
 
-static void apply_shader_pass(RASPITEX_STATE *state, struct ProcessingStep* procStep, int passCounter, int* needSwapBuffers)
+static void apply_shader_pass(FleyeState *state, struct ProcessingStep* procStep, int passCounter, int* needSwapBuffers)
 {
 	RASPITEX_Texture* inputs[MAX_TEXTURES]={0,};
-	RASPITEX_FBO* destFBO=0;
+	FrameBufferObject* destFBO=0;
 	struct CompiledShaderCache* compiledShader=0;
 	struct ShaderPass* shaderPass = & procStep->shaderPass;
 	int i=0;
@@ -232,7 +232,7 @@ static void apply_shader_pass(RASPITEX_STATE *state, struct ProcessingStep* proc
     GLCHK(glFinish());
 }
 
-static int glworker_redraw(RASPITEX_STATE *state)
+int glworker_redraw(FleyeState *state)
 {
 	int step = 0;
 	int swapBuffers = 0;
@@ -280,7 +280,7 @@ static int glworker_redraw(RASPITEX_STATE *state)
 			}
 			if( nPasses>0 && shaderPass->fboPoolSize>0 )
 			{
-				RASPITEX_FBO* finalFBO = shaderPass->fboPool[(nPasses-1)%shaderPass->fboPoolSize];
+				FrameBufferObject* finalFBO = shaderPass->fboPool[(nPasses-1)%shaderPass->fboPoolSize];
 				shaderPass->finalTexture->texid = finalFBO->texture->texid;
 				shaderPass->finalTexture->target = finalFBO->texture->target;
 				shaderPass->finalTexture->format = finalFBO->texture->format;
@@ -307,14 +307,12 @@ static int glworker_redraw(RASPITEX_STATE *state)
     return 0;
 }
 
-int glworker_load( struct RASPITEX_STATE * state )
+/*
+int glworker_load( struct FleyeState * state )
 {
    state->ops.gl_init = glworker_init;
    state->ops.redraw = glworker_redraw;
    state->ops.update_texture = fleyeutil_update_texture;
-   state->ops.update_y_texture = 0;
-   state->ops.update_u_texture = 0;
-   state->ops.update_v_texture = 0;
    return 0;
 }
-
+*/

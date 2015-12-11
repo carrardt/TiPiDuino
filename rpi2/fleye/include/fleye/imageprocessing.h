@@ -20,7 +20,7 @@ struct ImageProcessingState
 	int nTextures;
 	struct RASPITEX_Texture processing_texture[MAX_TEXTURES+IMGPROC_MAX_STEPS];
 	int nFBO;
-	struct RASPITEX_FBO processing_fbo[MAX_FBOS];
+	struct FrameBufferObject processing_fbo[MAX_FBOS];
 	VCOS_THREAD_T cpuTrackingThread;
 	struct CPU_TRACKING_STATE cpu_tracking_state;
 };

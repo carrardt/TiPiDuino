@@ -95,7 +95,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * @param arg2 Parameter (could be NULL)
  * @return How many parameters were used, 0,1,2
  */
-int fleye_parse_cmdline(RASPITEX_STATE *state,
+int fleye_parse_cmdline(FleyeState *state,
       const char *arg1, const char *arg2)
 {
 	//printf("fleye_parse_cmdline %s %s\n",arg1,arg2);
@@ -144,36 +144,7 @@ static void update_fps()
       fps = (float) frame_count / ((time_now - time_start) / 1000.0);
       frame_count = 0;
       time_start = time_now;
-      vcos_log_info("%3.2f FPS", fps);
-   }
-}
-
-/**
- * Captures the frame-buffer if requested.
- * @param state RASPITEX STATE
- * @return Zero if successful.
- */
-static void fleye_do_capture(RASPITEX_STATE *state)
-{
-   uint8_t *buffer = NULL;
-   size_t size = 0;
-
-   if (state->capture.request && state->ops.capture!=0 )
-   {
-      if (state->ops.capture(state, &buffer, &size) == 0)
-      {
-         /* Pass ownership of buffer to main thread via capture state */
-         state->capture.buffer = buffer;
-         state->capture.size = size;
-      }
-      else
-      {
-         state->capture.buffer = NULL; // Null indicates an error
-         state->capture.size = 0;
-      }
-
-      state->capture.request = 0; // Always clear request and post sem
-      vcos_semaphore_post(&state->capture.completed_sem);
+      printf("%3.2f FPS\n", fps);
    }
 }
 
@@ -182,12 +153,9 @@ static void fleye_do_capture(RASPITEX_STATE *state)
  * @param state RASPITEX STATE
  * @return Zero if successful.
  */
-static int check_egl_image(RASPITEX_STATE *state)
+static int check_egl_image(FleyeState *state)
 {
-   if (state->egl_image == EGL_NO_IMAGE_KHR &&
-         state->y_egl_image == EGL_NO_IMAGE_KHR &&
-         state->u_egl_image == EGL_NO_IMAGE_KHR &&
-         state->v_egl_image == EGL_NO_IMAGE_KHR)
+   if (state->egl_image == EGL_NO_IMAGE_KHR )
       return -1;
    else
       return 0;
@@ -201,7 +169,7 @@ static int check_egl_image(RASPITEX_STATE *state)
  * @param video_frame MMAL buffer header containing the opaque buffer handle.
  * @return Zero if successful.
  */
-static int fleye_draw(RASPITEX_STATE *state, MMAL_BUFFER_HEADER_T *buf)
+static int fleye_draw(FleyeState *state, MMAL_BUFFER_HEADER_T *buf)
 {
    int rc = 0;
 
@@ -215,76 +183,30 @@ static int fleye_draw(RASPITEX_STATE *state, MMAL_BUFFER_HEADER_T *buf)
    if (buf)
    {
       /* Update the texture to the new viewfinder image which should */
-      if (state->ops.update_texture)
-      {
-         rc = state->ops.update_texture(state, (EGLClientBuffer) buf->data);
-         if (rc != 0)
-         {
-            vcos_log_error("%s: Failed to update RGBX texture %d",
-                  VCOS_FUNCTION, rc);
-            goto end;
-         }
-      }
-
-      if (state->ops.update_y_texture)
-      {
-         rc = state->ops.update_y_texture(state, (EGLClientBuffer) buf->data);
-         if (rc != 0)
-         {
-            vcos_log_error("%s: Failed to update Y' plane texture %d", VCOS_FUNCTION, rc);
-            goto end;
-         }
-      }
-
-      if (state->ops.update_u_texture)
-      {
-         rc = state->ops.update_u_texture(state, (EGLClientBuffer) buf->data);
-         if (rc != 0)
-         {
-            vcos_log_error("%s: Failed to update U plane texture %d", VCOS_FUNCTION, rc);
-            goto end;
-         }
-      }
-
-      if (state->ops.update_v_texture)
-      {
-         rc = state->ops.update_v_texture(state, (EGLClientBuffer) buf->data);
-         if (rc != 0)
-         {
-            vcos_log_error("%s: Failed to update V texture %d", VCOS_FUNCTION, rc);
-            goto end;
-         }
-      }
+		 rc = fleyeutil_update_texture(state, (EGLClientBuffer) buf->data);
+		 if (rc != 0)
+		 {
+			fprintf(stderr,"%s: Failed to update RGBX texture %d\n",
+				  __PRETTY_FUNCTION__, rc);
+			return rc;
+		 }
 
       /* Now return the PREVIOUS MMAL buffer header back to the camera preview. */
       if (state->preview_buf)
+      {
          mmal_buffer_header_release(state->preview_buf);
-
+	  }
       state->preview_buf = buf;
    }
 
    /*  Do the drawing */
    if (check_egl_image(state) == 0)
    {
-	   if(  state->ops.update_model )
-	   {
-		  rc = state->ops.update_model(state);
-		  if (rc != 0)
-			 goto end;
-	   }
-      rc = state->ops.redraw(state);
-      if (rc != 0)
-         goto end;
-
-      //fleye_do_capture(state);
+	  rc = glworker_redraw(state);
+	  if (rc != 0) return rc;
       update_fps();
    }
-   else
-   {
-      // vcos_log_trace("%s: No preview image", VCOS_FUNCTION);
-   }
 
-end:
    return rc;
 }
 
@@ -297,7 +219,7 @@ end:
  * @param   state The GL preview window state.
  * @return Zero if successful.
  */
-static int preview_process_returned_bufs(RASPITEX_STATE* state)
+static int preview_process_returned_bufs(FleyeState* state)
 {
    MMAL_BUFFER_HEADER_T *buf;
    int new_frame = 0;
@@ -311,19 +233,23 @@ static int preview_process_returned_bufs(RASPITEX_STATE* state)
          rc = fleye_draw(state, buf);
          if (rc != 0)
          {
-            vcos_log_error("%s: Error drawing frame. Stopping.", VCOS_FUNCTION);
+            fprintf(stderr,"%s: Error drawing frame. Stopping.\n", __PRETTY_FUNCTION__);
             state->preview_stop = 1;
             return rc;
          }
       }
    }
 
+	// non ! on ne gaspille pas de temps GPU/CPU si aucune image n'est disponible
+	// en plus ca peut augmenter la latence de traitement d'une nouvelle image
    /* If there were no new frames then redraw the scene again with the previous
     * texture. Otherwise, go round the loop again to see if any new buffers
     * are returned.
     */
-   if (! new_frame)
+   /*if (! new_frame)
+   {
       rc = fleye_draw(state, NULL);
+   }*/
    return rc;
 }
 
@@ -334,19 +260,19 @@ static int preview_process_returned_bufs(RASPITEX_STATE* state)
  */
 static void *preview_worker(void *arg)
 {
-   RASPITEX_STATE* state = arg;
+   FleyeState* state = arg;
    MMAL_PORT_T *preview_port = state->preview_port;
    MMAL_BUFFER_HEADER_T *buf;
    MMAL_STATUS_T st;
    int rc;
 
-   vcos_log_trace("%s: port %p", VCOS_FUNCTION, preview_port);
+   printf("%s: port %p\n", __PRETTY_FUNCTION__, preview_port);
 
-   rc = state->ops.create_native_window(state);
+   rc = fleyeutil_create_native_window(state);
    if (rc != 0)
       goto end;
 
-   rc = state->ops.gl_init(state);
+   rc = glworker_init(state);
    if (rc != 0)
       goto end;
 
@@ -358,13 +284,13 @@ static void *preview_worker(void *arg)
          st = mmal_port_send_buffer(preview_port, buf);
          if (st != MMAL_SUCCESS)
          {
-            vcos_log_error("Failed to send buffer to %s", preview_port->name);
+            fprintf(stderr,"Failed to send buffer to %s\n", preview_port->name);
          }
       }
       /* Process returned buffers */
       if (preview_process_returned_bufs(state) != 0)
       {
-         vcos_log_error("Preview error. Exiting.");
+         fprintf(stderr,"Preview error. Exiting.\n");
          state->preview_stop = 1;
       }
    }
@@ -372,11 +298,13 @@ static void *preview_worker(void *arg)
 end:
    /* Make sure all buffers are returned on exit */
    while ((buf = mmal_queue_get(state->preview_queue)) != NULL)
+   {
       mmal_buffer_header_release(buf);
+   }
 
    /* Tear down GL */
-   state->ops.gl_term(state);
-   vcos_log_trace("Exiting preview worker");
+   fleyeutil_gl_term(state);
+   printf("Exiting preview worker\n");
    return NULL;
 }
 
@@ -387,17 +315,17 @@ end:
  **/
 static void preview_output_cb(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buf)
 {
-   RASPITEX_STATE *state = (RASPITEX_STATE*) port->userdata;
+   FleyeState *state = (FleyeState*) port->userdata;
 
    if (buf->length == 0)
    {
-      vcos_log_trace("%s: zero-length buffer => EOS", port->name);
+      printf("%s: zero-length buffer => EOS\n", port->name);
       state->preview_stop = 1;
       mmal_buffer_header_release(buf);
    }
    else if (buf->data == NULL)
    {
-      vcos_log_trace("%s: zero buffer handle", port->name);
+      printf("%s: zero buffer handle\n", port->name);
       mmal_buffer_header_release(buf);
    }
    else
@@ -418,11 +346,11 @@ static void preview_output_cb(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buf)
  * @param port  Pointer to the camera preview port
  * @return Zero if successful.
  */
-int fleye_configure_preview_port(RASPITEX_STATE *state,
+int fleye_configure_preview_port(FleyeState *state,
       MMAL_PORT_T *preview_port)
 {
    MMAL_STATUS_T status;
-   vcos_log_trace("%s port %p", VCOS_FUNCTION, preview_port);
+   printf("%s port %p\n", __PRETTY_FUNCTION__, preview_port);
 
    /* Enable ZERO_COPY mode on the preview port which instructs MMAL to only
     * pass the 4-byte opaque buffer handle instead of the contents of the opaque
@@ -434,14 +362,14 @@ int fleye_configure_preview_port(RASPITEX_STATE *state,
          MMAL_PARAMETER_ZERO_COPY, MMAL_TRUE);
    if (status != MMAL_SUCCESS)
    {
-      vcos_log_error("Failed to enable zero copy on camera preview port");
+      fprintf(stderr,"Failed to enable zero copy on camera preview port\n");
       goto end;
    }
 
    status = mmal_port_format_commit(preview_port);
    if (status != MMAL_SUCCESS)
    {
-      vcos_log_error("camera viewfinder format couldn't be set");
+      fprintf(stderr,"camera viewfinder format couldn't be set\n");
       goto end;
    }
 
@@ -452,7 +380,7 @@ int fleye_configure_preview_port(RASPITEX_STATE *state,
    preview_port->buffer_num = preview_port->buffer_num_recommended;
    preview_port->buffer_size = preview_port->buffer_size_recommended;
 
-   vcos_log_trace("Creating buffer pool for GL renderer num %d size %d",
+   printf("Creating buffer pool for GL renderer num %d size %d\n",
          preview_port->buffer_num, preview_port->buffer_size);
 
    /* Pool + queue to hold preview frames */
@@ -461,7 +389,7 @@ int fleye_configure_preview_port(RASPITEX_STATE *state,
 
    if (! state->preview_pool)
    {
-      vcos_log_error("Error allocating pool");
+      fprintf(stderr,"Error allocating pool\n");
       status = MMAL_ENOMEM;
       goto end;
    }
@@ -470,7 +398,7 @@ int fleye_configure_preview_port(RASPITEX_STATE *state,
    state->preview_queue = mmal_queue_create();
    if (! state->preview_queue)
    {
-      vcos_log_error("Error allocating queue");
+      fprintf(stderr,"Error allocating queue\n");
       status = MMAL_ENOMEM;
       goto end;
    }
@@ -480,7 +408,7 @@ int fleye_configure_preview_port(RASPITEX_STATE *state,
    status = mmal_port_enable(preview_port, preview_output_cb);
    if (status != MMAL_SUCCESS)
    {
-      vcos_log_error("Failed to camera preview port");
+      fprintf(stderr,"Failed to camera preview port\n");
       goto end;
    }
 end:
@@ -491,45 +419,21 @@ end:
  * @param state Pointer to the GL preview state.
  * @return Zero if successful.
  */
-int fleye_init(RASPITEX_STATE *state)
+int fleye_init(FleyeState *state)
 {
    VCOS_STATUS_T status;
    int rc;
    vcos_init();
 
-   vcos_log_register("fleye_core", VCOS_LOG_CATEGORY);
-   vcos_log_set_level(VCOS_LOG_CATEGORY,
-         state->verbose ? VCOS_LOG_INFO : VCOS_LOG_WARN);
-   vcos_log_trace("%s", VCOS_FUNCTION);
-
-   status = vcos_semaphore_create(&state->capture.start_sem,
-         "glcap_start_sem", 1);
-   if (status != VCOS_SUCCESS)
-      goto error;
-
-   status = vcos_semaphore_create(&state->capture.completed_sem,
-         "glcap_completed_sem", 0);
-   if (status != VCOS_SUCCESS)
-      goto error;
-
-   rc = glworker_load(state);
-
-   if (rc != 0)
-      goto error;
-
    return 0;
-
-error:
-   vcos_log_error("%s: failed", VCOS_FUNCTION);
-   return -1;
 }
 
 /* Destroys the pools of buffers used by the GL renderer.
  * @param  state Pointer to the GL preview state.
  */
-void fleye_destroy(RASPITEX_STATE *state)
+void fleye_destroy(FleyeState *state)
 {
-   vcos_log_trace("%s", VCOS_FUNCTION);
+   printf("%s\n", __PRETTY_FUNCTION__);
    if (state->preview_pool)
    {
       mmal_pool_destroy(state->preview_pool);
@@ -542,14 +446,7 @@ void fleye_destroy(RASPITEX_STATE *state)
       state->preview_queue = NULL;
    }
 
-   if (state->ops.destroy_native_window)
-      state->ops.destroy_native_window(state);
-
-   if (state->ops.close)
-      state->ops.close(state);
-
-   vcos_semaphore_delete(&state->capture.start_sem);
-   vcos_semaphore_delete(&state->capture.completed_sem);
+   fleyeutil_destroy_native_window(state);
 }
 
 /* Initialise the GL / window state to sensible defaults.
@@ -558,7 +455,7 @@ void fleye_destroy(RASPITEX_STATE *state)
  * @param state Pointer to the GL preview state.
  * @return Zero if successful.
  */
-void fleye_set_defaults(RASPITEX_STATE *state)
+void fleye_set_defaults(FleyeState *state)
 {
    // set to zero
    memset(state, 0, sizeof(*state));
@@ -576,13 +473,6 @@ void fleye_set_defaults(RASPITEX_STATE *state)
    state->opacity = 255;
    state->width = DEFAULT_WIDTH;
    state->height = DEFAULT_HEIGHT;
-
-   state->ops.create_native_window = fleyeutil_create_native_window;
-   state->ops.gl_init = fleyeutil_gl_init_1_0;
-   state->ops.redraw = fleyeutil_redraw;
-   state->ops.gl_term = fleyeutil_gl_term;
-   state->ops.destroy_native_window = fleyeutil_destroy_native_window;
-   state->ops.close = fleyeutil_close;
    
    strcpy(state->tracking_script,"passthru");
 }
@@ -590,11 +480,11 @@ void fleye_set_defaults(RASPITEX_STATE *state)
 /* Stops the rendering loop and destroys MMAL resources
  * @param state  Pointer to the GL preview state.
  */
-void fleye_stop(RASPITEX_STATE *state)
+void fleye_stop(FleyeState *state)
 {
    if (! state->preview_stop)
    {
-      vcos_log_trace("Stopping GL preview");
+      printf("Stopping GL preview\n");
       state->preview_stop = 1;
       vcos_thread_join(&state->preview_thread, NULL);
    }
@@ -607,17 +497,17 @@ void fleye_stop(RASPITEX_STATE *state)
  * @param state Pointer to the GL preview state.
  * @return Zero on success, otherwise, -1 is returned
  * */
-int fleye_start(RASPITEX_STATE *state)
+int fleye_start(FleyeState *state)
 {
    VCOS_STATUS_T status;
 
-   vcos_log_trace("%s", VCOS_FUNCTION);
+   printf("%s\n", __PRETTY_FUNCTION__);
    status = vcos_thread_create(&state->preview_thread, "preview-worker",
          NULL, preview_worker, state);
 
    if (status != VCOS_SUCCESS)
-      vcos_log_error("%s: Failed to start worker thread %d",
-            VCOS_FUNCTION, status);
+      fprintf(stderr,"%s: Failed to start worker thread %d\n",
+            __PRETTY_FUNCTION__, status);
 
    return (status == VCOS_SUCCESS ? 0 : -1);
 }

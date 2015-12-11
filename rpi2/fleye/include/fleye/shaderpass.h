@@ -6,7 +6,7 @@
 #include "fleye/textureinput.h"
 
 struct RASPITEX_Texture;
-struct RASPITEX_FBO;
+struct FrameBufferObject;
 
 #ifdef __cplusplus
 extern "C" {
@@ -21,7 +21,7 @@ struct ShaderPass
 	int compileCacheSize;
 	struct CompiledShaderCache shaderCahe[SHADER_COMPILE_CACHE_SIZE];
 	int fboPoolSize;
-	struct RASPITEX_FBO* fboPool[MAX_FBOS];
+	struct FrameBufferObject* fboPool[MAX_FBOS];
 	struct RASPITEX_Texture* finalTexture;
 };
 

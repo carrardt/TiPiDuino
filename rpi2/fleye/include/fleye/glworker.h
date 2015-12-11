@@ -5,8 +5,9 @@
 extern "C" {
 #endif
 
-struct RASPITEX_STATE;
-extern int glworker_load( struct RASPITEX_STATE * state );
+struct FleyeState;
+extern int glworker_redraw(FleyeState *state);
+extern int glworker_init(FleyeState *state);
 
 #ifdef __cplusplus
 }

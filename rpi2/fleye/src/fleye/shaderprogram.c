@@ -61,7 +61,7 @@ int fleyeutil_build_shader_program(ShaderProgram *p, const char* vertex_source, 
     glGetShaderiv(p->vs, GL_COMPILE_STATUS, &status);
     if (! status) {
         glGetShaderInfoLog(p->vs, sizeof(log), &logLen, log);
-        fprintf(stderr,"Program info log %s", log);
+        fprintf(stderr,"Program info log %s\n", log);
         goto fail;
     }
 
@@ -72,7 +72,7 @@ int fleyeutil_build_shader_program(ShaderProgram *p, const char* vertex_source, 
     glGetShaderiv(p->fs, GL_COMPILE_STATUS, &status);
     if (! status) {
         glGetShaderInfoLog(p->fs, sizeof(log), &logLen, log);
-        fprintf(stderr,"Program info log %s", log);
+        fprintf(stderr,"Program info log %s\n", log);
         goto fail;
     }
 
@@ -87,7 +87,7 @@ int fleyeutil_build_shader_program(ShaderProgram *p, const char* vertex_source, 
 		char* str=0;
 		char* pendl=0;
 		int line=1;
-        fprintf(stderr,"Failed to link shader program");
+        fprintf(stderr,"Failed to link shader program\n");
         glGetProgramInfoLog(p->program, sizeof(log), &logLen, log);
         fprintf(stderr,"%s", log);
         
@@ -127,12 +127,12 @@ int fleyeutil_build_shader_program(ShaderProgram *p, const char* vertex_source, 
         p->attribute_locations[i] = glGetAttribLocation(p->program, p->attribute_names[i]);
         if (p->attribute_locations[i] == -1)
         {
-            fprintf(stderr,"Failed to get location for attribute %s",
+            fprintf(stderr,"Failed to get location for attribute %s\n",
                   p->attribute_names[i]);
             goto fail;
         }
         else {
-            printf("Attribute for %s is %d",
+            printf("Attribute for %s is %d\n",
                   p->attribute_names[i], p->attribute_locations[i]);
         }
     }
@@ -144,10 +144,10 @@ int fleyeutil_build_shader_program(ShaderProgram *p, const char* vertex_source, 
         p->uniform_locations[i] = glGetUniformLocation(p->program, p->uniform_names[i]);
         if (p->uniform_locations[i] == -1)
         {
-            printf("unused uniform %s", p->uniform_names[i]);
+            printf("unused uniform %s\n", p->uniform_names[i]);
         }
         else {
-            printf("Uniform for %s is %d",
+            printf("Uniform for %s is %d\n",
                   p->uniform_names[i], p->uniform_locations[i]);
         }
     }
@@ -155,7 +155,7 @@ int fleyeutil_build_shader_program(ShaderProgram *p, const char* vertex_source, 
     return 0;
 
 fail:
-    fprintf(stderr,"Failed to build shader program");
+    fprintf(stderr,"Failed to build shader program\n");
     if (p)
     {
         glDeleteProgram(p->program);

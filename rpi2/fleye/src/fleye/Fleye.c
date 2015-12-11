@@ -133,7 +133,7 @@ typedef struct
 
    MMAL_POOL_T *encoder_pool; /// Pointer to the pool of buffers used by encoder output port
 
-   RASPITEX_STATE fleye_state; /// GL renderer state and parameters
+   FleyeState fleye_state; /// GL renderer state and parameters
 
 } RASPISTILL_STATE;
 
