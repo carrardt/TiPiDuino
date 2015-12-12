@@ -1,11 +1,14 @@
 #ifndef __fleye_glworker_h
 #define __fleye_glworker_h
 
+struct FleyeState;
+struct ImageProcessingState;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-struct FleyeState;
+extern const EGLint* glworker_egl_config(struct ImageProcessingState* ip);
 extern int glworker_redraw(FleyeState *state);
 extern int glworker_init(FleyeState *state);
 
