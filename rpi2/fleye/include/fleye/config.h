@@ -25,6 +25,13 @@
 
 #define MAX_OPT_VALUES 16
 
+#define MAX_TRACKED_OBJECTS 8
+#define IMGPROC_MAX_CPU_FUNCS 16
+
+#define MAX_POINT_SIZE 512
+
+//#define CHECK_GL_ERRORS 1
+
 #endif
 
 

@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
+#include <string.h>
 #include <fcntl.h>
 #include <sys/mman.h>
 
@@ -27,7 +28,7 @@ void scanGPU_setup()
 		strerror(errno)) ;
 		exit(1);
 	}
-	mappedMem = mmap(NULL, memSize, (PROT_READ /*| PROT_WRITE*/), MAP_SHARED, memfd, memOffset);
+	mappedMem = (uint32_t*) mmap(NULL, memSize, (PROT_READ /*| PROT_WRITE*/), MAP_SHARED, memfd, memOffset);
 	if( mappedMem == 0 )
     {
 		fprintf(stderr, "scanGPU: Unable to map memory: %s\n",

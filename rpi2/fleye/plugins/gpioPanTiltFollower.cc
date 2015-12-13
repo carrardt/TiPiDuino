@@ -3,10 +3,12 @@
 #include <sys/time.h>
 
 #include "fleye/cpuworker.h"
-#include "fleye/shaderpass.h"
+#include "fleye/compiledshadercache.h"
+#include "thirdparty/bcm2835.h"
+#include "fleye/plugin.h"
 
-#include "../thirdparty/bcm2835.h"
-#include "../thirdparty/bcm2835.c"
+FLEYE_REGISTER_PLUGIN(gpioPanTiltFollower)
+FLEYE_REGISTER_GL_DRAW(drawOverlay)
 
 #define SERVO_X_VALUE_MIN 250
 #define SERVO_X_VALUE_MAX 750
@@ -14,7 +16,7 @@
 #define SERVO_Y_VALUE_MIN 250
 #define SERVO_Y_VALUE_MAX 750
 
-static int autoCalibration = 1;
+static int autoCalibration = 0;
 
 static double servoStateX = 0.5;
 static double servoStateY = 0.5;
@@ -85,7 +87,7 @@ void gpioPanTiltFollower_setup()
 	bcm2835_gpio_write(i, LOW);
   }
 
-	autoCalibration = 1;
+	//autoCalibration = 1;
 
   gpio_write_values(0.5,0.5,0);
   printf("GPIO pan/tilt follower ready\n");

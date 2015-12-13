@@ -218,9 +218,33 @@ int fleyeutil_gl_init(FleyeState *fleye_state)
    rc = fleyeutil_gl_common(fleye_state, default_attribs, context_attribs);
    if (rc != 0) return rc;
 
-   fleye_state->ip = glworker_init( &fleye_state->common , fleye_state->user_env );
+	rc = vcos_semaphore_create(& fleye_state->start_processing_sem,"start_processing_sem", 1);
+	if (rc != VCOS_SUCCESS)
+	{
+		 fprintf(stderr,"Failed to create start_processing_sem semaphor %d",rc);
+		 return -1;
+	}
 
-   return (fleye_state->ip==NULL) ;
+	rc = vcos_semaphore_create(& fleye_state->end_processing_sem,"end_processing_sem", 1);
+	if (rc != VCOS_SUCCESS)
+	{
+		 fprintf(stderr,"Failed to create end_processing_sem semaphor %d",rc);
+		 return -1;
+	}
+
+	struct CPU_TRACKING_STATE* cpuThreadCtx = NULL;
+	fleye_state->common.fleye_state = fleye_state;
+    fleye_state->ip = glworker_init( &fleye_state->common , fleye_state->user_env, &cpuThreadCtx );
+    if( fleye_state->ip == NULL ) return -1;
+
+	rc = vcos_thread_create(& fleye_state->cpuTrackingThread, "cpu_tracking_worker", NULL, cpuTrackingWorker, cpuThreadCtx );
+	if (rc != VCOS_SUCCESS)
+	{
+      fprintf(stderr,"Failed to start cpu processing thread %d",rc);
+      return -1;
+	}
+
+   return 0;
 }
 
 /**
@@ -265,4 +289,24 @@ int fleyeutil_update_texture(FleyeState *fleye_state,
    return fleyeutil_do_update_texture(fleye_state->common.display,
          EGL_IMAGE_BRCM_MULTIMEDIA, mm_buf,
          texture, &fleye_state->egl_image);
+}
+
+void waitStartProcessingSem(struct FleyeState* state)
+{
+	vcos_semaphore_wait( & state->start_processing_sem );
+}
+
+void postStartProcessingSem(struct FleyeState* state)
+{
+	vcos_semaphore_post( & state->start_processing_sem );
+}
+
+void waitEndProcessingSem(struct FleyeState* state)
+{
+	vcos_semaphore_wait( & state->end_processing_sem );
+}
+
+void postEndProcessingSem(struct FleyeState* state)
+{
+	vcos_semaphore_post( & state->end_processing_sem );
 }

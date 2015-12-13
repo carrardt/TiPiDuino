@@ -7,13 +7,15 @@
 struct FleyeState;
 struct CompiledShaderCache;
 
+typedef void(*GLRenderFunctionT)(struct CompiledShaderCache*,int) ;
+
 struct ProcessingStep
 {
 	int exec_thread; // 0=main thread, 1=async thread, -1=not a cpu pass (gpu shader)
 	int numberOfPasses; 
 	ShaderPass shaderPass;
-	void(*gl_draw)(struct CompiledShaderCache*,int);
-	void(*cpu_processing)(CPU_TRACKING_STATE*);
+	GLRenderFunctionT gl_draw; //void(*gl_draw)(struct CompiledShaderCache*,int);
+	CpuProcessingFunc cpu_processing; 
 };
 
 #endif

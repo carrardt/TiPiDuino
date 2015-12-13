@@ -10,14 +10,12 @@
 struct ImageProcessingState
 {
 	GLuint cameraTextureId;
-	
 	int nProcessingSteps;
 	struct ProcessingStep processing_step[IMGPROC_MAX_STEPS];
 	int nTextures;
 	struct RASPITEX_Texture processing_texture[MAX_TEXTURES+IMGPROC_MAX_STEPS];
 	int nFBO;
 	struct FrameBufferObject processing_fbo[MAX_FBOS];
-	VCOS_THREAD_T cpuTrackingThread;
 	struct CPU_TRACKING_STATE cpu_tracking_state;
 };
 

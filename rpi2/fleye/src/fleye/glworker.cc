@@ -1,17 +1,17 @@
-//#define CHECK_GL_ERRORS 1
-
-#include "fleye_core.h"
-#include "fleye_util.h"
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 
+#include <stdio.h>
+
+#include "fleye/fleye_c.h"
 #include "fleye/cpuworker.h"
 #include "fleye/imageprocessing.h"
-#include "fleye/fleye_c.h"
+#include "fleye/fleyecommonstate.h"
+#include "fleye/plugin.h"
 
-#define MAX_POINT_SIZE 512
+FLEYE_REGISTER_GL_DRAW(gl_fill)
 
 /*
    const EGLint default_attribs[] =
@@ -41,13 +41,14 @@ const EGLint* glworker_egl_config(struct FleyeCommonState* state)
 	return glworker_egl_config_attribs;
 }
 
-struct ImageProcessingState* glworker_init(struct FleyeCommonState* state, struct UserEnv* user_env)
+struct ImageProcessingState*
+glworker_init(struct FleyeCommonState* state, struct UserEnv* user_env, struct CPU_TRACKING_STATE** cpuThreadCtx )
 {	
    FrameBufferObject dispWinFBO;
    int i,rc;
    struct ImageProcessingState* ip = (struct ImageProcessingState*) malloc( sizeof(struct ImageProcessingState) );
    memset(ip, 0, sizeof(*ip));
-   
+      
     // create camera texture Id
     ip->cameraTextureId = 0;
 	glGenTextures(1, & ip->cameraTextureId );
@@ -103,31 +104,14 @@ struct ImageProcessingState* glworker_init(struct FleyeCommonState* state, struc
 	printf( "GL_SHADING_LANGUAGE_VERSION: %s\n", glGetString( GL_SHADING_LANGUAGE_VERSION ) );
 	printf( "GL_EXTENSIONS: %s\n", glGetString( GL_EXTENSIONS ) );
 
+	ip->cpu_tracking_state.fleye_state = state->fleye_state;
 	ip->cpu_tracking_state.width = state->width;
 	ip->cpu_tracking_state.height = state->height;
-	ip->cpu_tracking_state.image = malloc(ip->cpu_tracking_state.width*ip->cpu_tracking_state.height*4);
+	ip->cpu_tracking_state.image = (uint8_t*) malloc(ip->cpu_tracking_state.width*ip->cpu_tracking_state.height*4);
 	ip->cpu_tracking_state.objectCount = 0;
 	ip->cpu_tracking_state.do_processing = 1;
-	rc = vcos_semaphore_create(& ip->cpu_tracking_state.start_processing_sem,"start_processing_sem", 1);
-	if (rc != VCOS_SUCCESS)
-	{
-		 fprintf(stderr,"Failed to create start_processing_sem semaphor %d",rc);
-		 return NULL;
-	}
 
-	rc = vcos_semaphore_create(& ip->cpu_tracking_state.end_processing_sem,"end_processing_sem", 1);
-	if (rc != VCOS_SUCCESS)
-	{
-		 fprintf(stderr,"Failed to create end_processing_sem semaphor %d",rc);
-		 return NULL;
-	}
-
-	rc = vcos_thread_create(& ip->cpuTrackingThread, "cpu-tracking-worker", NULL, cpuTrackingWorker, & ip->cpu_tracking_state);
-	if (rc != VCOS_SUCCESS)
-	{
-      fprintf(stderr,"Failed to start cpu processing thread %d",rc);
-      return NULL;
-	}
+	*cpuThreadCtx = & ip->cpu_tracking_state;
 
     return ip;
 }
@@ -232,7 +216,8 @@ int glworker_redraw(struct FleyeCommonState* state, struct ImageProcessingState*
 	//printf("waiting %d (%d/%d) previous tasks\n",nPrevTasksToWait,state->ip->cpu_tracking_state.nFinishedCpuFuncs,state->ip->cpu_tracking_state.nAvailCpuFuncs);
 	while( nPrevTasksToWait > 0 )
 	{
-		vcos_semaphore_wait( & ip->cpu_tracking_state.end_processing_sem );
+		waitEndProcessingSem( state->fleye_state );
+		//vcos_semaphore_wait( & ip->cpu_tracking_state.end_processing_sem );
 		-- nPrevTasksToWait;
 	}
 	ip->cpu_tracking_state.nAvailCpuFuncs = 0;
@@ -257,7 +242,8 @@ int glworker_redraw(struct FleyeCommonState* state, struct ImageProcessingState*
 				//printf("async start cpu step #%d\n",step);
 				ip->cpu_tracking_state.cpu_processing[ ip->cpu_tracking_state.nAvailCpuFuncs ] = ip->processing_step[step].cpu_processing;
 				++ ip->cpu_tracking_state.nAvailCpuFuncs;
-				vcos_semaphore_post(& ip->cpu_tracking_state.start_processing_sem);
+				postStartProcessingSem( state->fleye_state );
+				//vcos_semaphore_post(& ip->cpu_tracking_state.start_processing_sem);
 			}
 		}
 		else 
@@ -286,7 +272,8 @@ int glworker_redraw(struct FleyeCommonState* state, struct ImageProcessingState*
 	
 	// terminate async processing cycle
 	ip->cpu_tracking_state.cpu_processing[ ip->cpu_tracking_state.nAvailCpuFuncs ] = 0;
-	vcos_semaphore_post(& ip->cpu_tracking_state.start_processing_sem);
+	postStartProcessingSem( state->fleye_state );
+	//vcos_semaphore_post(& ip->cpu_tracking_state.start_processing_sem);
 
     GLCHK(glUseProgram(0));
 	if(swapBuffers)

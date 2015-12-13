@@ -102,7 +102,7 @@ int create_image_processing(struct ImageProcessingState* ip, struct UserEnv* env
 
 				user_vs = readShader(vsFileName);
 				vs_size = strlen(vs_attributes) + strlen(uniforms) + strlen(user_vs);
-				vs = malloc( vs_size + 8 );
+				vs = new char [vs_size + 8] ; //malloc( vs_size + 8 );
 				sprintf(vs,"%s\n%s\n%s\n",vs_attributes,uniforms,user_vs);
 				free(user_vs);
 				//printf("Vertex Shader:\n%s",vs);
@@ -110,7 +110,7 @@ int create_image_processing(struct ImageProcessingState* ip, struct UserEnv* env
 				user_fs = readShader(fsFileName);
 				inc_fs = readShader("inc_fs");
 				fs_size = strlen(uniforms) + strlen(inc_fs) + strlen(user_fs) ;
-				fs = malloc( fs_size + 8 );
+				fs = new char [fs_size + 8] ; //malloc( fs_size + 8 );
 				sprintf(fs,"%s\n%s\n%s\n",uniforms,inc_fs,user_fs);
 				free(inc_fs);
 				free(user_fs);
@@ -145,10 +145,10 @@ int create_image_processing(struct ImageProcessingState* ip, struct UserEnv* env
 					handle = dlopen(NULL, RTLD_GLOBAL | RTLD_NOW);
 					funcName = drawPlugin[0];
 				}
-				ip->processing_step[ip->nProcessingSteps].gl_draw = dlsym(handle,funcName);
+				ip->processing_step[ip->nProcessingSteps].gl_draw = (GLRenderFunctionT) dlsym(handle,funcName);
 				if( ip->processing_step[ip->nProcessingSteps].gl_draw == NULL)
 				{
-					fprintf(stderr,"can't find function %s\n",drawPlugin[1]);
+					fprintf(stderr,"can't find function %s\n",funcName);
 					return -1;
 				}
 				printf("resolved function %s to %p\n",funcName,ip->processing_step[ip->nProcessingSteps].gl_draw);
@@ -230,14 +230,16 @@ int create_image_processing(struct ImageProcessingState* ip, struct UserEnv* env
 				return -1;
 			}
 			sprintf(tmp2,"%s_run",tmp);
-			ip->processing_step[ip->nProcessingSteps].cpu_processing = dlsym(handle,tmp2);
-			if( ip->processing_step[ip->nProcessingSteps].cpu_processing == NULL)
+			void* funcSym = dlsym(handle,tmp2);
+			if( funcSym == 0 )
 			{
 				fprintf(stderr,"can't find function %s\n",tmp2);
 				return -1;
 			}
+			ip->processing_step[ip->nProcessingSteps].cpu_processing = (CpuProcessingFunc)funcSym ;
+
 			sprintf(tmp2,"%s_setup",tmp);
-			void(*init_plugin)() = dlsym(handle,tmp2);
+			void(*init_plugin)() = ( void(*)() ) dlsym(handle,tmp2);
 			if( init_plugin != NULL )
 			{
 				(*init_plugin) ();

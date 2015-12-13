@@ -1,4 +1,5 @@
 #include <string.h>
+#include <stdio.h>
 #include "fleye/fleye_c.h"
 #include "fleye/config.h"
 
@@ -11,7 +12,7 @@ struct UserEnv
 
 struct UserEnv* fleye_create_user_env()
 {
-	struct UserEnv* uenv = malloc( sizeof(struct UserEnv) );
+	struct UserEnv* uenv = new UserEnv; //malloc( sizeof(struct UserEnv) );
 	memset(uenv,0,sizeof(struct UserEnv));
 	return uenv;
 }

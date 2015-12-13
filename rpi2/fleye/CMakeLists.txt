@@ -15,10 +15,10 @@ project (Fleye)
 
 SET(COMPILE_DEFINITIONS "-Werror")
 
-file(GLOB THIRDPARTY_SRC "src/thirdparty/*.c")
+file(GLOB THIRDPARTY_SRC "thirdparty/*.c")
 add_library(thirdparty ${THIRDPARTY_SRC})
 
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src/thirdparty)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
 file(GLOB TESTGPIO_SRC "src/gpiotest/*.c")
 add_executable(test_gpio ${TESTGPIO_SRC})
@@ -35,7 +35,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include ${VCINC} ${VCINC}/interf
 add_definitions(-DGLSL_SRC_DIR=\"${CMAKE_CURRENT_BINARY_DIR}\" -pthread)
 link_directories(${VCLIB})
 
-file(GLOB FLEYE_SRC "src/fleye/*.c")
+file(GLOB FLEYE_SRC "src/RaspiCore/*.c" "src/fleye/*.cc")
 add_executable(fleye ${FLEYE_SRC})
 target_link_libraries(fleye thirdparty ${MMAL_LIBS} vcos bcm_host GLESv2 EGL pthread m dl)
 install(TARGETS fleye RUNTIME DESTINATION bin)
@@ -58,11 +58,12 @@ endforeach(SCRIPT)
 
 
 # compile plugin dynamic libraries
-file(GLOB PLUGIN_SOURCE_FILES "plugins/*.c")
+file(GLOB PLUGIN_SOURCE_FILES "plugins/*.cc")
 foreach(PLUGIN_SRC ${PLUGIN_SOURCE_FILES})
 	get_filename_component(PLUGIN_SRC_NODIR ${PLUGIN_SRC} NAME)
 	get_filename_component(PLUGIN_NAME ${PLUGIN_SRC_NODIR} NAME_WE)
 	add_library(${PLUGIN_NAME} SHARED ${PLUGIN_SRC})
+	target_link_libraries(${PLUGIN_NAME} thirdparty)
 	install(TARGETS ${PLUGIN_NAME} LIBRARY DESTINATION bin)
 endforeach(PLUGIN_SRC)
 

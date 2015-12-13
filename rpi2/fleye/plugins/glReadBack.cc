@@ -2,6 +2,9 @@
 #include <stdio.h>
 
 #include "fleye/cpuworker.h"
+#include "fleye/plugin.h"
+
+FLEYE_REGISTER_PLUGIN(glReadBack)
 
 void glReadBack_setup()
 {

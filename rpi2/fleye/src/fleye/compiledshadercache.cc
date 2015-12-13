@@ -60,7 +60,8 @@ struct CompiledShaderCache* get_compiled_shader(struct ShaderPass* shaderPass,st
 		sprintf(uniformDeclare,"uniform %s %s;\n",samplerType,shaderPass->inputs[i].uniformName);
 		strcat(textureUniformProlog,uniformDeclare);
 	}
-	fragmentSource = malloc( strlen(image_external_pragma) + strlen(shaderPass->fragmentSourceWithoutTextures) + strlen(textureUniformProlog) + 8 );
+	fragmentSource = new char [strlen(image_external_pragma) + strlen(shaderPass->fragmentSourceWithoutTextures) + strlen(textureUniformProlog) + 8];
+	//malloc( strlen(image_external_pragma) + strlen(shaderPass->fragmentSourceWithoutTextures) + strlen(textureUniformProlog) + 8 );
 	sprintf(fragmentSource,"%s\n%s\n%s\n",image_external_pragma,textureUniformProlog,shaderPass->fragmentSourceWithoutTextures);
 
 	// printf("%s FS:\n%s",shaderPass->finalTexture->name,fragmentSource);

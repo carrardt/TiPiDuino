@@ -3,12 +3,16 @@
 
 #include <EGL/egl.h>
 
+struct FleyeState;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 struct FleyeCommonState
 {
+   struct FleyeState* fleye_state;
+   
    EGLDisplay display;                 /// The current EGL display
    EGLSurface surface;                 /// The current EGL surface
    EGLContext context;                 /// The current EGL context

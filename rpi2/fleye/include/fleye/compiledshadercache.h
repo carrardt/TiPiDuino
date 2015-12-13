@@ -13,4 +13,6 @@ struct CompiledShaderCache
 	ShaderProgram shader;
 };
 
+CompiledShaderCache* get_compiled_shader(ShaderPass* shaderPass, RASPITEX_Texture ** inputs);
+
 #endif

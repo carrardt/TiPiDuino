@@ -1,3 +1,4 @@
+#include <string.h>
 #include "fleye/texture.h"
 #include "fleye/imageprocessing.h"
 

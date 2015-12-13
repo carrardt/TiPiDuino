@@ -8,7 +8,7 @@
  * Container for a simple shader program. The uniform and attribute locations
  * are automatically setup by fleye_build_shader_program.
  */
-typedef struct ShaderProgram
+struct ShaderProgram
 {
    /// Array of uniform names for fleye_build_shader_program to process
    const char *uniform_names[SHADER_MAX_UNIFORMS];
@@ -24,6 +24,11 @@ typedef struct ShaderProgram
 
    /// The locations for attributes defined in attribute_names
    GLint attribute_locations[SHADER_MAX_ATTRIBUTES];
-} ShaderProgram;
+};
+
+char* readShader(const char* fileName);
+int fleyeutil_build_shader_program(ShaderProgram *p, const char* vertex_source, const char* fragment_source);
+int create_image_shader(ShaderProgram* shader, const char* vs, const char* fs);
+
 
 #endif

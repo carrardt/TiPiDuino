@@ -36,6 +36,13 @@ struct FleyeState
    EGLImageKHR egl_image;              /// The current preview EGL image
    MMAL_BUFFER_HEADER_T *preview_buf;  /// MMAL buffer currently bound to texture(s)
    
+   /* cpu worker thread */
+   VCOS_THREAD_T cpuTrackingThread;
+
+   /* synchronization semaphores between cpu workers and gpu worker */
+   VCOS_SEMAPHORE_T start_processing_sem;
+   VCOS_SEMAPHORE_T end_processing_sem;
+
    /* processing and user env state */
    struct UserEnv* user_env; // utiliser une api pour positioner/lire des elements depuis l'exterieur (en C)
    struct ImageProcessingState* ip;

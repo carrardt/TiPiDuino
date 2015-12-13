@@ -1,30 +1,23 @@
 #ifndef __FLEYE_CPU_TRACKING_H
 #define __FLEYE_CPU_TRACKING_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-
-#include <GLES2/gl2.h>
-#include "interface/vcos/vcos.h"
-
-#define MAX_TRACKED_OBJECTS 8
-#define IMGPROC_MAX_CPU_FUNCS 16
+#include "fleye/config.h"
+#include <stdint.h>
 
 struct CPU_TRACKING_STATE;
+struct FleyeState;
 
 typedef void(*CpuProcessingFunc)(struct CPU_TRACKING_STATE*);
 
 typedef struct CPU_TRACKING_STATE
 {
-  VCOS_SEMAPHORE_T start_processing_sem;
-  VCOS_SEMAPHORE_T end_processing_sem;
-  volatile  int do_processing;
-
+  struct FleyeState* fleye_state;
+  
   // input
-  volatile int width, height;
-  volatile GLubyte* image;
+  int width, height;
+  uint8_t* image;
+
+  volatile  int do_processing;
 
   // output
   volatile int objectCount;
@@ -39,10 +32,5 @@ typedef struct CPU_TRACKING_STATE
   volatile int cpuFunc;
 
 } CPU_TRACKING_STATE;
-
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

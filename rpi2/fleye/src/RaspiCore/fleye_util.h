@@ -1,25 +1,6 @@
 #ifndef __fleye_UTIL_H_
 #define __fleye_UTIL_H_
 
-/* Uncomment to enable extra GL error checking */
-//#define CHECK_GL_ERRORS
-#if defined(CHECK_GL_ERRORS)
-#define GLCHK(X) \
-do { \
-    GLenum err = GL_NO_ERROR; \
-    X; \
-   while ((err = glGetError())) \
-   { \
-      fprintf(stderr,"GL error 0x%x in " #X "file %s line %d", err, __FILE__,__LINE__); \
-      assert(err == GL_NO_ERROR); \
-      exit(err); \
-   } \
-} \
-while(0)
-#else
-#define GLCHK(X) X
-#endif /* CHECK_GL_ERRORS */
-
 struct FleyeState;
 
 /* Default GL scene ops functions */
