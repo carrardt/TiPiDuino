@@ -1,5 +1,5 @@
-#ifndef RASPITEX_UTIL_H_
-#define RASPITEX_UTIL_H_
+#ifndef __fleye_UTIL_H_
+#define __fleye_UTIL_H_
 
 /* Uncomment to enable extra GL error checking */
 //#define CHECK_GL_ERRORS

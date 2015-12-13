@@ -4,11 +4,8 @@
 #include "fleye/cpuworker.h"
 #include "fleye/shaderpass.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 struct FleyeState;
+struct CompiledShaderCache;
 
 struct ProcessingStep
 {
@@ -18,9 +15,5 @@ struct ProcessingStep
 	void(*gl_draw)(struct CompiledShaderCache*,int);
 	void(*cpu_processing)(CPU_TRACKING_STATE*);
 };
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

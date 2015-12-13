@@ -1,7 +1,14 @@
 #include <stdio.h>
 #include <GLES2/gl2.h>
+#include <EGL/egl.h>
+
 #include "fleye/imageprocessing.h"
-#include "fleye/userenv.h"
+#include "fleye/fleye_c.h"
+
+GLuint fleye_get_camera_texture_id(struct ImageProcessingState* ip)
+{
+	return ip->cameraTextureId;
+}
 
 void strsplit(char* str, int delim, char** ptrs, int bufsize, int* n)
 {

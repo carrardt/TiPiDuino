@@ -40,8 +40,6 @@ typedef struct CPU_TRACKING_STATE
 
 } CPU_TRACKING_STATE;
 
-extern void *cpuTrackingWorker(void *arg);
-
 
 #ifdef __cplusplus
 }

@@ -8,8 +8,6 @@
 extern "C" {
 #endif
 
-struct ImageProcessingState;
-
 typedef struct RASPITEX_Texture
 {
 	char name[TEXTURE_NAME_MAX_LEN];
@@ -17,8 +15,6 @@ typedef struct RASPITEX_Texture
 	GLenum target;
 	GLuint texid;
 } RASPITEX_Texture;
-
-RASPITEX_Texture* get_named_texture(struct ImageProcessingState* ip, const char * name);
 
 #ifdef __cplusplus
 }

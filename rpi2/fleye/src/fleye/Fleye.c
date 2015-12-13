@@ -344,21 +344,21 @@ static int parse_cmdline(int argc, const char **argv, RASPISTILL_STATE *state)
    }
 
    /* GL preview parameters use preview parameters as defaults unless overriden */
-   if (! state->fleye_state.gl_win_defined)
+   if (! state->fleye_state.common.gl_win_defined)
    {
-      state->fleye_state.x       = state->preview_parameters.previewWindow.x;
-      state->fleye_state.y       = state->preview_parameters.previewWindow.y;
-      state->fleye_state.width   = state->preview_parameters.previewWindow.width;
-      state->fleye_state.height  = state->preview_parameters.previewWindow.height;
+      state->fleye_state.common.x       = state->preview_parameters.previewWindow.x;
+      state->fleye_state.common.y       = state->preview_parameters.previewWindow.y;
+      state->fleye_state.common.width   = state->preview_parameters.previewWindow.width;
+      state->fleye_state.common.height  = state->preview_parameters.previewWindow.height;
    }
    /* Also pass the preview information through so GL renderer can determine
     * the real resolution of the multi-media image */
-   state->fleye_state.preview_x       = state->preview_parameters.previewWindow.x;
-   state->fleye_state.preview_y       = state->preview_parameters.previewWindow.y;
-   state->fleye_state.preview_width   = state->preview_parameters.previewWindow.width;
-   state->fleye_state.preview_height  = state->preview_parameters.previewWindow.height;
-   state->fleye_state.opacity         = state->preview_parameters.opacity;
-   state->fleye_state.verbose         = state->verbose;
+   state->fleye_state.common.preview_x       = state->preview_parameters.previewWindow.x;
+   state->fleye_state.common.preview_y       = state->preview_parameters.previewWindow.y;
+   state->fleye_state.common.preview_width   = state->preview_parameters.previewWindow.width;
+   state->fleye_state.common.preview_height  = state->preview_parameters.previewWindow.height;
+   state->fleye_state.common.opacity         = state->preview_parameters.opacity;
+   state->fleye_state.common.verbose         = state->verbose;
 
    if (!valid)
    {

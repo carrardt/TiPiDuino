@@ -1,20 +1,16 @@
 #ifndef __fleye_ImageProcessing_H_
 #define __fleye_ImageProcessing_H_
 
-#include <EGL/egl.h>
+#include <GLES2/gl2.h>
 #include "fleye/config.h"
 #include "fleye/texture.h"
-#include "fleye/fbo.h"
 #include "fleye/processingstep.h"
-
-struct UserEnv;
-
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "fleye/fbo.h"
 
 struct ImageProcessingState
 {
+	GLuint cameraTextureId;
+	
 	int nProcessingSteps;
 	struct ProcessingStep processing_step[IMGPROC_MAX_STEPS];
 	int nTextures;
@@ -24,11 +20,5 @@ struct ImageProcessingState
 	VCOS_THREAD_T cpuTrackingThread;
 	struct CPU_TRACKING_STATE cpu_tracking_state;
 };
-
-extern int create_image_processing(struct ImageProcessingState* ip, struct UserEnv* env, const char* filename);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

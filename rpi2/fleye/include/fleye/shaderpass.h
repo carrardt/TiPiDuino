@@ -8,10 +8,6 @@
 struct RASPITEX_Texture;
 struct FrameBufferObject;
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 struct ShaderPass
 {
 	int nInputs;
@@ -26,9 +22,5 @@ struct ShaderPass
 };
 
 typedef struct ShaderPass ShaderPass;
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

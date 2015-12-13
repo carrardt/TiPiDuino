@@ -1,31 +1,3 @@
-/*
-Copyright (c) 2013, Broadcom Europe Ltd
-Copyright (c) 2013, Tim Gover
-All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-    * Redistributions of source code must retain the above copyright
-      notice, this list of conditions and the following disclaimer.
-    * Redistributions in binary form must reproduce the above copyright
-      notice, this list of conditions and the following disclaimer in the
-      documentation and/or other materials provided with the distribution.
-    * Neither the name of the copyright holder nor the
-      names of its contributors may be used to endorse or promote products
-      derived from this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY
-DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-*/
-
 #include "RaspiCLI.h"
 #include <math.h>
 #include <stdio.h>
@@ -44,8 +16,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "fleye_core.h"
 #include "fleye_util.h"
-#include "fleye/glworker.h"
-#include "fleye/userenv.h"
+#include "fleye/fleye_c.h"
 
 /**
  * \file GPUTracking.c
@@ -103,12 +74,12 @@ int fleye_parse_cmdline(FleyeState *state,
 	{
 		char key[64], value[64];
 		sscanf(arg2,"%s %s",key,value);
-		fleye_add_optional_value( & state->user_env,key,value);
+		fleye_add_optional_value(state->user_env,key,value);
 		return 2;
 	}
 	else if( strcmp(arg1,"-script")==0 )
 	{
-		strcpy(state->tracking_script,arg2);
+		fleye_set_processing_script(state->user_env,arg2);
 		return 2;
 	}
 
@@ -202,7 +173,7 @@ static int fleye_draw(FleyeState *state, MMAL_BUFFER_HEADER_T *buf)
    /*  Do the drawing */
    if (check_egl_image(state) == 0)
    {
-	  rc = glworker_redraw(state);
+	  rc = glworker_redraw( & state->common, state->ip );
 	  if (rc != 0) return rc;
       update_fps();
    }
@@ -227,14 +198,14 @@ static int preview_process_returned_bufs(FleyeState* state)
 
    while ((buf = mmal_queue_get(state->preview_queue)) != NULL)
    {
-      if (state->preview_stop == 0)
+      if (state->common.preview_stop == 0)
       {
          new_frame = 1;
          rc = fleye_draw(state, buf);
          if (rc != 0)
          {
             fprintf(stderr,"%s: Error drawing frame. Stopping.\n", __PRETTY_FUNCTION__);
-            state->preview_stop = 1;
+            state->common.preview_stop = 1;
             return rc;
          }
       }
@@ -272,11 +243,9 @@ static void *preview_worker(void *arg)
    if (rc != 0)
       goto end;
 
-   rc = glworker_init(state);
-   if (rc != 0)
-      goto end;
+   fleyeutil_gl_init(state);
 
-   while (state->preview_stop == 0)
+   while (state->common.preview_stop == 0)
    {
       /* Send empty buffers to camera preview port */
       while ((buf = mmal_queue_get(state->preview_pool->queue)) != NULL)
@@ -291,7 +260,7 @@ static void *preview_worker(void *arg)
       if (preview_process_returned_bufs(state) != 0)
       {
          fprintf(stderr,"Preview error. Exiting.\n");
-         state->preview_stop = 1;
+         state->common.preview_stop = 1;
       }
    }
 
@@ -320,7 +289,7 @@ static void preview_output_cb(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buf)
    if (buf->length == 0)
    {
       printf("%s: zero-length buffer => EOS\n", port->name);
-      state->preview_stop = 1;
+      state->common.preview_stop = 1;
       mmal_buffer_header_release(buf);
    }
    else if (buf->data == NULL)
@@ -461,20 +430,16 @@ void fleye_set_defaults(FleyeState *state)
    memset(state, 0, sizeof(*state));
 
 	// initialize only non-zero values
-   state->version_major = RASPITEX_VERSION_MAJOR;
-   state->version_minor = RASPITEX_VERSION_MINOR;
-   state->display = EGL_NO_DISPLAY;
-   state->surface = EGL_NO_SURFACE;
-   state->context = EGL_NO_CONTEXT;
+   state->common.display = EGL_NO_DISPLAY;
+   state->common.surface = EGL_NO_SURFACE;
+   state->common.context = EGL_NO_CONTEXT;
    state->egl_image = EGL_NO_IMAGE_KHR;
-   state->y_egl_image = EGL_NO_IMAGE_KHR;
-   state->u_egl_image = EGL_NO_IMAGE_KHR;
-   state->v_egl_image = EGL_NO_IMAGE_KHR;
-   state->opacity = 255;
-   state->width = DEFAULT_WIDTH;
-   state->height = DEFAULT_HEIGHT;
+   state->common.opacity = 255;
+   state->common.width = DEFAULT_WIDTH;
+   state->common.height = DEFAULT_HEIGHT;
    
-   strcpy(state->tracking_script,"passthru");
+   state->user_env = fleye_create_user_env();
+   fleye_set_processing_script(state->user_env,"passthru");
 }
 
 /* Stops the rendering loop and destroys MMAL resources
@@ -482,10 +447,10 @@ void fleye_set_defaults(FleyeState *state)
  */
 void fleye_stop(FleyeState *state)
 {
-   if (! state->preview_stop)
+   if (! state->common.preview_stop)
    {
       printf("Stopping GL preview\n");
-      state->preview_stop = 1;
+      state->common.preview_stop = 1;
       vcos_thread_join(&state->preview_thread, NULL);
    }
 }
