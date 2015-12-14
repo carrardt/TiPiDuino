@@ -43,7 +43,7 @@ int create_image_processing(struct ImageProcessingState* ip, struct UserEnv* env
 	int rc;
 	FILE* fp;
 	char tmp[256];
-	sprintf(tmp,"./%s.fleye",filename);
+	sprintf(tmp,"%s/%s.fleye",FLEYE_SCRIPT_DIR,filename);
 	fp = fopen(tmp,"rb");
 	if( fp == 0 )
 	{
@@ -131,7 +131,7 @@ int create_image_processing(struct ImageProcessingState* ip, struct UserEnv* env
 				strsplit(drawMethod,':',drawPlugin,2,&n);
 				if( n==2 )
 				{
-					sprintf(tmp2,"./lib%s.so",drawPlugin[0]);
+					sprintf(tmp2,"%s/lib%s.so",FLEYE_PLUGIN_DIR,drawPlugin[0]);
 					handle = dlopen(tmp2, RTLD_GLOBAL | RTLD_NOW);
 					if(handle==NULL)
 					{
@@ -221,7 +221,7 @@ int create_image_processing(struct ImageProcessingState* ip, struct UserEnv* env
 			char tmp2[256];
 			ip->processing_step[ip->nProcessingSteps].numberOfPasses = CPU_PROCESSING_PASS;
 			fscanf(fp,"%s %d\n",tmp, & ip->processing_step[ip->nProcessingSteps].exec_thread );
-			sprintf(tmp2,"./lib%s.so",tmp);
+			sprintf(tmp2,"%s/lib%s.so",FLEYE_PLUGIN_DIR,tmp);
 			printf("loading dynamic library %s ...\n",tmp2);
 			void * handle = dlopen(tmp2, RTLD_GLOBAL | RTLD_NOW);
 			if(handle==NULL)

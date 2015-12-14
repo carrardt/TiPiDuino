@@ -1,0 +1,9 @@
+include_directories(../include ${VCINC} ${VCINC}/interface/vcos/pthreads ${VCINC}/interface/vmcs_host/linux)
+add_definitions(-pthread)
+link_directories(${VCLIB})
+
+file(GLOB RASPICORE_SRC "*.c")
+add_executable(fleye ${RASPICORE_SRC})
+target_link_libraries(fleye FleyeModule thirdparty ${MMAL_LIBS} vcos bcm_host GLESv2 EGL pthread m dl)
+install(TARGETS fleye RUNTIME DESTINATION bin)
+

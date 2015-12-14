@@ -13,58 +13,22 @@ project (Fleye)
 # ./fleye -v -ex fixedfps -w 1296 -h 972 -p 32,32,352,272 --script normcoord
 # sudo ./fleye -v -ex fixedfps -drc off -w 1296 -h 972 -p 0,0,384,256 --set "CCMD 5" --script l2centerfollow 
 
-SET(COMPILE_DEFINITIONS "-Werror")
-
-file(GLOB THIRDPARTY_SRC "thirdparty/*.c")
-add_library(thirdparty ${THIRDPARTY_SRC})
-
-include_directories(${CMAKE_CURRENT_SOURCE_DIR})
-
-file(GLOB TESTGPIO_SRC "src/gpiotest/*.c")
-add_executable(test_gpio ${TESTGPIO_SRC})
-target_link_libraries(test_gpio thirdparty)
-install(TARGETS test_gpio RUNTIME DESTINATION bin)
-
 # Raspberry Pi VideoCore HW Abstraction Layer
 SET(VCROOT "/opt/vc")
 SET(VCINC "${VCROOT}/include")
+SET(GL_INC_DIR ${VCINC} ${VCINC}/interface/vcos/pthreads)
 SET(VCLIB "${VCROOT}/lib")
-set (MMAL_LIBS mmal_core mmal_util mmal_vc_client)
+SET(GL_LIB_DIR "${VCLIB}")
+SET(MMAL_LIBS mmal_core mmal_util mmal_vc_client)
+SET(GLSL_SHADER_DIR ${CMAKE_CURRENT_BINARY_DIR}/shaders)
+SET(SCRIPTS_DIR ${CMAKE_CURRENT_BINARY_DIR}/scripts )
+SET(PLUGINS_DIR ${CMAKE_CURRENT_BINARY_DIR}/plugins )
 
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include ${VCINC} ${VCINC}/interface/vcos/pthreads ${VCINC}/interface/vmcs_host/linux)
-add_definitions(-DGLSL_SRC_DIR=\"${CMAKE_CURRENT_BINARY_DIR}\" -pthread)
-link_directories(${VCLIB})
-
-file(GLOB FLEYE_SRC "src/RaspiCore/*.c" "src/fleye/*.cc")
-add_executable(fleye ${FLEYE_SRC})
-target_link_libraries(fleye thirdparty ${MMAL_LIBS} vcos bcm_host GLESv2 EGL pthread m dl)
-install(TARGETS fleye RUNTIME DESTINATION bin)
-
-# copy shader files
-file(GLOB_RECURSE GLSL_SOURCE_FILES "*.glsl")
-foreach(GLSL_SRC ${GLSL_SOURCE_FILES})
-	get_filename_component(GLSL_SRC_NODIR ${GLSL_SRC} NAME)
-	#message("copy ${GLSL_SRC} to ${CMAKE_CURRENT_BINARY_DIR}/${GLSL_SRC_NODIR}")
-	configure_file( ${GLSL_SRC} ${CMAKE_CURRENT_BINARY_DIR}/${GLSL_SRC_NODIR} COPYONLY)
-endforeach(GLSL_SRC)
-
-# copy scripts files
-file(GLOB_RECURSE SCRIPTS_FILES "*.fleye")
-foreach(SCRIPT ${SCRIPTS_FILES})
-	get_filename_component(SCRIPT_NODIR ${SCRIPT} NAME)
-	#message("copy ${SCRIPT} to ${CMAKE_CURRENT_BINARY_DIR}/${SCRIPT_NODIR}")
-	configure_file( ${SCRIPT} ${CMAKE_CURRENT_BINARY_DIR}/${SCRIPT_NODIR} COPYONLY)
-endforeach(SCRIPT)
-
-
-# compile plugin dynamic libraries
-file(GLOB PLUGIN_SOURCE_FILES "plugins/*.cc")
-foreach(PLUGIN_SRC ${PLUGIN_SOURCE_FILES})
-	get_filename_component(PLUGIN_SRC_NODIR ${PLUGIN_SRC} NAME)
-	get_filename_component(PLUGIN_NAME ${PLUGIN_SRC_NODIR} NAME_WE)
-	add_library(${PLUGIN_NAME} SHARED ${PLUGIN_SRC})
-	target_link_libraries(${PLUGIN_NAME} thirdparty)
-	install(TARGETS ${PLUGIN_NAME} LIBRARY DESTINATION bin)
-endforeach(PLUGIN_SRC)
-
+add_subdirectory(thirdparty)
+add_subdirectory(gpiotest)
+add_subdirectory(FleyeModule)
+add_subdirectory(RaspiCore)
+add_subdirectory(plugins)
+add_subdirectory(scripts)
+add_subdirectory(shaders)
 
