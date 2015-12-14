@@ -1,0 +1,37 @@
+// Using a pan-tilt mounted camera to follow objects
+{
+	"FrameBufferObjects" :
+	{
+		"fbo1" : { "width" : "$WIDTH" , "height" : "$HEIGHT" } ,
+		"fbo2" : { "width" : "$WIDTH" , "height" : "$HEIGHT" }
+	}
+    
+    "GLShaders" :
+    [
+		"init" : {
+			"VertexShader" : "common_vs" ,
+			"FragmentShader" : "maskInitL2Cross_fs" ,
+			"RenderingMethod" : "gl_fill" ,
+			"Textures" : { "tex" : ["CAMERA"] }
+			"Output" : ["fbo1"]
+			"Passes" : 1
+		}
+		
+		
+    ]
+    
+    "CPUFunctions" :
+    [
+    ]
+    
+    "ProcessingLoop" : [ "init", "l2cross", "glReadBack", "l2CrossCenter", "gpioPanTiltFollower", "syncThread", "display", "overlay" ]
+}
+
+SHADER 	init 		common_vs maskInitL2Cross_fs 	gl_fill tex=CAMERA		fbo1 		1
+SHADER	l2cross 	common_vs L2CrossIteration_fs 	gl_fill tex=fbo1,fbo2 	fbo2,fbo1 	$CCMD
+CPU 	glReadBack 			0
+CPU 	l2CrossCenter 		1
+CPU 	gpioPanTiltFollower 1
+CPU 	syncThread 			0
+SHADER 	display common_vs drawL2Cross_fs gl_fill tex_l2cross=l2cross:tex_camera=CAMERA 	DISPLAY 	1
+SHADER 	overlay zhue_vs color_fs gpioPanTiltFollower:drawOverlay none DISPLAY 	1

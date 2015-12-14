@@ -2,6 +2,11 @@
 #include <GLES2/gl2.h>
 #include <EGL/egl.h>
 
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <json/json.h>
+
 #include "fleye/imageprocessing.h"
 #include "fleye/fleye_c.h"
 
@@ -40,6 +45,21 @@ int create_image_processing(struct ImageProcessingState* ip, struct UserEnv* env
 		"attribute vec3 vertex;\n"
 		;
 
+
+	std::string filePath = std::string(FLEYE_SCRIPT_DIR) + "/" + filename;
+	std::cout<<"reading "<<filePath<<"\n";
+	std::ifstream scriptFile(filePath.c_str());
+    Json::Value root;   // will contains the root value after parsing.
+    Json::Reader reader;
+    bool parsingSuccessful = reader.parse( scriptFile, root );
+    if ( !parsingSuccessful ){
+        // report to the user the failure and their locations in the document.
+        std::cout  << "Failed to parse configuration\n"
+                   << reader.getFormattedErrorMessages();
+        return 1;
+    }
+    
+#if 0
 	int rc;
 	FILE* fp;
 	char tmp[256];
@@ -286,7 +306,7 @@ int create_image_processing(struct ImageProcessingState* ip, struct UserEnv* env
 			}
 		}
 	}
-
+#endif
 	return 0;
 }
 

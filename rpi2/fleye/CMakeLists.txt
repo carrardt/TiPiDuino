@@ -26,9 +26,10 @@ SET(PLUGINS_DIR ${CMAKE_CURRENT_BINARY_DIR}/plugins )
 
 add_subdirectory(thirdparty)
 add_subdirectory(gpiotest)
-add_subdirectory(FleyeModule)
-add_subdirectory(RaspiCore)
 add_subdirectory(plugins)
 add_subdirectory(scripts)
 add_subdirectory(shaders)
 
+find_package(Jsoncpp REQUIRED)
+add_subdirectory(FleyeModule)
+add_subdirectory(RaspiCore)
