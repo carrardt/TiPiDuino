@@ -46,7 +46,7 @@ int create_image_processing(struct ImageProcessingState* ip, struct UserEnv* env
 		;
 
 
-	std::string filePath = std::string(FLEYE_SCRIPT_DIR) + "/" + filename;
+	std::string filePath = std::string(FLEYE_SCRIPT_DIR) + "/" + filename + ".json";
 	std::cout<<"reading "<<filePath<<"\n";
 	std::ifstream scriptFile(filePath.c_str());
     Json::Value root;   // will contains the root value after parsing.

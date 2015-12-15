@@ -5,33 +5,75 @@
 		"fbo1" : { "width" : "$WIDTH" , "height" : "$HEIGHT" } ,
 		"fbo2" : { "width" : "$WIDTH" , "height" : "$HEIGHT" }
 	}
-    
+    ,
     "GLShaders" :
-    [
+    {
 		"init" : {
 			"VertexShader" : "common_vs" ,
 			"FragmentShader" : "maskInitL2Cross_fs" ,
-			"RenderingMethod" : "gl_fill" ,
-			"Textures" : { "tex" : ["CAMERA"] }
-			"Output" : ["fbo1"]
+			"Rendering" : { "function" : "gl_fill" } ,
+			"Textures" : { "tex" : ["CAMERA"] } ,
+			"Output" : ["fbo1"] ,
 			"Passes" : 1
 		}
-		
-		
-    ]
-    
+		,
+		"l2cross" : {
+			"VertexShader" : "common_vs" ,
+			"FragmentShader" : "L2CrossIteration_fs" ,
+			"Rendering" : { "function" : "gl_fill" } ,
+			"Textures" : { "tex" : ["fbo1","fbo2"] } ,
+			"Output" : ["fbo2","fbo1"] ,
+			"Passes" : "$CCMD"
+		}
+		,
+		"display" : {
+			"VertexShader" : "common_vs" ,
+			"FragmentShader" : "drawL2Cross_fs" ,
+			"Rendering" : { "function" : "gl_fill" } ,
+			"Textures" : { "tex_l2cross" : ["l2cross"] , "tex_camera" : ["CAMERA"] } ,
+			"Output" : ["DISPLAY"] ,
+			"Passes" : 1
+		}
+		,
+		"overlay" : {
+			"VertexShader" : "zhue_vs" ,
+			"FragmentShader" : "color_fs" ,
+			"Rendering" : { "plugin" : "gpioPanTiltFollower" , "function" : "drawOverlay" } ,
+			"Output" : ["DISPLAY"] ,
+			"Passes" : 1
+		}
+    }
+    ,
     "CPUFunctions" :
-    [
-    ]
-    
+    {
+		"glReadBack" : {
+			"plugin" : "glReadBack" , 
+			"setup" : "glReadBack_setup" ,
+			"run" : "glReadBack_run" ,
+			"thread-id" : 0
+		}
+		,
+		"l2CrossCenter" : {
+			"plugin" : "l2CrossCenter" , 
+			"setup" : "l2CrossCenter_setup" ,
+			"run" : "l2CrossCenter_run" ,
+			"thread-id" : 1
+		}
+		,
+		"gpioPanTiltFollower" : {
+			"plugin" : "gpioPanTiltFollower" , 
+			"setup" : "gpioPanTiltFollower_setup" ,
+			"run" : "gpioPanTiltFollower_run" ,
+			"thread-id" : 1
+		}
+		,
+		"syncThread" : {
+			"plugin" : "syncThread" , 
+			"setup" : "syncThread_setup" ,
+			"run" : "syncThread_run" ,
+			"thread-id" : 0
+		}
+    }
+    ,
     "ProcessingLoop" : [ "init", "l2cross", "glReadBack", "l2CrossCenter", "gpioPanTiltFollower", "syncThread", "display", "overlay" ]
 }
-
-SHADER 	init 		common_vs maskInitL2Cross_fs 	gl_fill tex=CAMERA		fbo1 		1
-SHADER	l2cross 	common_vs L2CrossIteration_fs 	gl_fill tex=fbo1,fbo2 	fbo2,fbo1 	$CCMD
-CPU 	glReadBack 			0
-CPU 	l2CrossCenter 		1
-CPU 	gpioPanTiltFollower 1
-CPU 	syncThread 			0
-SHADER 	display common_vs drawL2Cross_fs gl_fill tex_l2cross=l2cross:tex_camera=CAMERA 	DISPLAY 	1
-SHADER 	overlay zhue_vs color_fs gpioPanTiltFollower:drawOverlay none DISPLAY 	1
