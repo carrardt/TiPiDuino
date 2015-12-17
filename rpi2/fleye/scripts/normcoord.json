@@ -1,0 +1,9 @@
+// normalized screen coordinates testing
+{
+	"GLShaders" :
+	{
+		"final" : { "fragment-shader" : "normcoord_fs" }
+	}
+	,
+	"ProcessingLoop" : [ "final" ]
+}

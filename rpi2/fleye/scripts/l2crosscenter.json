@@ -1,8 +1,7 @@
-// Using a pan-tilt mounted camera to follow objects
+// green / red objects tracking
 {
 	"FrameBufferObjects" :
 	{
-		// "myFBO" : { "width" : "$WIDTH" , "height" : "$HEIGHT", "depth" : false } ,
 		"fbo1" : {} ,
 		"fbo2" : {}
 	}
@@ -35,14 +34,6 @@
 			"output" : "DISPLAY" ,
 			"passes" : 1
 		}
-		,
-		"overlay" : {
-			"vertex-shader" : "zhue_vs" ,
-			"fragment-shader" : "color_fs" ,
-			"rendering" : { "plugin" : "gpioPanTiltFollower" , "function" : "drawOverlay" } ,
-			"output" : "DISPLAY" ,
-			"passes" : 1
-		}
     }
     ,
     "CPUFunctions" :
@@ -61,13 +52,6 @@
 			"thread-id" : 1
 		}
 		,
-		"gpioPanTiltFollower" : {
-			"plugin" : "gpioPanTiltFollower" , 
-			"setup" : "gpioPanTiltFollower_setup" ,
-			"run" : "gpioPanTiltFollower_run" ,
-			"thread-id" : 1
-		}
-		,
 		"syncThread" : {
 			"plugin" : "syncThread" , 
 			"setup" : "syncThread_setup" ,
@@ -76,5 +60,5 @@
 		}
     }
     ,
-    "ProcessingLoop" : [ "init", "l2cross", "glReadBack", "l2CrossCenter", "gpioPanTiltFollower", "syncThread", "display", "overlay" ]
+    "ProcessingLoop" : [ "init", "l2cross", "glReadBack", "l2CrossCenter", "syncThread", "display" ]
 }

@@ -223,7 +223,7 @@ static void apply_shader_pass(ShaderPass* shaderPass, int passCounter, int* need
 	GLCHK( glActiveTexture( GL_TEXTURE0 ) ); // back to default
 
 	// TODO: test if this is necessary
-    GLCHK(glFinish());
+    // GLCHK(glFinish());
 }
 
 int glworker_redraw(struct FleyeCommonState* state, struct ImageProcessingState* ip)
@@ -247,24 +247,8 @@ int glworker_redraw(struct FleyeCommonState* state, struct ImageProcessingState*
     GLCHK( glActiveTexture(GL_TEXTURE0) );
 
 	for( ProcessingStep& ps : ip->processing_step )
-	{
-		if ( ps.cpuPass != 0 )
-		{
-			if( ps.cpuPass->exec_thread == 0 )
-			{
-				//printf("sync exec cpu step #%d\n",step);
-				( * ps.cpuPass->cpu_processing ) (& ip->cpu_tracking_state);
-			}
-			else
-			{
-				//printf("async start cpu step #%d\n",step);
-				ip->cpu_tracking_state.cpu_processing[ ip->cpu_tracking_state.nAvailCpuFuncs ] = ps.cpuPass->cpu_processing;
-				++ ip->cpu_tracking_state.nAvailCpuFuncs;
-				postStartProcessingSem( state->fleye_state );
-				//vcos_semaphore_post(& ip->cpu_tracking_state.start_processing_sem);
-			}
-		}
-		else 
+	{		
+		if( ps.shaderPass != 0 )
 		{
 			int nPasses = ps.shaderPass->numberOfPasses;
 			for(int i=0;i<nPasses;i++)
@@ -285,12 +269,29 @@ int glworker_redraw(struct FleyeCommonState* state, struct ImageProcessingState*
 				ps.shaderPass->finalTexture->format = GL_RGB;
 			}
 		}
+		
+		if( ps.cpuPass != 0 )
+		{
+			if( ps.cpuPass->exec_thread == 0 )
+			{
+				//printf("sync exec cpu step #%d\n",step);
+				( * ps.cpuPass->cpu_processing ) (& ip->cpu_tracking_state);
+			}
+			else
+			{
+				//printf("async start cpu step #%d\n",step);
+				ip->cpu_tracking_state.cpu_processing[ ip->cpu_tracking_state.nAvailCpuFuncs ] = ps.cpuPass->cpu_processing;
+				++ ip->cpu_tracking_state.nAvailCpuFuncs;
+				postStartProcessingSem( state->fleye_state );
+				//vcos_semaphore_post(& ip->cpu_tracking_state.start_processing_sem);
+			}
+		}
+		
 	}
 	
 	// terminate async processing cycle
 	ip->cpu_tracking_state.cpu_processing[ ip->cpu_tracking_state.nAvailCpuFuncs ] = 0;
 	postStartProcessingSem( state->fleye_state );
-	//vcos_semaphore_post(& ip->cpu_tracking_state.start_processing_sem);
 
     GLCHK(glUseProgram(0));
 	if(swapBuffers)

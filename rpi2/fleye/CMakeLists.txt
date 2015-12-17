@@ -12,6 +12,8 @@ project (Fleye)
 # ./fleye -v -ex fixedfps -w 1296 -h 972 -p 32,32,352,272 --script wincoord
 # ./fleye -v -ex fixedfps -w 1296 -h 972 -p 32,32,352,272 --script normcoord
 # sudo ./fleye -v -ex fixedfps -drc off -w 1296 -h 972 -p 0,0,384,256 --set "CCMD 5" --script l2centerfollow 
+# ./RaspiCore/fleye -v -ex fixedfps -drc off -w 2592 -h 1944 -p 0,0,768,512 --script simplefbo
+
 
 # Raspberry Pi VideoCore HW Abstraction Layer
 SET(VCROOT "/opt/vc")
@@ -20,8 +22,8 @@ SET(GL_INC_DIR ${VCINC} ${VCINC}/interface/vcos/pthreads)
 SET(VCLIB "${VCROOT}/lib")
 SET(GL_LIB_DIR "${VCLIB}")
 SET(MMAL_LIBS mmal_core mmal_util mmal_vc_client)
-SET(GLSL_SHADER_DIR ${CMAKE_CURRENT_BINARY_DIR}/shaders)
-SET(SCRIPTS_DIR ${CMAKE_CURRENT_BINARY_DIR}/scripts )
+SET(GLSL_SHADER_DIR ${CMAKE_CURRENT_SOURCE_DIR}/shaders)
+SET(SCRIPTS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/scripts )
 SET(PLUGINS_DIR ${CMAKE_CURRENT_BINARY_DIR}/plugins )
 
 add_subdirectory(thirdparty)

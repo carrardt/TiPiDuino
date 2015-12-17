@@ -44,7 +44,7 @@ CompiledShaderCache* get_compiled_shader(ShaderPass* shaderPass, int passIterati
 	}
 	
 	CompiledShaderCache compiledShader;
-	compiledShader.textureTargets = std::move( texTargets );
+	compiledShader.textureTargets = texTargets ;
 	for(int i=0;i<nTextureInputs;i++)
 	{
 		std::string samplerType;

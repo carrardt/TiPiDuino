@@ -1,0 +1,12 @@
+// simple passthru (display camera)
+{
+	"GLShaders" :
+	{
+		"final" : {
+			"fragment-shader" : "passthru_fs", 
+			"textures" : { "tex" : "CAMERA" }
+		}
+	}
+	,
+	"ProcessingLoop" : [ "final" ]
+}

@@ -1,3 +1,0 @@
-FBO temp $WIDTH $HEIGHT
-SHADER copy common_vs passthru_fs tex=CAMERA temp 1
-SHADER final common_vs passthru_fs tex=copy DISPLAY 1

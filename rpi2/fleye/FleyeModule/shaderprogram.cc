@@ -113,7 +113,7 @@ int fleyeutil_build_shader_program(ShaderProgram *p, const char* vertex_source, 
             std::cerr<<"Failed to get location for attribute "<<attrName<<"\n";
             return -1;
         }
-        std::cout<<"Attribute "<<attrName<<" mapped to location "<<loc<<"\n";
+        // std::cout<<"Attribute "<<attrName<<" mapped to location "<<loc<<"\n";
         p->attribute_locations.push_back(loc);
 	}
 	
@@ -121,8 +121,8 @@ int fleyeutil_build_shader_program(ShaderProgram *p, const char* vertex_source, 
 	for( auto uniformName : p->uniform_names )
 	{
 		GLint loc = glGetUniformLocation(p->program, uniformName.c_str() );
-        if ( loc == -1) { std::cerr<<"unused uniform "<<uniformName<<"\n"; }
-        else { std::cout<<"Uniform "<<uniformName<<"mapped to location "<<loc<<"\n"; }
+        // if ( loc == -1) { std::cerr<<"unused uniform "<<uniformName<<"\n"; }
+        // else { std::cout<<"Uniform "<<uniformName<<"mapped to location "<<loc<<"\n"; }
         p->uniform_locations.push_back(loc);
 	}
 	

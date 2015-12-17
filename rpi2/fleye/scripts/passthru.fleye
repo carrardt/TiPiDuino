@@ -1,1 +1,0 @@
-SHADER final common_vs passthru_fs gl_fill tex=CAMERA DISPLAY 1
