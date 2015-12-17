@@ -1,48 +1,54 @@
-#include <GLES2/gl2.h>
-#include <GLES2/gl2ext.h>
-
-#include <stdio.h>
-#include <string.h>
-#include <malloc.h>
-
 #include "fleye/compiledshadercache.h"
 #include "fleye/shaderprogram.h"
 #include "fleye/shaderpass.h"
 #include "fleye/texture.h"
 
-struct CompiledShaderCache* get_compiled_shader(struct ShaderPass* shaderPass,struct RASPITEX_Texture** inputs)
+#include <assert.h>
+#include <GLES2/gl2.h>
+#include <GLES2/gl2ext.h>
+
+#include <string>
+#include <iostream>
+
+CompiledShaderCache* get_compiled_shader(ShaderPass* shaderPass, int passIteration)
 {
-	const char* image_external_pragma = "";
-	char textureUniformProlog[1024]={'\0',};
-	char* fragmentSource = 0;
+	std::string image_external_pragma;
+	std::string uniformDeclare;
 	int i,rc;
-	
-	for(i=0;i<shaderPass->compileCacheSize;i++)
-	{
-		int j,found=1;
-		for(j=0;j<shaderPass->nInputs && found;j++)
+		
+	int nTextureInputs = shaderPass->inputs.size();
+	std::vector<int> texTargets(nTextureInputs);
+	for(int i=0;i<nTextureInputs;i++)
+	{ 
+		const TextureInput & texinput = shaderPass->inputs[i] ;
+		int texPoolSize = texinput.texPool.size();
+		texTargets[i] = GL_NONE;
+		if( texPoolSize > 0 )
 		{
-			if( shaderPass->shaderCahe[i].textureTargets[j] != inputs[j]->target ) found=0;
+			GLTexture* tex = texinput.texPool[ passIteration % texPoolSize ];
+			if( tex != 0 ) { texTargets[i] = tex->target ; }
+			else { std::cerr<<"Null texture pointer : input "<<i<<", pass "<<passIteration<<"\n"; }
 		}
-		if(found)
-		{
-			//printf("found precompiled shader %d\n",i);
-			return & shaderPass->shaderCahe[i];
-		}
-	}
-	if(shaderPass->compileCacheSize>=SHADER_COMPILE_CACHE_SIZE)
-	{
-		fprintf(stderr,"Shader cache is full");
-		return 0;
+		else { std::cerr<<"no texture for input "<<i<<"\n";  }
 	}
 
-	struct CompiledShaderCache* compiledShader = & shaderPass->shaderCahe[ shaderPass->compileCacheSize ++ ];
-	for(i=0;i<shaderPass->nInputs;i++)
+	for( CompiledShaderCache& cs :  shaderPass->shaderCahe )
 	{
-		const char* samplerType = 0;
-		//const char* texlookup = "texture2D";
-		char uniformDeclare[128];
-		switch( inputs[i]->target )
+		bool match = true;
+		assert( nTextureInputs == cs.textureTargets.size() );
+		for(int i=0;i<nTextureInputs && match;i++)
+		{ 
+			if(cs.textureTargets[i] != texTargets[i] ) match = false;
+		}
+		if( match ) { return &cs; }
+	}
+	
+	CompiledShaderCache compiledShader;
+	compiledShader.textureTargets = std::move( texTargets );
+	for(int i=0;i<nTextureInputs;i++)
+	{
+		std::string samplerType;
+		switch( compiledShader.textureTargets[i] )
 		{
 			case GL_TEXTURE_2D:
 				samplerType = "sampler2D";
@@ -52,33 +58,29 @@ struct CompiledShaderCache* get_compiled_shader(struct ShaderPass* shaderPass,st
 				image_external_pragma = "#extension GL_OES_EGL_image_external : require\n";
 				break;
 			default:
-				fprintf(stderr,"unhandled texture target");
+				std::cerr<<"unhandled texture target "<<compiledShader.textureTargets[i];
 				return 0;
-				break;
 		}
-		compiledShader->textureTargets[i]=inputs[i]->target;
-		sprintf(uniformDeclare,"uniform %s %s;\n",samplerType,shaderPass->inputs[i].uniformName);
-		strcat(textureUniformProlog,uniformDeclare);
+		uniformDeclare += "uniform " + samplerType + " " + shaderPass->inputs[i].uniformName + ";\n" ;
 	}
-	fragmentSource = new char [strlen(image_external_pragma) + strlen(shaderPass->fragmentSourceWithoutTextures) + strlen(textureUniformProlog) + 8];
-	//malloc( strlen(image_external_pragma) + strlen(shaderPass->fragmentSourceWithoutTextures) + strlen(textureUniformProlog) + 8 );
-	sprintf(fragmentSource,"%s\n%s\n%s\n",image_external_pragma,textureUniformProlog,shaderPass->fragmentSourceWithoutTextures);
 
+	std::string fragmentSource = image_external_pragma + uniformDeclare + shaderPass->fragmentSourceWithoutTextures;
 	// printf("%s FS:\n%s",shaderPass->finalTexture->name,fragmentSource);
 	// compile assembled final shader program
-	rc = create_image_shader( & compiledShader->shader, shaderPass->vertexSource, fragmentSource );
-	free(fragmentSource);
+	
+	rc = create_image_shader( & compiledShader.shader, shaderPass->vertexSource.c_str(), fragmentSource.c_str() );
 	if( rc != 0)
 	{
-		fprintf(stderr,"failed to build shader");
+		std::cerr<<"failed to build shader\n";
 		return 0;
 	}
 
-	for(i=0;i<shaderPass->nInputs;i++)
+	for( auto texInput : shaderPass->inputs )
 	{
-		compiledShader->samplerUniformLocations[i] = glGetUniformLocation(compiledShader->shader.program, shaderPass->inputs[i].uniformName);
+		compiledShader.samplerUniformLocations.push_back( glGetUniformLocation(compiledShader.shader.program, texInput.uniformName.c_str() ) );
 		// printf("sampler uniform '%s' -> location %d\n",shaderPass->inputs[i].uniformName,compiledShader->samplerUniformLocations[i]);
 	}
 
-	return compiledShader;
+	shaderPass->shaderCahe.push_back(compiledShader);
+	return & shaderPass->shaderCahe.back();
 }

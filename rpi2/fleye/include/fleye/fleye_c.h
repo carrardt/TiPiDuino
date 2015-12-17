@@ -12,7 +12,7 @@ struct UserEnv;
 struct FrameBufferObject;
 struct ShaderProgram;
 struct ShaderPass;
-struct RASPITEX_Texture;
+struct GLTexture;
 struct CPU_TRACKING_STATE;
 
 #ifdef __cplusplus

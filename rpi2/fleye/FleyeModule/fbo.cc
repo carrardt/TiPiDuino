@@ -5,25 +5,30 @@
 #include "fleye/imageprocessing.h"
 #include "fleye/texture.h"
 
-int add_fbo(struct ImageProcessingState* ip, const char* name, GLint colorFormat, GLint w, GLint h)
+#include <iostream>
+
+int add_fbo(ImageProcessingState* ip, const std::string& name, GLint colorFormat, GLint w, GLint h)
 {
-	RASPITEX_Texture* tex = & ip->processing_texture[ip->nTextures];
-	strcpy(tex->name, name);
+	GLTexture* tex = new GLTexture;
+	ip->texture[name] = tex;
+	
 	tex->format = colorFormat;
 	tex->target = GL_TEXTURE_2D;
 	tex->texid = 0;
 	
-	FrameBufferObject* fbo = & ip->processing_fbo[ip->nFBO];
-   fbo->width = w;
-   fbo->height = h;
-   fbo->fb = 0;
-   fbo->texture = tex;
+	FrameBufferObject* fbo = new FrameBufferObject;
+	ip->fbo[name] = fbo;
+	
+	fbo->width = w;
+	fbo->height = h;
+	fbo->fb = 0;
+	fbo->texture = tex;
 
-   glGenFramebuffers(1, & fbo->fb);
+	glGenFramebuffers(1, & fbo->fb);
 
 	glGenTextures(1, & tex->texid );
 	glBindTexture(tex->target, tex->texid);
-	glTexImage2D(tex->target, 0, tex->format, fbo->width, fbo->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+	glTexImage2D(tex->target, 0, tex->format, fbo->width, fbo->height, 0, tex->format/*GL_RGBA*/, GL_UNSIGNED_BYTE, NULL);
 	glTexParameteri(tex->target, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(tex->target, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	glTexParameteri(tex->target, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -64,8 +69,6 @@ int add_fbo(struct ImageProcessingState* ip, const char* name, GLint colorFormat
 	
     if ( status == GL_FRAMEBUFFER_COMPLETE )
     {
-		++ ip->nTextures ;
-		++ ip->nFBO ;
 		return 0;
 	}
     else 
@@ -80,17 +83,4 @@ glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, (GLeglImageOES) 0x752d700c);
 
 glFramebufferTexture2DOES(GL_FRAMEBUFFER_OES, GL_COLOR_ATTACHMENT0_OES, GL_TEXTURE_2D, 3, 0);
  */
-}
-
-FrameBufferObject* get_named_fbo(struct ImageProcessingState* ip, const char * name)
-{
-	int i;
-	for(i=0;i<ip->nFBO;i++)
-	{
-		if( strcasecmp(name,ip->processing_fbo[i].texture->name)==0 )
-		{
-			return & ip->processing_fbo[i];
-		}
-	}
-	return 0;
 }

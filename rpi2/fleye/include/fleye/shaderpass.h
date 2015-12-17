@@ -5,22 +5,25 @@
 #include "fleye/compiledshadercache.h"
 #include "fleye/textureinput.h"
 
-struct RASPITEX_Texture;
+#include <vector>
+
+struct GLTexture;
 struct FrameBufferObject;
+typedef void(*GLRenderFunctionT)(CompiledShaderCache*,int) ;
 
 struct ShaderPass
 {
-	int nInputs;
-	TextureInput inputs[SHADER_MAX_INPUT_TEXTURES];
-	char* vertexSource;
-	char* fragmentSourceWithoutTextures;
-	int compileCacheSize;
-	CompiledShaderCache shaderCahe[SHADER_COMPILE_CACHE_SIZE];
-	int fboPoolSize;
-	FrameBufferObject* fboPool[MAX_FBOS];
-	RASPITEX_Texture* finalTexture;
-};
+	std::vector<TextureInput> inputs;
+	std::string vertexSource;
+	std::string fragmentSourceWithoutTextures;
+	std::vector<CompiledShaderCache> shaderCahe;
+	std::vector<FrameBufferObject*> fboPool;
 
-typedef struct ShaderPass ShaderPass;
+	GLTexture* finalTexture;	
+	GLRenderFunctionT gl_draw; //void(*gl_draw)(struct CompiledShaderCache*,int);
+	int numberOfPasses;
+	
+	inline ShaderPass() : gl_draw(0), numberOfPasses(0), finalTexture(0) {}
+};
 
 #endif

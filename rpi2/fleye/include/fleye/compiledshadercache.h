@@ -3,16 +3,16 @@
 
 #include "fleye/shaderprogram.h"
 
-struct RASPITEX_Texture;
+struct GLTexture;
 struct ShaderPass;
 
 struct CompiledShaderCache
 {
-	int textureTargets[SHADER_MAX_INPUT_TEXTURES];
-	int samplerUniformLocations[SHADER_MAX_INPUT_TEXTURES];
+	std::vector<int> textureTargets;
+	std::vector<int> samplerUniformLocations;
 	ShaderProgram shader;
 };
 
-CompiledShaderCache* get_compiled_shader(ShaderPass* shaderPass, RASPITEX_Texture ** inputs);
+CompiledShaderCache* get_compiled_shader(ShaderPass* shaderPass, int passCount);
 
 #endif

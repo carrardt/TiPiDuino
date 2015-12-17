@@ -2,20 +2,21 @@
 #define __fleye_ProcessingStep_H_
 
 #include "fleye/cpuworker.h"
-#include "fleye/shaderpass.h"
 
-struct FleyeState;
-struct CompiledShaderCache;
+struct CpuPass
+{
+	CpuProcessingFunc cpu_processing;
+	int exec_thread; // 0=main thread, 1=async thread, etc.
+	inline CpuPass() : exec_thread(0), cpu_processing(0) {}
+};
 
-typedef void(*GLRenderFunctionT)(struct CompiledShaderCache*,int) ;
+struct ShaderPass;
 
 struct ProcessingStep
 {
-	int exec_thread; // 0=main thread, 1=async thread, -1=not a cpu pass (gpu shader)
-	int numberOfPasses; 
-	ShaderPass shaderPass;
-	GLRenderFunctionT gl_draw; //void(*gl_draw)(struct CompiledShaderCache*,int);
-	CpuProcessingFunc cpu_processing; 
+	ShaderPass * shaderPass;
+	CpuPass * cpuPass;
+	inline ProcessingStep() :  shaderPass(0), cpuPass(0) {}
 };
 
 #endif

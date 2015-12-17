@@ -1,4 +1,0 @@
-FBO 	fbo1 	$WIDTH $HEIGHT
-SHADER 	final 	common_vs scangpu_fs gl_fill none fbo1 1
-CPU 	glReadBack 		0
-CPU 	scanGPU 		0

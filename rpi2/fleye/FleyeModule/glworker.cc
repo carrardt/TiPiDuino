@@ -5,11 +5,14 @@
 
 #include <stdio.h>
 
+#include <iostream>
+
 #include "fleye/fleye_c.h"
 #include "fleye/cpuworker.h"
 #include "fleye/imageprocessing.h"
 #include "fleye/fleyecommonstate.h"
 #include "fleye/plugin.h"
+#include "fleye/shaderpass.h"
 
 FLEYE_REGISTER_GL_DRAW(gl_fill)
 
@@ -46,16 +49,21 @@ glworker_init(struct FleyeCommonState* state, struct UserEnv* user_env, struct C
 {	
    FrameBufferObject dispWinFBO;
    int i,rc;
-   struct ImageProcessingState* ip = (struct ImageProcessingState*) malloc( sizeof(struct ImageProcessingState) );
-   memset(ip, 0, sizeof(*ip));
+   
+   ImageProcessingState* ip = new ImageProcessingState;
       
+	GLTexture* nullTexture = new GLTexture;
+	nullTexture->format = GL_RGB;
+	nullTexture->target = GL_TEXTURE_2D;
+	nullTexture->texid = 0;
+	ip->texture["NULL"] = nullTexture;
+
     // create camera texture Id
     ip->cameraTextureId = 0;
 	glGenTextures(1, & ip->cameraTextureId );
-	
     if (ip->cameraTextureId == 0)
     {
-		fprintf(stderr,"unable to create camera texture\n");
+		std::cerr<<"unable to create camera texture\n";
 		return NULL;
 	}
 
@@ -71,24 +79,21 @@ glworker_init(struct FleyeCommonState* state, struct UserEnv* user_env, struct C
    GLCHK( glBindTexture(GL_TEXTURE_EXTERNAL_OES,0) );
    
    // define input image as an available input texture named "INPUT"
-	ip->processing_texture[0].texid = ip->cameraTextureId;
-	ip->processing_texture[0].target = GL_TEXTURE_EXTERNAL_OES;
-	ip->processing_texture[0].format = GL_RGB;
-	strcpy(ip->processing_texture[0].name,"CAMERA");
+    GLTexture* camTexture = new GLTexture;
+	camTexture->texid = ip->cameraTextureId;
+	camTexture->target = GL_TEXTURE_EXTERNAL_OES;
+	camTexture->format = GL_RGB;
+	ip->texture["CAMERA"] = camTexture;
 
-	// define display window an available output named "DISPLAY"
+	// define display window as an available output FBO named "DISPLAY"
 	// define null texture associated with final display (not a real FBO)
-	ip->processing_texture[1].texid = 0;
-	ip->processing_texture[1].target = GL_TEXTURE_2D;
-	ip->processing_texture[1].format = GL_RGB;
-	strcpy(ip->processing_texture[1].name,"DISPLAY");
-	ip->processing_fbo[0].texture = & ip->processing_texture[1];
-	ip->processing_fbo[0].width = state->width;
-	ip->processing_fbo[0].height = state->height;
-	ip->processing_fbo[0].fb = 0;
-
-	ip->nFBO = 1;
-	ip->nTextures = 2;
+	// ip->texture["DISPLAY"] = nullTexture;
+	FrameBufferObject* displayFBO = new FrameBufferObject;
+	displayFBO->texture = nullTexture;
+	displayFBO->width = state->width;
+	displayFBO->height = state->height;
+	displayFBO->fb = 0;
+	ip->fbo["DISPLAY"] = displayFBO;
 
 	create_image_processing( ip, user_env, fleye_get_processing_script(user_env) );
 
@@ -107,12 +112,11 @@ glworker_init(struct FleyeCommonState* state, struct UserEnv* user_env, struct C
 	ip->cpu_tracking_state.fleye_state = state->fleye_state;
 	ip->cpu_tracking_state.width = state->width;
 	ip->cpu_tracking_state.height = state->height;
-	ip->cpu_tracking_state.image = (uint8_t*) malloc(ip->cpu_tracking_state.width*ip->cpu_tracking_state.height*4);
+	ip->cpu_tracking_state.image = new uint8_t [ ip->cpu_tracking_state.width * ip->cpu_tracking_state.height * 4 ];
 	ip->cpu_tracking_state.objectCount = 0;
 	ip->cpu_tracking_state.do_processing = 1;
 
 	*cpuThreadCtx = & ip->cpu_tracking_state;
-
     return ip;
 }
 
@@ -132,22 +136,22 @@ void gl_fill(struct CompiledShaderCache* compiledShader, int pass)
     GLCHK( glDisableVertexAttribArray(compiledShader->shader.attribute_locations[0]));
 }
 
-static void apply_shader_pass(struct ProcessingStep* procStep, int passCounter, int* needSwapBuffers)
+static void apply_shader_pass(ShaderPass* shaderPass, int passCounter, int* needSwapBuffers)
 {
-	RASPITEX_Texture* inputs[MAX_TEXTURES]={0,};
-	FrameBufferObject* destFBO=0;
-	struct CompiledShaderCache* compiledShader=0;
-	struct ShaderPass* shaderPass = & procStep->shaderPass;
-	int i=0;
-	GLint loc=-1;
-
-	for(i=0;i<shaderPass->nInputs;i++)
+	CompiledShaderCache* compiledShader = get_compiled_shader( shaderPass, passCounter );
+	if(compiledShader==0)
 	{
-		inputs[i] = shaderPass->inputs[i].texPool[ passCounter % shaderPass->inputs[i].poolSize ];
+		std::cerr<<"Error compiling shader\n";
+		return;
 	}
-	compiledShader = get_compiled_shader( shaderPass, inputs );
 	
-	destFBO = shaderPass->fboPool[ passCounter % shaderPass->fboPoolSize ];
+	int fboPoolSize = shaderPass->fboPool.size();
+	if( fboPoolSize == 0 )
+	{
+		std::cerr<<"Error: no output fbo\n";
+		return ;
+	}
+	FrameBufferObject* destFBO = shaderPass->fboPool[ passCounter % fboPoolSize ];
 
 	// bind FBO and discard color buffer content (not using blending and writing everything)
     GLCHK(glBindFramebuffer(GL_FRAMEBUFFER,destFBO->fb));
@@ -168,19 +172,27 @@ static void apply_shader_pass(struct ProcessingStep* procStep, int passCounter, 
     GLCHK(glUseProgram(compiledShader->shader.program));
 
 	// enable input textures
-	for(i=shaderPass->nInputs-1;i>=0;i--)
+	// TODO: minimize the number of texture units used in case not all textures are referenced
+	int nInputs = shaderPass->inputs.size();
+	for(int i=nInputs-1;i>=0;i--)
 	{
-		if( compiledShader->samplerUniformLocations[i] != -1 )
+		GLTexture* tex = 0;
+		if( ! shaderPass->inputs[i].texPool.empty() )
+		{
+			tex = shaderPass->inputs[i].texPool[ passCounter % shaderPass->inputs[i].texPool.size() ];
+		}
+		if( tex!=0 && compiledShader->samplerUniformLocations[i] != -1 )
 		{
 			GLCHK( glActiveTexture( GL_TEXTURE0 + i ) );
-			GLCHK( glEnable(inputs[i]->target) );
-			GLCHK( glBindTexture(inputs[i]->target, inputs[i]->texid) );
+			GLCHK( glEnable(tex->target) );
+			GLCHK( glBindTexture(tex->target, tex->texid) );
 			GLCHK( glUniform1i(compiledShader->samplerUniformLocations[i], i) );
 		}
 	}
 
 	// set uniform values
 	double p2i = 1<<passCounter;
+	int loc;
 	if( (loc=compiledShader->shader.uniform_locations[0]) != -1 ) { GLCHK( glUniform2f(loc, 1.0 / destFBO->width, 1.0 / destFBO->height ) ); }
 	if( (loc=compiledShader->shader.uniform_locations[1]) != -1 ) { GLCHK( glUniform2f(loc, destFBO->width, destFBO->height ) ); }
 	if( (loc=compiledShader->shader.uniform_locations[2]) != -1 ) { GLCHK( glUniform1f(loc, passCounter ) ); }
@@ -188,16 +200,24 @@ static void apply_shader_pass(struct ProcessingStep* procStep, int passCounter, 
 	if( (loc=compiledShader->shader.uniform_locations[4]) != -1 ) { GLCHK( glUniform2f(loc, p2i/destFBO->width, p2i/destFBO->height ) ); }
 
 	// call custom drawing function
-	( * procStep->gl_draw ) (compiledShader,passCounter);
+	if( shaderPass->gl_draw != 0 )
+	{
+		( * shaderPass->gl_draw ) (compiledShader,passCounter);
+	}
 
 	// detach textures
- 	for(i=shaderPass->nInputs-1;i>=0;i--)
+ 	for(int i=nInputs-1;i>=0;i--)
 	{
- 		if( compiledShader->samplerUniformLocations[i] != -1 )
+		GLTexture* tex = 0;
+		if( ! shaderPass->inputs[i].texPool.empty() )
+		{
+			tex = shaderPass->inputs[i].texPool[ passCounter % shaderPass->inputs[i].texPool.size() ];
+		}
+		if( tex!=0 && compiledShader->samplerUniformLocations[i] != -1 )
 		{
 			GLCHK( glActiveTexture( GL_TEXTURE0 + i ) );
-			GLCHK( glBindTexture(inputs[i]->target,0) );
-			GLCHK( glDisable(inputs[i]->target) );
+			GLCHK( glBindTexture(tex->target,0) );
+			GLCHK( glDisable(tex->target) );
 		}
 	}
 	GLCHK( glActiveTexture( GL_TEXTURE0 ) ); // back to default
@@ -226,21 +246,19 @@ int glworker_redraw(struct FleyeCommonState* state, struct ImageProcessingState*
     //glClear(GL_COLOR_BUFFER_BIT /*| GL_DEPTH_BUFFER_BIT*/);
     GLCHK( glActiveTexture(GL_TEXTURE0) );
 
-	for(step=0; step<(ip->nProcessingSteps); ++step)
+	for( ProcessingStep& ps : ip->processing_step )
 	{
-		int nPasses = ip->processing_step[step].numberOfPasses;
-
-		if ( nPasses == CPU_PROCESSING_PASS )
+		if ( ps.cpuPass != 0 )
 		{
-			if( ip->processing_step[step].exec_thread == 0 )
+			if( ps.cpuPass->exec_thread == 0 )
 			{
 				//printf("sync exec cpu step #%d\n",step);
-				( * ip->processing_step[step].cpu_processing ) (& ip->cpu_tracking_state);
+				( * ps.cpuPass->cpu_processing ) (& ip->cpu_tracking_state);
 			}
 			else
 			{
 				//printf("async start cpu step #%d\n",step);
-				ip->cpu_tracking_state.cpu_processing[ ip->cpu_tracking_state.nAvailCpuFuncs ] = ip->processing_step[step].cpu_processing;
+				ip->cpu_tracking_state.cpu_processing[ ip->cpu_tracking_state.nAvailCpuFuncs ] = ps.cpuPass->cpu_processing;
 				++ ip->cpu_tracking_state.nAvailCpuFuncs;
 				postStartProcessingSem( state->fleye_state );
 				//vcos_semaphore_post(& ip->cpu_tracking_state.start_processing_sem);
@@ -248,24 +266,23 @@ int glworker_redraw(struct FleyeCommonState* state, struct ImageProcessingState*
 		}
 		else 
 		{
-			int i;
-			ShaderPass* shaderPass = & ip->processing_step[step].shaderPass;
-			for(i=0;i<nPasses;i++)
+			int nPasses = ps.shaderPass->numberOfPasses;
+			for(int i=0;i<nPasses;i++)
 			{
-				apply_shader_pass( & ip->processing_step[step], i, &swapBuffers);
+				apply_shader_pass( ps.shaderPass, i, &swapBuffers);
 			}
-			if( nPasses>0 && shaderPass->fboPoolSize>0 )
+			int fboPoolSize = ps.shaderPass->fboPool.size();
+			if( nPasses>0 && fboPoolSize>0 )
 			{
-				FrameBufferObject* finalFBO = shaderPass->fboPool[(nPasses-1)%shaderPass->fboPoolSize];
-				shaderPass->finalTexture->texid = finalFBO->texture->texid;
-				shaderPass->finalTexture->target = finalFBO->texture->target;
-				shaderPass->finalTexture->format = finalFBO->texture->format;
+				FrameBufferObject* finalFBO = ps.shaderPass->fboPool[(nPasses-1)%fboPoolSize];
+				// copy last written fbo's attached texture to shader alias texture
+				* ps.shaderPass->finalTexture = * finalFBO->texture;
 			}
 			else
 			{
-				shaderPass->finalTexture->texid = 0;
-				shaderPass->finalTexture->target = GL_TEXTURE_2D;
-				shaderPass->finalTexture->format = GL_RGB;
+				ps.shaderPass->finalTexture->texid = 0;
+				ps.shaderPass->finalTexture->target = GL_TEXTURE_2D;
+				ps.shaderPass->finalTexture->format = GL_RGB;
 			}
 		}
 	}

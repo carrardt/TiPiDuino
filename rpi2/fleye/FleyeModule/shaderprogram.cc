@@ -11,26 +11,8 @@
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
 
-
-char* readShader(const char* fileName)
-{
-	char filePath[256];
-	snprintf(filePath,255,"%s/%s.glsl",GLSL_SRC_DIR,fileName);
-	FILE* fp=fopen(filePath,"rb");
-	if(fp==0)
-	{
-		fprintf(stderr,"Can't open file %s\n",filePath);
-		return 0;
-	}
-	fseek(fp,0,SEEK_END);
-	size_t fsize = ftell(fp);
-	fseek(fp,0,SEEK_SET);
-	char* buf = (char*) malloc(fsize+1);
-	fread(buf,fsize,1,fp);
-	buf[fsize]='\0';
-	fclose(fp);
-	return buf;
-}
+#include <iostream>
+#include <fstream>
 
 /**
  * Takes a description of shader program, compiles it and gets the locations
@@ -51,7 +33,7 @@ int fleyeutil_build_shader_program(ShaderProgram *p, const char* vertex_source, 
     assert(fragment_source!=NULL);
 
     if (! (p && vertex_source && fragment_source))
-        goto fail;
+        return -1;
 
     p->vs = p->fs = 0;
 
@@ -62,7 +44,7 @@ int fleyeutil_build_shader_program(ShaderProgram *p, const char* vertex_source, 
     if (! status) {
         glGetShaderInfoLog(p->vs, sizeof(log), &logLen, log);
         fprintf(stderr,"Program info log %s\n", log);
-        goto fail;
+        return -1;
     }
 
     p->fs = glCreateShader(GL_FRAGMENT_SHADER);
@@ -73,7 +55,7 @@ int fleyeutil_build_shader_program(ShaderProgram *p, const char* vertex_source, 
     if (! status) {
         glGetShaderInfoLog(p->fs, sizeof(log), &logLen, log);
         fprintf(stderr,"Program info log %s\n", log);
-        goto fail;
+        return -1;
     }
 
     p->program = glCreateProgram();
@@ -89,7 +71,7 @@ int fleyeutil_build_shader_program(ShaderProgram *p, const char* vertex_source, 
 		int line=1;
         fprintf(stderr,"Failed to link shader program\n");
         glGetProgramInfoLog(p->program, sizeof(log), &logLen, log);
-        fprintf(stderr,"%s", log);
+        std::cerr<<log<<"\n";
         
         printf("Vertex shader:\n");
         tmp=strdup(vertex_source);
@@ -99,7 +81,7 @@ int fleyeutil_build_shader_program(ShaderProgram *p, const char* vertex_source, 
         while( (pendl=strchr(str,'\n'))!=0 )
         {
 			*pendl = '\0';
-			printf("%d: %s\n",line++,str);
+			printf("%03d: %s\n",line++,str);
 			str = pendl+1;
 		}
 		free(tmp);
@@ -112,57 +94,39 @@ int fleyeutil_build_shader_program(ShaderProgram *p, const char* vertex_source, 
         while( (pendl=strchr(str,'\n'))!=0 )
         {
 			*pendl = '\0';
-			printf("%d: %s\n",line++,str);
+			printf("%03d: %s\n",line++,str);
 			str = pendl+1;
 		}
 		free(tmp);
 
-        goto fail;
+        return -1;
     }
 
-    for (i = 0; i < SHADER_MAX_ATTRIBUTES; ++i)
-    {
-        if (! p->attribute_names[i])
-            break;
-        p->attribute_locations[i] = glGetAttribLocation(p->program, p->attribute_names[i]);
-        if (p->attribute_locations[i] == -1)
+
+	// resolve attribute locations
+	p->attribute_locations.clear();
+	for( auto attrName : p->attribute_names )
+	{
+		GLint loc = glGetAttribLocation(p->program, attrName.c_str() );
+        if ( loc == -1)
         {
-            fprintf(stderr,"Failed to get location for attribute %s\n",
-                  p->attribute_names[i]);
-            goto fail;
+            std::cerr<<"Failed to get location for attribute "<<attrName<<"\n";
+            return -1;
         }
-        else {
-            printf("Attribute for %s is %d\n",
-                  p->attribute_names[i], p->attribute_locations[i]);
-        }
-    }
-
-    for (i = 0; i < SHADER_MAX_UNIFORMS; ++i)
-    {
-        if (! p->uniform_names[i])
-            break;
-        p->uniform_locations[i] = glGetUniformLocation(p->program, p->uniform_names[i]);
-        if (p->uniform_locations[i] == -1)
-        {
-            printf("unused uniform %s\n", p->uniform_names[i]);
-        }
-        else {
-            printf("Uniform for %s is %d\n",
-                  p->uniform_names[i], p->uniform_locations[i]);
-        }
-    }
-
+        std::cout<<"Attribute "<<attrName<<" mapped to location "<<loc<<"\n";
+        p->attribute_locations.push_back(loc);
+	}
+	
+	p->uniform_locations.clear();
+	for( auto uniformName : p->uniform_names )
+	{
+		GLint loc = glGetUniformLocation(p->program, uniformName.c_str() );
+        if ( loc == -1) { std::cerr<<"unused uniform "<<uniformName<<"\n"; }
+        else { std::cout<<"Uniform "<<uniformName<<"mapped to location "<<loc<<"\n"; }
+        p->uniform_locations.push_back(loc);
+	}
+	
     return 0;
-
-fail:
-    fprintf(stderr,"Failed to build shader program\n");
-    if (p)
-    {
-        glDeleteProgram(p->program);
-        glDeleteShader(p->fs);
-        glDeleteShader(p->vs);
-    }
-    return -1;
 }
 
 int create_image_shader(ShaderProgram* shader, const char* vs, const char* fs)
@@ -171,8 +135,10 @@ int create_image_shader(ShaderProgram* shader, const char* vs, const char* fs)
 	// generate score values corresponding to color matching of target
 	memset(shader,0,sizeof(ShaderProgram));
 	
+	shader->attribute_names.resize(1);
 	shader->attribute_names[0] = "vertex";
 	
+	shader->uniform_names.resize(5);
 	shader->uniform_names[0] = "step";
 	shader->uniform_names[1] = "size";
 	shader->uniform_names[2] = "iter";

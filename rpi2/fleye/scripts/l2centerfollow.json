@@ -9,38 +9,38 @@
     "GLShaders" :
     {
 		"init" : {
-			"VertexShader" : "common_vs" ,
-			"FragmentShader" : "maskInitL2Cross_fs" ,
-			"Rendering" : { "function" : "gl_fill" } ,
-			"Textures" : { "tex" : ["CAMERA"] } ,
-			"Output" : ["fbo1"] ,
-			"Passes" : 1
+			"vertex-shader" : "common_vs" ,
+			"fragment-shader" : "maskInitL2Cross_fs" ,
+			"rendering" : { "function" : "gl_fill" } ,
+			"textures" : { "tex" : ["CAMERA"] } ,
+			"output" : ["fbo1"] ,
+			"passes" : 1
 		}
 		,
 		"l2cross" : {
-			"VertexShader" : "common_vs" ,
-			"FragmentShader" : "L2CrossIteration_fs" ,
-			"Rendering" : { "function" : "gl_fill" } ,
-			"Textures" : { "tex" : ["fbo1","fbo2"] } ,
-			"Output" : ["fbo2","fbo1"] ,
-			"Passes" : "$CCMD"
+			"vertex-shader" : "common_vs" ,
+			"fragment-shader" : "L2CrossIteration_fs" ,
+			"rendering" : { "function" : "gl_fill" } ,
+			"textures" : { "tex" : ["fbo1","fbo2"] } ,
+			"output" : ["fbo2","fbo1"] ,
+			"passes" : "$CCMD"
 		}
 		,
 		"display" : {
-			"VertexShader" : "common_vs" ,
-			"FragmentShader" : "drawL2Cross_fs" ,
-			"Rendering" : { "function" : "gl_fill" } ,
-			"Textures" : { "tex_l2cross" : ["l2cross"] , "tex_camera" : ["CAMERA"] } ,
-			"Output" : ["DISPLAY"] ,
-			"Passes" : 1
+			"vertex-shader" : "common_vs" ,
+			"fragment-shader" : "drawL2Cross_fs" ,
+			"rendering" : { "function" : "gl_fill" } ,
+			"textures" : { "tex_l2cross" : ["l2cross"] , "tex_camera" : ["CAMERA"] } ,
+			"output" : ["DISPLAY"] ,
+			"passes" : 1
 		}
 		,
 		"overlay" : {
-			"VertexShader" : "zhue_vs" ,
-			"FragmentShader" : "color_fs" ,
-			"Rendering" : { "plugin" : "gpioPanTiltFollower" , "function" : "drawOverlay" } ,
-			"Output" : ["DISPLAY"] ,
-			"Passes" : 1
+			"vertex-shader" : "zhue_vs" ,
+			"fragment-shader" : "color_fs" ,
+			"rendering" : { "plugin" : "gpioPanTiltFollower" , "function" : "drawOverlay" } ,
+			"output" : ["DISPLAY"] ,
+			"passes" : 1
 		}
     }
     ,

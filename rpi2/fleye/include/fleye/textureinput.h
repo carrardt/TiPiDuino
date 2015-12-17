@@ -3,13 +3,15 @@
 
 #include "fleye/config.h"
 
-struct RASPITEX_Texture;
+#include <string>
+#include <vector>
+
+struct GLTexture;
 
 struct TextureInput
 {
-	char uniformName[UNIFORM_NAME_MAX_LEN];
-	int poolSize; // number of input textures to cycle through
-	RASPITEX_Texture* texPool[MAX_TEXTURES];
+	std::string uniformName;
+	std::vector<GLTexture*> texPool;
 };
 
 #endif

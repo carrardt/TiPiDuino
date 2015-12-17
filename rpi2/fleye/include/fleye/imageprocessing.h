@@ -6,17 +6,19 @@
 #include "fleye/texture.h"
 #include "fleye/processingstep.h"
 #include "fleye/fbo.h"
+#include "fleye/cpuworker.h"
+
+#include <string>
+#include <map>
+#include <vector>
 
 struct ImageProcessingState
 {
 	GLuint cameraTextureId;
-	int nProcessingSteps;
-	struct ProcessingStep processing_step[IMGPROC_MAX_STEPS];
-	int nTextures;
-	struct RASPITEX_Texture processing_texture[MAX_TEXTURES+IMGPROC_MAX_STEPS];
-	int nFBO;
-	struct FrameBufferObject processing_fbo[MAX_FBOS];
-	struct CPU_TRACKING_STATE cpu_tracking_state;
+	CPU_TRACKING_STATE cpu_tracking_state;
+	std::vector<ProcessingStep> processing_step;
+	std::map<std::string,GLTexture*> texture;
+	std::map<std::string,FrameBufferObject*> fbo;
 };
 
 #endif

@@ -1,19 +1,14 @@
-#ifndef fleye_RASPITEX_Texture_H_
-#define fleye_RASPITEX_Texture_H_
+#ifndef fleye_GLTexture_H_
+#define fleye_GLTexture_H_
 
 #include <GLES2/gl2.h>
-#include "fleye/config.h"
 
-struct ImageProcessingState;
-
-struct RASPITEX_Texture
+struct GLTexture
 {
-	char name[TEXTURE_NAME_MAX_LEN];
 	GLuint format;
 	GLenum target;
 	GLuint texid;
+	inline GLTexture() : format(GL_RGBA), target(GL_TEXTURE_2D), texid(0) {}
 };
-
-RASPITEX_Texture* get_named_texture(ImageProcessingState* ip, const char * name);
 
 #endif
