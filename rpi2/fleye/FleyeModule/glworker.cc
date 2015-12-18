@@ -184,7 +184,9 @@ static void apply_shader_pass(ShaderPass* shaderPass, int passCounter, int* need
 		if( tex!=0 && compiledShader->samplerUniformLocations[i] != -1 )
 		{
 			GLCHK( glActiveTexture( GL_TEXTURE0 + i ) );
-			GLCHK( glEnable(tex->target) );
+			/*GLenum enableTarget = tex->target;
+			if( enableTarget == GL_TEXTURE_EXTERNAL_OES ) { enableTarget=GL_TEXTURE_2D; }
+			if( enableTarget != GL_NONE ) {	std::cout<<(void*)enableTarget<<"\n"; GLCHK( glEnable(enableTarget) ); }*/
 			GLCHK( glBindTexture(tex->target, tex->texid) );
 			GLCHK( glUniform1i(compiledShader->samplerUniformLocations[i], i) );
 		}
@@ -204,7 +206,6 @@ static void apply_shader_pass(ShaderPass* shaderPass, int passCounter, int* need
 	{
 		( * shaderPass->gl_draw ) (compiledShader,passCounter);
 	}
-
 	// detach textures
  	for(int i=nInputs-1;i>=0;i--)
 	{
@@ -217,7 +218,9 @@ static void apply_shader_pass(ShaderPass* shaderPass, int passCounter, int* need
 		{
 			GLCHK( glActiveTexture( GL_TEXTURE0 + i ) );
 			GLCHK( glBindTexture(tex->target,0) );
-			GLCHK( glDisable(tex->target) );
+			/*GLenum enableTarget = tex->target;
+			if( enableTarget == GL_TEXTURE_EXTERNAL_OES ) { enableTarget=GL_TEXTURE_2D; }
+			if( enableTarget != GL_NONE ) {	GLCHK( glDisable(enableTarget) ); }*/
 		}
 	}
 	GLCHK( glActiveTexture( GL_TEXTURE0 ) ); // back to default
@@ -288,7 +291,6 @@ int glworker_redraw(struct FleyeCommonState* state, struct ImageProcessingState*
 				}
 			}
 		}
-		
 	}
 	
 	// terminate async processing cycle

@@ -13,6 +13,7 @@
 #include "fleye/fleyecommonstate.h"
 
 struct ImageProcessingState;
+struct FleyeNativeWindow;
 
 /**
  * Contains the internal state and configuration for the GL rendered
@@ -30,9 +31,8 @@ struct FleyeState
 
    /* DispmanX info. This might be unused if a custom create_native_window
     * does something else. */
-   DISPMANX_DISPLAY_HANDLE_T disp;     /// Dispmanx display for GL preview
-   EGL_DISPMANX_WINDOW_T win;          /// Dispmanx handle for preview surface
-   EGLNativeWindowType* native_window; /// Native window used for EGL surface
+   struct FleyeNativeWindow* fleye_window;
+   
    EGLImageKHR egl_image;              /// The current preview EGL image
    MMAL_BUFFER_HEADER_T *preview_buf;  /// MMAL buffer currently bound to texture(s)
    

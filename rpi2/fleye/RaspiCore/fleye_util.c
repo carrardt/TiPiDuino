@@ -9,6 +9,7 @@
 #include "fleye_util.h"
 #include "fleye_core.h"
 #include "fleye/fleye_c.h"
+#include "fleye_window.h"
 
 /**
  * \file fleye_util.c
@@ -39,81 +40,6 @@ void fleyeutil_gl_term(FleyeState *fleye_state)
    eglTerminate(fleye_state->common.display);
 }
 
-/** Creates a native window for the GL surface using dispmanx
- * @param fleye_state A pointer to the GL preview state.
- * @return Zero if successful, otherwise, -1 is returned.
- */
-int fleyeutil_create_native_window(FleyeState *fleye_state)
-{
-   VC_DISPMANX_ALPHA_T alpha = {DISPMANX_FLAGS_ALPHA_FIXED_ALL_PIXELS, 255, 0};
-   VC_RECT_T src_rect = {0};
-   VC_RECT_T dest_rect = {0};
-   uint32_t disp_num = 0; // Primary
-   uint32_t layer_num = 0;
-   DISPMANX_ELEMENT_HANDLE_T elem;
-   DISPMANX_UPDATE_HANDLE_T update;
-
-   alpha.opacity = fleye_state->common.opacity;
-   dest_rect.x = fleye_state->common.x;
-   dest_rect.y = fleye_state->common.y;
-   dest_rect.width = fleye_state->common.width;
-   dest_rect.height = fleye_state->common.height;
-
-   printf("%s: %d,%d,%d,%d %d,%d,0x%x,0x%x\n", __PRETTY_FUNCTION__,
-         src_rect.x, src_rect.y, src_rect.width, src_rect.height,
-         dest_rect.x, dest_rect.y, dest_rect.width, dest_rect.height);
-
-   src_rect.width = dest_rect.width << 16;
-   src_rect.height = dest_rect.height << 16;
-
-   fleye_state->disp = vc_dispmanx_display_open(disp_num);
-   if (fleye_state->disp == DISPMANX_NO_HANDLE)
-   {
-      fprintf(stderr,"Failed to open display handle\n");
-      goto error;
-   }
-
-   update = vc_dispmanx_update_start(0);
-   if (update == DISPMANX_NO_HANDLE)
-   {
-      fprintf(stderr,"Failed to open update handle\n");
-      goto error;
-   }
-
-   elem = vc_dispmanx_element_add(update, fleye_state->disp, layer_num,
-         &dest_rect, 0, &src_rect, DISPMANX_PROTECTION_NONE, &alpha, NULL,
-         DISPMANX_NO_ROTATE);
-   if (elem == DISPMANX_NO_HANDLE)
-   {
-      fprintf(stderr,"Failed to create element handle\n");
-      goto error;
-   }
-
-   fleye_state->win.element = elem;
-   fleye_state->win.width = fleye_state->common.width;
-   fleye_state->win.height = fleye_state->common.height;
-   vc_dispmanx_update_submit_sync(update);
-
-   fleye_state->native_window = (EGLNativeWindowType*) &fleye_state->win;
-
-   return 0;
-error:
-   return -1;
-}
-
-/** Destroys the pools of buffers used by the GL renderer.
- * @param fleye_state A pointer to the GL preview state.
- */
-void fleyeutil_destroy_native_window(FleyeState *fleye_state)
-{
-   printf("%s\n", __PRETTY_FUNCTION__);
-   if (fleye_state->disp != DISPMANX_NO_HANDLE)
-   {
-      vc_dispmanx_display_close(fleye_state->disp);
-      fleye_state->disp = DISPMANX_NO_HANDLE;
-   }
-}
-
 /** Creates the EGL context and window surface for the native window
  * using specified arguments.
  * @param fleye_state  A pointer to the GL preview state. This contains
@@ -130,7 +56,7 @@ static int fleyeutil_gl_common(FleyeState *fleye_state,
 
    printf("%s\n", __PRETTY_FUNCTION__);
 
-   if (fleye_state->native_window == NULL)
+   if (fleye_state->fleye_window->native_window == NULL)
    {
       fprintf(stderr,"%s: No native window\n", __PRETTY_FUNCTION__);
 	  fprintf(stderr,"%s: EGL error 0x%08x\n", __PRETTY_FUNCTION__, eglGetError());
@@ -165,7 +91,7 @@ static int fleyeutil_gl_common(FleyeState *fleye_state,
    }
 
    fleye_state->common.surface = eglCreateWindowSurface(fleye_state->common.display,
-         config, fleye_state->native_window, NULL);
+         config, fleye_state->fleye_window->native_window, NULL);
    if (fleye_state->common.surface == EGL_NO_SURFACE)
    {
       fprintf(stderr,"%s: eglCreateWindowSurface failed\n", __PRETTY_FUNCTION__);

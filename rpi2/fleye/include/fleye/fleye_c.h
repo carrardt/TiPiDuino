@@ -3,7 +3,6 @@
 
 #include <GLES2/gl2.h>
 #include <EGL/egl.h>
-#include "fleye/config.h"
 
 struct FleyeState;
 struct FleyeCommonState;
@@ -19,22 +18,7 @@ struct CPU_TRACKING_STATE;
 extern "C" {
 #endif
 
-#if defined(CHECK_GL_ERRORS)
-#define GLCHK(X) \
-do { \
-    GLenum err = GL_NO_ERROR; \
-    X; \
-   while ((err = glGetError())) \
-   { \
-      fprintf(stderr,"GL error 0x%x in " #X "file %s line %d", err, __FILE__,__LINE__); \
-      assert(err == GL_NO_ERROR); \
-      exit(err); \
-   } \
-} \
-while(0)
-#else
-#define GLCHK(X) X
-#endif /* CHECK_GL_ERRORS */
+extern int fleye_readback(struct FleyeState* fleye_state, uint8_t* dst_buffer);
 
 extern const EGLint* glworker_egl_config(struct FleyeCommonState* state);
 extern int glworker_redraw(struct FleyeCommonState* state, struct ImageProcessingState* ip);

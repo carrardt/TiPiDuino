@@ -1,5 +1,10 @@
 // green / red objects tracking
 {
+	"EnvDefaults" :
+	{
+		"CCMD" : 5
+	}
+	,
 	"FrameBufferObjects" :
 	{
 		"fbo1" : {} ,

@@ -17,6 +17,7 @@
 #include "fleye_core.h"
 #include "fleye_util.h"
 #include "fleye/fleye_c.h"
+#include "fleye_window.h"
 
 /**
  * \file GPUTracking.c
@@ -239,8 +240,10 @@ static void *preview_worker(void *arg)
 
    printf("%s: port %p\n", __PRETTY_FUNCTION__, preview_port);
 
-   rc = fleyeutil_create_native_window(state);
-   if (rc == 0)
+   //rc = fleyeutil_create_native_window(state);
+   state->fleye_window = create_offscreen_native_window(0,0,state->common.width,state->common.height,state->common.opacity);
+   //state->fleye_window = create_native_window(0,0,state->common.width,state->common.height,state->common.opacity);
+   if ( state->fleye_window != NULL )
    {
 	   fleyeutil_gl_init(state);
 
@@ -414,7 +417,7 @@ void fleye_destroy(FleyeState *state)
       state->preview_queue = NULL;
    }
 
-   fleyeutil_destroy_native_window(state);
+   destroy_native_window(state->fleye_window);
 }
 
 /* Initialise the GL / window state to sensible defaults.

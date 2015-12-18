@@ -31,7 +31,7 @@ static int64_t get_integer_value( struct UserEnv* env, Json::Value x )
 			resolvedStr = fleye_optional_value( env, s.c_str()+1 );
 		}
 		std::istringstream iss(resolvedStr);
-		int64_t i;
+		int64_t i = 0 ;
 		iss>>i;
 		return i;
 	}
@@ -41,7 +41,7 @@ static int64_t get_integer_value( struct UserEnv* env, Json::Value x )
 
 static std::string get_string_value( struct UserEnv* env, Json::Value x )
 {
-	if( ! x.isString() ) return "";
+	//if( ! x.isString() ) return "";
 	std::string s = x.asString();
 	if( s.empty() ) return s;
 	if( s[0] == '$' )
@@ -137,6 +137,10 @@ int create_image_processing(struct ImageProcessingState* ip, struct UserEnv* env
 
 	static const std::string inc_fs = readShader("inc_fs");
 
+	ip->cpu_tracking_state.cpuFunc = 0;
+	ip->cpu_tracking_state.nAvailCpuFuncs = 0;
+	ip->cpu_tracking_state.nFinishedCpuFuncs = 0;
+
 	std::string filePath = std::string(FLEYE_SCRIPT_DIR) + "/" + filename + ".json";
 	std::cout<<"reading "<<filePath<<"\n\n";
 	std::ifstream scriptFile(filePath.c_str());
@@ -150,10 +154,19 @@ int create_image_processing(struct ImageProcessingState* ip, struct UserEnv* env
         return 1;
     }
     
-	ip->cpu_tracking_state.cpuFunc = 0;
-	ip->cpu_tracking_state.nAvailCpuFuncs = 0;
-	ip->cpu_tracking_state.nFinishedCpuFuncs = 0;
-
+    // read default user variable values
+    const Json::Value envDefaults = root["EnvDefaults"];
+    for( auto var : envDefaults.getMemberNames() )
+	{
+		std::string value = fleye_optional_value(env,var.c_str());
+		if( value.empty() )
+		{
+			value = get_string_value(env,envDefaults[var]);
+			std::cout<<"User variable '"<<var<<"' defaults to '"<<value<<"'\n";
+			fleye_add_optional_value( env, var.c_str() , value.c_str() );
+		}
+	}
+    
     const Json::Value fbos = root["FrameBufferObjects"];
 	for( auto name : fbos.getMemberNames() )
 	{

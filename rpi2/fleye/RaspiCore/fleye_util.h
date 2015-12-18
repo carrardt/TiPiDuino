@@ -4,7 +4,6 @@
 struct FleyeState;
 
 /* Default GL scene ops functions */
-int fleyeutil_create_native_window(struct FleyeState *fleye_state);
 int fleyeutil_gl_init_2_0(struct FleyeState *fleye_state);
 void fleyeutil_gl_term(struct FleyeState *fleye_state);
 void fleyeutil_destroy_native_window(struct FleyeState *fleye_state);

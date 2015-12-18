@@ -1,0 +1,30 @@
+// capture 
+{
+    "GLShaders" :
+    {
+		"display" : {
+			"fragment-shader" : "passthru_fs" ,
+			"textures" : { "tex" : "CAMERA" } 
+		}
+    }
+    ,
+    "CPUFunctions" :
+    {
+		"glReadBack" : {
+			"plugin" : "glReadBack" , 
+			"setup" : "glReadBack_setup" ,
+			"run" : "glReadBack_run" ,
+			"thread-id" : 0
+		}
+		,
+		"imageRecorder" : {
+			"plugin" : "imageRecorder" , 
+			"setup" : "imageRecorder_setup" ,
+			"run" : "imageRecorder_run" ,
+			"thread-id" : 0
+		}
+    }
+    ,
+    // "ProcessingLoop" : [ "copy", "glReadBack", "imageRecorder", "display" ]
+    "ProcessingLoop" : [ "display", "glReadBack" ]
+}
