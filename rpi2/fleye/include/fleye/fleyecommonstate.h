@@ -31,6 +31,8 @@ struct FleyeCommonState
    int32_t width;                      /// width in pixels
    int32_t height;                     /// height in pixels	
 
+   uint32_t frameCounter;
+
    int opacity;                        /// Alpha value for display element
    int gl_win_defined;                 /// Use rect from --glwin instead of preview
 

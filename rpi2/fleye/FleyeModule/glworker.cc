@@ -247,43 +247,45 @@ int glworker_redraw(struct FleyeCommonState* state, struct ImageProcessingState*
     GLCHK( glActiveTexture(GL_TEXTURE0) );
 
 	for( ProcessingStep& ps : ip->processing_step )
-	{		
-		if( ps.shaderPass != 0 )
+	{
+		if( ps.onFrames.contains( state->frameCounter ) )
 		{
-			int nPasses = ps.shaderPass->numberOfPasses;
-			for(int i=0;i<nPasses;i++)
+			if( ps.shaderPass!=0 )
 			{
-				apply_shader_pass( ps.shaderPass, i, &swapBuffers);
+				int nPasses = ps.shaderPass->numberOfPasses;
+				for(int i=0;i<nPasses;i++)
+				{
+					apply_shader_pass( ps.shaderPass, i, &swapBuffers);
+				}
+				int fboPoolSize = ps.shaderPass->fboPool.size();
+				if( nPasses>0 && fboPoolSize>0 )
+				{
+					FrameBufferObject* finalFBO = ps.shaderPass->fboPool[(nPasses-1)%fboPoolSize];
+					// copy last written fbo's attached texture to shader alias texture
+					* ps.shaderPass->finalTexture = * finalFBO->texture;
+				}
+				else
+				{
+					ps.shaderPass->finalTexture->texid = 0;
+					ps.shaderPass->finalTexture->target = GL_TEXTURE_2D;
+					ps.shaderPass->finalTexture->format = GL_RGB;
+				}
 			}
-			int fboPoolSize = ps.shaderPass->fboPool.size();
-			if( nPasses>0 && fboPoolSize>0 )
+			if( ps.cpuPass != 0 )
 			{
-				FrameBufferObject* finalFBO = ps.shaderPass->fboPool[(nPasses-1)%fboPoolSize];
-				// copy last written fbo's attached texture to shader alias texture
-				* ps.shaderPass->finalTexture = * finalFBO->texture;
-			}
-			else
-			{
-				ps.shaderPass->finalTexture->texid = 0;
-				ps.shaderPass->finalTexture->target = GL_TEXTURE_2D;
-				ps.shaderPass->finalTexture->format = GL_RGB;
-			}
-		}
-		
-		if( ps.cpuPass != 0 )
-		{
-			if( ps.cpuPass->exec_thread == 0 )
-			{
-				//printf("sync exec cpu step #%d\n",step);
-				( * ps.cpuPass->cpu_processing ) (& ip->cpu_tracking_state);
-			}
-			else
-			{
-				//printf("async start cpu step #%d\n",step);
-				ip->cpu_tracking_state.cpu_processing[ ip->cpu_tracking_state.nAvailCpuFuncs ] = ps.cpuPass->cpu_processing;
-				++ ip->cpu_tracking_state.nAvailCpuFuncs;
-				postStartProcessingSem( state->fleye_state );
-				//vcos_semaphore_post(& ip->cpu_tracking_state.start_processing_sem);
+				if( ps.cpuPass->exec_thread == 0 )
+				{
+					//printf("sync exec cpu step #%d\n",step);
+					( * ps.cpuPass->cpu_processing ) (& ip->cpu_tracking_state);
+				}
+				else
+				{
+					//printf("async start cpu step #%d\n",step);
+					ip->cpu_tracking_state.cpu_processing[ ip->cpu_tracking_state.nAvailCpuFuncs ] = ps.cpuPass->cpu_processing;
+					++ ip->cpu_tracking_state.nAvailCpuFuncs;
+					postStartProcessingSem( state->fleye_state );
+					//vcos_semaphore_post(& ip->cpu_tracking_state.start_processing_sem);
+				}
 			}
 		}
 		
@@ -298,6 +300,8 @@ int glworker_redraw(struct FleyeCommonState* state, struct ImageProcessingState*
 	{
 		eglSwapBuffers(state->display, state->surface);
 	}
+	
+	++ state->frameCounter;
 
     return 0;
 }

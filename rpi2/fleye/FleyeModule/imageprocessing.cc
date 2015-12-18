@@ -41,6 +41,7 @@ static int64_t get_integer_value( struct UserEnv* env, Json::Value x )
 
 static std::string get_string_value( struct UserEnv* env, Json::Value x )
 {
+	if( ! x.isString() ) return "";
 	std::string s = x.asString();
 	if( s.empty() ) return s;
 	if( s[0] == '$' )
@@ -91,7 +92,7 @@ static std::string readShader(const std::string& shaderName)
 	}
 }
 
-static std::vector<std::string> get_string_array(struct UserEnv* env, const Json::Value& l)
+static std::vector<std::string> get_string_array(struct UserEnv* env, Json::Value l)
 {
 	std::vector<std::string> v;
 	if( l.isArray() )
@@ -106,6 +107,17 @@ static std::vector<std::string> get_string_array(struct UserEnv* env, const Json
 		v.push_back( get_string_value(env,l) );
 	}
 	return v;
+}
+
+FrameSet get_frame_set(struct UserEnv* env, Json::Value frame)
+{
+	if( frame.isString() )
+	{
+		std::string value = get_string_value(env,frame);
+		if( value == "odd" ) { return FrameSet(2,1); }
+		if( value == "even" ) { return FrameSet(2,0); }
+	}
+	return FrameSet(); //all frames
 }
 
 int create_image_processing(struct ImageProcessingState* ip, struct UserEnv* env, const char* filename)
@@ -247,12 +259,22 @@ int create_image_processing(struct ImageProcessingState* ip, struct UserEnv* env
 		cpuFuncDB[name] = cpu;
 	}
 	
-	for( auto name : get_string_array(env,root["ProcessingLoop"]) )
+	for( const Json::Value stepValue : root["ProcessingLoop"] )
 	{
 		ProcessingStep ps;
+		std::string name;
+		if( stepValue.isString() )
+		{
+			name = get_string_value(env,stepValue);
+		}
+		else if( stepValue.isObject() )
+		{
+			name = get_string_value(env,stepValue["step"]);
+			ps.onFrames = get_frame_set(env,stepValue["frames"]);
+		}
 		ps.shaderPass = shadersDB[name];
 		ps.cpuPass = cpuFuncDB[name];
-		std::cout<<"add step '"<<name<<"' shaderPass @"<<ps.shaderPass<<", cpuPass @"<<ps.cpuPass<<"\n";
+		std::cout<<"add step '"<<name<<"' "<<ps.onFrames.modulus<<"/"<<ps.onFrames.value<<"\n";
 		ip->processing_step.push_back( ps );
 	}
 	

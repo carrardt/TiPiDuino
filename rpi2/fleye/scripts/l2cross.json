@@ -1,0 +1,31 @@
+// green / red objects masking
+{
+	"FrameBufferObjects" :
+	{
+		"fbo1" : {} ,
+		"fbo2" : {}
+	}
+    ,
+    "GLShaders" :
+    {
+		"init" : {
+			"fragment-shader" : "maskInitL2Cross_fs" ,
+			"textures" : { "tex" : "CAMERA" } ,
+			"output" : "fbo1"
+		}
+		,
+		"l2cross" : {
+			"fragment-shader" : "L2CrossIteration_fs" ,
+			"textures" : { "tex" : ["fbo1","fbo2"] } ,
+			"output" : ["fbo2","fbo1"] ,
+			"passes" : 5
+		}
+		,
+		"display" : {
+			"fragment-shader" : "drawL2Cross_fs" ,
+			"textures" : { "tex_l2cross" : "l2cross" , "tex_camera" : "CAMERA" }
+		}
+    }
+    ,
+    "ProcessingLoop" : [ "init", "l2cross", "display" ]
+}

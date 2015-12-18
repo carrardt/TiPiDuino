@@ -1,0 +1,40 @@
+// motion estimation using frame alternate
+{
+	"FrameBufferObjects" :
+	{
+		"fbo-odd" : {} ,
+		"fbo-even" : {} 
+	}
+	,
+	"GLShaders" :
+	{
+		"copy-odd" : {
+			"fragment-shader" : "passthru_fs" ,
+			"textures" : { "tex" : "CAMERA" } ,
+			"output" : "fbo-odd" 
+		}
+		,
+		"copy-even" : {
+			"fragment-shader" : "passthru_fs" ,
+			"textures" : { "tex" : "CAMERA" } ,
+			"output" : "fbo-even" 
+		}
+		,
+		"motion-odd" : {
+			"fragment-shader" : "motionquantity_fs", 
+			"textures" : { "tex" : "fbo-odd" , "texPrev" : "fbo-even" } 
+		}
+		,
+		"motion-even" : {
+			"fragment-shader" : "motionquantity_fs", 
+			"textures" : { "tex" : "fbo-even" , "texPrev" : "fbo-odd" } 
+		}
+	}
+	,
+	"ProcessingLoop" : [
+		{ "step" : "copy-odd"   , "frames" : "odd" } ,
+		{ "step" : "copy-even"  , "frames" : "even" } ,
+		{ "step" : "motion-odd" , "frames" : "odd" } ,
+		{ "step" : "motion-even", "frames" : "even" } 
+	]
+}

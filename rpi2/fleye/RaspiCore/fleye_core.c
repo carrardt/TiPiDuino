@@ -240,31 +240,30 @@ static void *preview_worker(void *arg)
    printf("%s: port %p\n", __PRETTY_FUNCTION__, preview_port);
 
    rc = fleyeutil_create_native_window(state);
-   if (rc != 0)
-      goto end;
-
-   fleyeutil_gl_init(state);
-
-   while (state->common.preview_stop == 0)
+   if (rc == 0)
    {
-      /* Send empty buffers to camera preview port */
-      while ((buf = mmal_queue_get(state->preview_pool->queue)) != NULL)
-      {
-         st = mmal_port_send_buffer(preview_port, buf);
-         if (st != MMAL_SUCCESS)
-         {
-            fprintf(stderr,"Failed to send buffer to %s\n", preview_port->name);
-         }
-      }
-      /* Process returned buffers */
-      if (preview_process_returned_bufs(state) != 0)
-      {
-         fprintf(stderr,"Preview error. Exiting.\n");
-         state->common.preview_stop = 1;
-      }
-   }
+	   fleyeutil_gl_init(state);
 
-end:
+	   while (state->common.preview_stop == 0)
+	   {
+		  /* Send empty buffers to camera preview port */
+		  while ((buf = mmal_queue_get(state->preview_pool->queue)) != NULL)
+		  {
+			 st = mmal_port_send_buffer(preview_port, buf);
+			 if (st != MMAL_SUCCESS)
+			 {
+				fprintf(stderr,"Failed to send buffer to %s\n", preview_port->name);
+			 }
+		  }
+		  /* Process returned buffers */
+		  if (preview_process_returned_bufs(state) != 0)
+		  {
+			 fprintf(stderr,"Preview error. Exiting.\n");
+			 state->common.preview_stop = 1;
+		  }
+	   }
+   }
+   
    /* Make sure all buffers are returned on exit */
    while ((buf = mmal_queue_get(state->preview_queue)) != NULL)
    {
