@@ -17,8 +17,8 @@ void glReadBack_setup()
 
 void glReadBack_run(CPU_TRACKING_STATE * state)
 {
-	fleye_readback( state->fleye_state, state->image );
+	//fleye_readback( state->fleye_state, state->image );
 	
-	//GLCHK( glReadPixels(0, 0, state->width, state->height,GL_RGBA,GL_UNSIGNED_BYTE, state->image) );
+	GLCHK( glReadPixels(0, 0, state->width, state->height,GL_RGBA,GL_UNSIGNED_BYTE, state->image) );
 	//GLCHK( glReadPixels(0, 0, state->width, state->height,GL_RGB_422_APPLE,GL_UNSIGNED_SHORT, state->image) );
 }

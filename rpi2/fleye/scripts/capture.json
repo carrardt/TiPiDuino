@@ -1,5 +1,10 @@
 // capture 
 {
+	"RenderBuffers" :
+	{
+		"buf1" : {}
+	}
+	,
     "GLShaders" :
     {
 		"display" : {

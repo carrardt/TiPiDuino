@@ -241,8 +241,8 @@ static void *preview_worker(void *arg)
    printf("%s: port %p\n", __PRETTY_FUNCTION__, preview_port);
 
    //rc = fleyeutil_create_native_window(state);
-   state->fleye_window = create_offscreen_native_window(0,0,state->common.width,state->common.height,state->common.opacity);
-   //state->fleye_window = create_native_window(0,0,state->common.width,state->common.height,state->common.opacity);
+   //state->fleye_window = create_offscreen_native_window(0,0,state->common.width,state->common.height,state->common.opacity);
+   state->fleye_window = create_native_window(0,0,state->common.width,state->common.height,state->common.opacity);
    if ( state->fleye_window != NULL )
    {
 	   fleyeutil_gl_init(state);
