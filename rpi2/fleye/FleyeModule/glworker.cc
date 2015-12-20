@@ -13,28 +13,20 @@
 #include "fleye/fleyecommonstate.h"
 #include "fleye/plugin.h"
 #include "fleye/shaderpass.h"
+#include "fleye/render_window.h"
+#include "fleye/fbo.h"
+#include "fleye/texture.h"
+#include "fleye/fleyecommonstate.h"
 
 FLEYE_REGISTER_GL_DRAW(gl_fill)
 
-/*
-   const EGLint default_attribs[] =
-   {
-      EGL_RED_SIZE,   8,
-      EGL_GREEN_SIZE, 8,
-      EGL_BLUE_SIZE,  8,
-      EGL_ALPHA_SIZE, 8,
-      EGL_DEPTH_SIZE, 16,
-      EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
-      EGL_NONE
-   };
-*/
 static const EGLint glworker_egl_config_attribs[] =
 {
    EGL_RED_SIZE,   8,
    EGL_GREEN_SIZE, 8,
    EGL_BLUE_SIZE,  8,
    EGL_ALPHA_SIZE, 8,
-   //EGL_SURFACE_TYPE , EGL_LOCK_SURFACE_BIT_KHR,
+   EGL_DEPTH_SIZE, 16,
    EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
    EGL_NONE
 };
@@ -45,12 +37,13 @@ const EGLint* glworker_egl_config(struct FleyeCommonState* state)
 }
 
 struct ImageProcessingState*
-glworker_init(struct FleyeCommonState* state, struct UserEnv* user_env, struct CPU_TRACKING_STATE** cpuThreadCtx )
+glworker_init(struct FleyeCommonState* state, struct UserEnv* user_env )
 {	
    FrameBufferObject dispWinFBO;
    int i,rc;
    
    ImageProcessingState* ip = new ImageProcessingState;
+   FleyeRenderWindow* renwin = fleye_get_preview_window(state->fleye_state);
       
 	GLTexture* nullTexture = new GLTexture;
 	nullTexture->format = GL_RGB;
@@ -58,20 +51,11 @@ glworker_init(struct FleyeCommonState* state, struct UserEnv* user_env, struct C
 	nullTexture->texid = 0;
 	ip->texture["NULL"] = nullTexture;
 
-    // create camera texture Id
-    ip->cameraTextureId = 0;
-	glGenTextures(1, & ip->cameraTextureId );
-    if (ip->cameraTextureId == 0)
-    {
-		std::cerr<<"unable to create camera texture\n";
-		return NULL;
-	}
-
 	{ char tmp[64]; sprintf(tmp,"%d",state->width); fleye_add_optional_value(user_env,"WIDTH",tmp); }
 	{ char tmp[64]; sprintf(tmp,"%d",state->height); fleye_add_optional_value(user_env,"HEIGHT",tmp); }
 
 	// configure camera input texture
-   GLCHK( glBindTexture(GL_TEXTURE_EXTERNAL_OES, ip->cameraTextureId) );
+   GLCHK( glBindTexture(GL_TEXTURE_EXTERNAL_OES, state->cameraTextureId) );
    GLCHK( glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE) );
    GLCHK( glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE) );
    GLCHK( glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MIN_FILTER, GL_LINEAR) );
@@ -80,7 +64,7 @@ glworker_init(struct FleyeCommonState* state, struct UserEnv* user_env, struct C
    
    // define input image as an available input texture named "INPUT"
     GLTexture* camTexture = new GLTexture;
-	camTexture->texid = ip->cameraTextureId;
+	camTexture->texid = state->cameraTextureId;
 	camTexture->target = GL_TEXTURE_EXTERNAL_OES;
 	camTexture->format = GL_RGB;
 	ip->texture["CAMERA"] = camTexture;
@@ -93,30 +77,32 @@ glworker_init(struct FleyeCommonState* state, struct UserEnv* user_env, struct C
 	displayFBO->width = state->width;
 	displayFBO->height = state->height;
 	displayFBO->fb = 0;
+	displayFBO->render_window = fleye_get_preview_window( state->fleye_state );
 	ip->fbo["DISPLAY"] = displayFBO;
 
-	create_image_processing( ip, user_env, fleye_get_processing_script(user_env) );
+	rc = create_image_processing( state, ip, user_env, fleye_get_processing_script(user_env) );
+	if( rc != 0 )
+	{
+		std::cerr<<"Failed to initialize image processing pipeline\n";
+		return NULL;
+	}
 
 	GLCHK( glDisable(GL_DEPTH_TEST) );
 	
 	// allocate space for CPU processing
 	
-	printf( "EGL_CLIENT_APIS: %s\n", eglQueryString( state->display, EGL_CLIENT_APIS ) );
-	printf( "EGL_VENDOR: %s\n", eglQueryString( state->display, EGL_VENDOR ) );
-	printf( "EGL_VERSION: %s\n", eglQueryString( state->display, EGL_VERSION ) );
-	printf( "EGL_EXTENSIONS: %s\n", eglQueryString( state->display, EGL_EXTENSIONS ) );
+	printf( "EGL_CLIENT_APIS: %s\n", eglQueryString( renwin->display, EGL_CLIENT_APIS ) );
+	printf( "EGL_VENDOR: %s\n", eglQueryString( renwin->display, EGL_VENDOR ) );
+	printf( "EGL_VERSION: %s\n", eglQueryString( renwin->display, EGL_VERSION ) );
+	printf( "EGL_EXTENSIONS: %s\n", eglQueryString( renwin->display, EGL_EXTENSIONS ) );
 	printf( "GL_VERSION: %s\n", glGetString( GL_VERSION ) );
 	printf( "GL_SHADING_LANGUAGE_VERSION: %s\n", glGetString( GL_SHADING_LANGUAGE_VERSION ) );
 	printf( "GL_EXTENSIONS: %s\n", glGetString( GL_EXTENSIONS ) );
 
 	ip->cpu_tracking_state.fleye_state = state->fleye_state;
-	ip->cpu_tracking_state.width = state->width;
-	ip->cpu_tracking_state.height = state->height;
-	ip->cpu_tracking_state.image = new uint8_t [ ip->cpu_tracking_state.width * ip->cpu_tracking_state.height * 4 ];
 	ip->cpu_tracking_state.objectCount = 0;
 	ip->cpu_tracking_state.do_processing = 1;
 
-	*cpuThreadCtx = & ip->cpu_tracking_state;
     return ip;
 }
 
@@ -233,6 +219,10 @@ int glworker_redraw(struct FleyeCommonState* state, struct ImageProcessingState*
 {
 	int step = 0;
 	int swapBuffers = 0;
+    FleyeRenderWindow* mainwin = fleye_get_preview_window(state->fleye_state);
+    FleyeRenderWindow* renwin = mainwin;
+
+	//std::cout<<"glworker_redraw: mainwin "<<mainwin<<"\n";
 
 	// wait previous async cycle to be finished
 	int nPrevTasksToWait = ip->cpu_tracking_state.nAvailCpuFuncs - ip->cpu_tracking_state.nFinishedCpuFuncs;
@@ -254,13 +244,30 @@ int glworker_redraw(struct FleyeCommonState* state, struct ImageProcessingState*
 		if( ps.onFrames.contains( state->frameCounter ) )
 		{
 			if( ps.shaderPass!=0 )
-			{
+			{				
 				int nPasses = ps.shaderPass->numberOfPasses;
+				int fboPoolSize = ps.shaderPass->fboPool.size();
 				for(int i=0;i<nPasses;i++)
 				{
+					//std::cout<<"pass "<<i<<"\n";
+					FrameBufferObject* fbo = ps.shaderPass->fboPool[ i % fboPoolSize ];
+					FleyeRenderWindow* nextRenWin = fbo->render_window;
+					if( nextRenWin != renwin )
+					{
+						//std::cout<<"context switch : "<<renwin<<" -> "<<nextRenWin<<"\n";
+						if(swapBuffers)
+						{
+							//std::cout<<"swap buffers on "<<renwin<<"\n";
+							//glFinish();
+							eglSwapBuffers(renwin->display, renwin->surface);
+							swapBuffers = 0;
+						}
+						renwin = nextRenWin;
+						//std::cout<<"make current on "<<renwin<<"\n";
+						eglMakeCurrent(renwin->display, renwin->surface, renwin->surface, renwin->context);
+					}
 					apply_shader_pass( ps.shaderPass, i, &swapBuffers);
 				}
-				int fboPoolSize = ps.shaderPass->fboPool.size();
 				if( nPasses>0 && fboPoolSize>0 )
 				{
 					FrameBufferObject* finalFBO = ps.shaderPass->fboPool[(nPasses-1)%fboPoolSize];
@@ -279,7 +286,7 @@ int glworker_redraw(struct FleyeCommonState* state, struct ImageProcessingState*
 				if( ps.cpuPass->exec_thread == 0 )
 				{
 					//printf("sync exec cpu step #%d\n",step);
-					( * ps.cpuPass->cpu_processing ) (& ip->cpu_tracking_state);
+					( * ps.cpuPass->cpu_processing ) (ip, & ip->cpu_tracking_state);
 				}
 				else
 				{
@@ -298,9 +305,22 @@ int glworker_redraw(struct FleyeCommonState* state, struct ImageProcessingState*
 	postStartProcessingSem( state->fleye_state );
 
     GLCHK(glUseProgram(0));
+
+	if( mainwin != renwin )
+	{
+		//std::cout<<"final context switch "<<renwin<<" -> "<<mainwin<<"\n";
+		if(swapBuffers)
+		{
+			eglSwapBuffers(renwin->display, renwin->surface);
+			swapBuffers = 0;
+		}
+		renwin = mainwin;
+		eglMakeCurrent(renwin->display, renwin->surface, renwin->surface, renwin->context);
+	}
+
 	if(swapBuffers)
 	{
-		eglSwapBuffers(state->display, state->surface);
+		eglSwapBuffers(renwin->display, renwin->surface);
 	}
 	
 	++ state->frameCounter;

@@ -1,12 +1,14 @@
 #include <stdio.h>
 #include "fleye/cpuworker.h"
 #include "fleye/fleye_c.h"
+#include "fleye/imageprocessing.h"
 
 void *cpuTrackingWorker(void *arg)
 {
-	CPU_TRACKING_STATE * state = (CPU_TRACKING_STATE *) arg;
+	ImageProcessingState * ip = (ImageProcessingState *) arg;
+	CPU_TRACKING_STATE* state = & ip->cpu_tracking_state;
 	
-	printf("cpuTrackingWorker started: %dx%d\n",state->width,state->height);
+	printf("cpuTrackingWorker started\n");
 	state->cpuFunc = 0;
 	
 	//vcos_semaphore_wait( & state->start_processing_sem );
@@ -16,7 +18,7 @@ void *cpuTrackingWorker(void *arg)
 	{
 		if( state->cpu_processing[ state->cpuFunc ] !=0 )
 		{
-			( * state->cpu_processing[ state->cpuFunc ] )( state );
+			( * state->cpu_processing[ state->cpuFunc ] )( ip, state );
 			
 			// signal that one more task has finished
 			postEndProcessingSem( state->fleye_state );

@@ -32,7 +32,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define TGA_WRITE(FP, F) \
    if (fwrite((&F), sizeof(F), 1, (FP)) != 1) goto write_fail
 int write_tga(FILE *fp, int width, int height,
-      uint8_t *buffer, size_t buffer_size)
+      const uint8_t *buffer, size_t buffer_size)
 {
    struct tga_header header;
    memset(&header, 0, sizeof(header));

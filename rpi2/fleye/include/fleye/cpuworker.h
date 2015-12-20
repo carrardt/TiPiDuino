@@ -6,17 +6,14 @@
 
 struct CPU_TRACKING_STATE;
 struct FleyeState;
+struct ImageProcessingState;
 
-typedef void(*CpuProcessingFunc)(struct CPU_TRACKING_STATE*);
+typedef void(*CpuProcessingFunc)(const ImageProcessingState*,CPU_TRACKING_STATE*);
 
 typedef struct CPU_TRACKING_STATE
 {
   struct FleyeState* fleye_state;
   
-  // input
-  int width, height;
-  uint8_t* image;
-
   volatile  int do_processing;
 
   // output

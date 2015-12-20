@@ -1,34 +1,59 @@
-#include <stdio.h>
 #include "fleye/cpuworker.h"
 #include "fleye/plugin.h"
+#include "fleye/render_window.h"
+#include "fleye/fbo.h"
+#include "fleye/compiledshadercache.h"
+#include "fleye/imageprocessing.h"
+
+#include <iostream>
 
 FLEYE_REGISTER_PLUGIN(l2CrossCenter)
+FLEYE_REGISTER_GL_DRAW(drawObjectPosition)
 
-void l2CrossCenter_setup()
+static float targetPosX = 0.0f;
+static float targetPosY = 0.0f;
+static float laserPosX = 0.0f;
+static float laserPosY = 0.0f;
+static FleyeRenderWindow* render_buffer = 0;
+
+void l2CrossCenter_setup(const ImageProcessingState* ip)
 {
-	printf("L2CrossCenter plugin ready\n");
+	std::map<std::string,FrameBufferObject*>::const_iterator it = ip->fbo.find("l2c-render-buffer");
+	if( it != ip->fbo.end() )
+	{
+		render_buffer = it->second->render_window;
+	}
+	std::cout<<"L2CrossCenter setup : render_buffer @"<<render_buffer<<"\n";
 }
 
-void l2CrossCenter_run(CPU_TRACKING_STATE * state)
+void l2CrossCenter_run(const ImageProcessingState* ip, CPU_TRACKING_STATE * state)
 {
-	const uint32_t* base_ptr = (uint32_t*) state->image;
+	uint32_t width=0, height=0;
+	const uint32_t* base_ptr = (const uint32_t*) read_offscreen_render_window(render_buffer,&width,&height);
 	int x,y;
 	int obj1_sumx=0,obj1_sumy=0;
 	int obj2_sumx=0,obj2_sumy=0;
 	int obj1_count=0, obj2_count=0;
 	int obj1_L2max=1, obj2_L2max=1;
-	for(y=0;y<state->height;y++)
+	
+	std::cout<<"base_ptr="<<base_ptr<<", w="<<width<<", h="<<height<<"\n";
+	
+	for(y=0;y<height;y++)
 	{
-		const uint32_t* p = base_ptr + y * state->width;
-		for(x=0;x<state->width;x++)
+		const uint32_t* p = base_ptr + y * width;
+		for(x=0;x<width;x++)
 		{
 			uint32_t value = *(p++);
-			uint32_t mask1 = ( value & 0x00008080 ) ;
-			uint32_t mask2 = ( value & 0x80800000 ) ;
+			//uint32_t mask1 = ( value & 0x00008080 ) ;
+			//uint32_t mask2 = ( value & 0x80800000 ) ;
+			uint32_t mask1 = ( value & 0x00808000 ) ;
+			uint32_t mask2 = ( value & 0x80000080 ) ;
 			if( mask1 )
 			{
-				int r1 = ( value & 0x0000007F ) >> 4;
+				int r1 = ( value & 0x007F0000 ) >> 20;
 				int u1 = ( value & 0x00007F00 ) >> 12;
+
+				//if( r1>6 || u1>6 ) { std::cout<<"r1="<<r1<<", u1="<<u1<<"\n"; }
 
 				int m1 = (r1>u1) ? r1 : u1;
 
@@ -44,8 +69,11 @@ void l2CrossCenter_run(CPU_TRACKING_STATE * state)
 			}
 			if( mask2 )
 			{
-				int r2 = ( value & 0x007F0000 ) >> 20;
+				int r2 = ( value & 0x0000007F ) >> 4;
 				int u2 = ( value & 0x7F000000 ) >> 28;
+
+				//if( r2>6 || u2>6 ) { std::cout<<"r2="<<r2<<", u2="<<u2<<"\n"; }
+
 				int m2 = (r2>u2) ? r2 : u2;
 				if( m2>obj2_L2max ) { obj2_count = obj2_sumx = obj2_sumy = 0; obj2_L2max=m2; }
 				else if( m2==obj2_L2max )
@@ -65,8 +93,8 @@ void l2CrossCenter_run(CPU_TRACKING_STATE * state)
 	if(obj1_count>0)
 	{
 		//printf("%d %fx%f\n",count,state->width,state->height);
-		state->objectCenter[state->objectCount][0] = (double)obj1_sumx / (double)( obj1_count * state->width );
-		state->objectCenter[state->objectCount][1] = (double)obj1_sumy / (double)( obj1_count * state->height );
+		targetPosX = state->objectCenter[state->objectCount][0] = (double)obj1_sumx / (double)( obj1_count * width );
+		targetPosY = state->objectCenter[state->objectCount][1] = (double)obj1_sumy / (double)( obj1_count * height );
 		//printf("%f, %f\n",state->objectCenter[0][0],state->objectCenter[0][1]);
 		state->trackedObjects[ state->objectCount ++ ] = 0;
 	}
@@ -74,9 +102,40 @@ void l2CrossCenter_run(CPU_TRACKING_STATE * state)
 	if(obj2_count>0)
 	{
 		//printf("%d %fx%f\n",count,state->width,state->height);
-		state->objectCenter[state->objectCount][0] = (double)obj2_sumx / (double)( obj2_count * state->width );
-		state->objectCenter[state->objectCount][1] = (double)obj2_sumy / (double)( obj2_count * state->height );
+		laserPosX = state->objectCenter[state->objectCount][0] = (double)obj2_sumx / (double)( obj2_count * width );
+		laserPosY = state->objectCenter[state->objectCount][1] = (double)obj2_sumy / (double)( obj2_count * height );
 		//printf("%f, %f\n",state->objectCenter[0][0],state->objectCenter[0][1]);
 		state->trackedObjects[ state->objectCount ++ ] = 1;
 	}
+}
+
+void drawObjectPosition(struct CompiledShaderCache* compiledShader, int pass)
+{
+	GLfloat varray[24];
+	int i;
+	for(i=0;i<4;i++)
+	{
+		int x = i%2;
+		int y = ((i/2)+x)%2;
+		double ox = x ? -0.05 : 0.05;
+		double oy = y ? -0.05 : 0.05;
+		varray[i*3+0] = targetPosX +ox;
+		varray[i*3+1] = targetPosY +oy;
+		varray[i*3+2] = 0.333;
+	}
+	for(i=4;i<8;i++)
+	{
+		int x = i%2;
+		int y = ((i/2)+x)%2;
+		double ox = x ? -0.05 : 0.05;
+		double oy = y ? -0.05 : 0.05;
+		varray[i*3+0] = laserPosX+ox;
+		varray[i*3+1] = laserPosY+oy;
+		varray[i*3+2] = 0.0;
+	}
+
+	glEnableVertexAttribArray(compiledShader->shader.attribute_locations[0]);
+	glVertexAttribPointer(compiledShader->shader.attribute_locations[0], 3, GL_FLOAT, GL_FALSE, 0, varray);
+	glDrawArrays(GL_LINES, 0, 8);
+	glDisableVertexAttribArray(compiledShader->shader.attribute_locations[0]);
 }

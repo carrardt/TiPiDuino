@@ -7,7 +7,7 @@
 
 #include <iostream>
 
-int add_fbo(ImageProcessingState* ip, const std::string& name, GLint colorFormat, GLint w, GLint h)
+FrameBufferObject* add_fbo(ImageProcessingState* ip, const std::string& name, GLint colorFormat, GLint w, GLint h)
 {
 	GLTexture* tex = new GLTexture;
 	ip->texture[name] = tex;
@@ -69,18 +69,10 @@ int add_fbo(ImageProcessingState* ip, const std::string& name, GLint colorFormat
 	
     if ( status == GL_FRAMEBUFFER_COMPLETE )
     {
-		return 0;
+		return fbo;
 	}
     else 
     {
-		return 1;
+		return NULL;
 	}
-    
-/*
-glGenTextures(1, (GLuint *) 0x777ada0c);
-glBindTexture(GL_TEXTURE_2D, 3);
-glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, (GLeglImageOES) 0x752d700c);
-
-glFramebufferTexture2DOES(GL_FRAMEBUFFER_OES, GL_COLOR_ATTACHMENT0_OES, GL_TEXTURE_2D, 3, 0);
- */
 }

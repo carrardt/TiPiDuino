@@ -17,7 +17,7 @@
 #include "fleye_core.h"
 #include "fleye_util.h"
 #include "fleye/fleye_c.h"
-#include "fleye_window.h"
+#include "fleye/render_window.h"
 
 /**
  * \file GPUTracking.c
@@ -239,33 +239,28 @@ static void *preview_worker(void *arg)
    int rc;
 
    printf("%s: port %p\n", __PRETTY_FUNCTION__, preview_port);
+   
+   fleyeutil_gl_init(state);
 
-   //rc = fleyeutil_create_native_window(state);
-   //state->fleye_window = create_offscreen_native_window(0,0,state->common.width,state->common.height,state->common.opacity);
-   state->fleye_window = create_native_window(0,0,state->common.width,state->common.height,state->common.opacity);
-   if ( state->fleye_window != NULL )
+   while (state->common.preview_stop == 0)
    {
-	   fleyeutil_gl_init(state);
-
-	   while (state->common.preview_stop == 0)
-	   {
-		  /* Send empty buffers to camera preview port */
-		  while ((buf = mmal_queue_get(state->preview_pool->queue)) != NULL)
-		  {
-			 st = mmal_port_send_buffer(preview_port, buf);
-			 if (st != MMAL_SUCCESS)
-			 {
-				fprintf(stderr,"Failed to send buffer to %s\n", preview_port->name);
-			 }
-		  }
-		  /* Process returned buffers */
-		  if (preview_process_returned_bufs(state) != 0)
-		  {
-			 fprintf(stderr,"Preview error. Exiting.\n");
-			 state->common.preview_stop = 1;
-		  }
-	   }
+	  /* Send empty buffers to camera preview port */
+	  while ((buf = mmal_queue_get(state->preview_pool->queue)) != NULL)
+	  {
+		 st = mmal_port_send_buffer(preview_port, buf);
+		 if (st != MMAL_SUCCESS)
+		 {
+			fprintf(stderr,"Failed to send buffer to %s\n", preview_port->name);
+		 }
+	  }
+	  /* Process returned buffers */
+	  if (preview_process_returned_bufs(state) != 0)
+	  {
+		 fprintf(stderr,"Preview error. Exiting.\n");
+		 state->common.preview_stop = 1;
+	  }
    }
+
    
    /* Make sure all buffers are returned on exit */
    while ((buf = mmal_queue_get(state->preview_queue)) != NULL)
@@ -275,8 +270,20 @@ static void *preview_worker(void *arg)
 
    /* Tear down GL */
    fleyeutil_gl_term(state);
+   
    printf("Exiting preview worker\n");
    return NULL;
+}
+
+struct FleyeRenderWindow* fleye_get_preview_window(struct FleyeState* fleye_state)
+{
+	return fleye_state->render_window;
+}
+
+struct FleyeRenderWindow* create_render_buffer(struct FleyeState* fleye_state, int width, int height)
+{
+	const EGLint* default_attribs = glworker_egl_config( & fleye_state->common );
+	return create_offscreen_render_window(width, height, default_attribs, fleye_get_preview_window(fleye_state) );
 }
 
 /**
@@ -417,7 +424,6 @@ void fleye_destroy(FleyeState *state)
       state->preview_queue = NULL;
    }
 
-   destroy_native_window(state->fleye_window);
 }
 
 /* Initialise the GL / window state to sensible defaults.
@@ -432,9 +438,6 @@ void fleye_set_defaults(FleyeState *state)
    memset(state, 0, sizeof(*state));
 
 	// initialize only non-zero values
-   state->common.display = EGL_NO_DISPLAY;
-   state->common.surface = EGL_NO_SURFACE;
-   state->common.context = EGL_NO_CONTEXT;
    state->egl_image = EGL_NO_IMAGE_KHR;
    state->common.opacity = 255;
    state->common.width = DEFAULT_WIDTH;

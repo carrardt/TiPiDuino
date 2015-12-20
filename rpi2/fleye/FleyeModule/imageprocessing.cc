@@ -8,14 +8,28 @@
 #include <sstream>
 #include <json/json.h>
 
+#include "fleye/fleye_c.h"
 #include "fleye/imageprocessing.h"
 #include "fleye/shaderpass.h"
-#include "fleye/fleye_c.h"
+#include "fleye/fbo.h"
+#include "fleye/texture.h"
+#include "fleye/fleyecommonstate.h"
+#include "fleye/plugin.h"
 
-GLuint fleye_get_camera_texture_id(struct ImageProcessingState* ip)
+
+FleyeRenderWindow* ImageProcessingState::getRenderBuffer(const std::string& name) const
 {
-	return ip->cameraTextureId;
+	std::map<std::string,FrameBufferObject*>::const_iterator it = fbo.find(name);
+	if( it != fbo.end() )
+	{
+		return it->second->render_window;
+	}
+	else
+	{
+		return 0;
+	}
 }
+
 
 static int64_t get_integer_value( struct UserEnv* env, Json::Value x )
 {
@@ -120,7 +134,7 @@ FrameSet get_frame_set(struct UserEnv* env, Json::Value frame)
 	return FrameSet(); //all frames
 }
 
-int create_image_processing(struct ImageProcessingState* ip, struct UserEnv* env, const char* filename)
+int create_image_processing(FleyeCommonState* state,ImageProcessingState* ip, UserEnv* env, const std::string& filename)
 {
 	// TODO: transferer dans inc_fs et inc_vs
 	static const std::string uniforms = 	
@@ -166,15 +180,31 @@ int create_image_processing(struct ImageProcessingState* ip, struct UserEnv* env
 			fleye_add_optional_value( env, var.c_str() , value.c_str() );
 		}
 	}
-    
+ 
+    const Json::Value renbufs = root["RenderBuffers"];
+	for( auto name : renbufs.getMemberNames() )
+	{
+		const Json::Value rbuf = renbufs[name];
+		int64_t w = get_integer_value(env,rbuf.get("width","$WIDTH"));
+		int64_t h = get_integer_value(env,rbuf.get("height","$HEIGHT"));
+		std::cout<<"Add Render buffer '"<<name<<"' : "<<w<<"x"<<h<<"\n";
+		FrameBufferObject* fbo = new FrameBufferObject;
+		fbo->render_window = create_render_buffer(state->fleye_state,w,h);
+		fbo->width = w;
+		fbo->height = h;
+		fbo->texture = ip->texture["NULL"];
+		ip->fbo[name] = fbo;
+	}
+
     const Json::Value fbos = root["FrameBufferObjects"];
 	for( auto name : fbos.getMemberNames() )
 	{
-		auto fbo = fbos[name];
-		int64_t w = get_integer_value(env,fbo.get("width","$WIDTH"));
-		int64_t h = get_integer_value(env,fbo.get("height","$HEIGHT"));
-		std::cout<<"Adding FBO "<<name<<" : "<<w<<"x"<<h<<"\n";
-		add_fbo(ip,name.c_str(),GL_RGBA,w,h);
+		const Json::Value fboValue = fbos[name];
+		int64_t w = get_integer_value(env,fboValue.get("width","$WIDTH"));
+		int64_t h = get_integer_value(env,fboValue.get("height","$HEIGHT"));
+		std::cout<<"Add Frame Buffer Object '"<<name<<"' : "<<w<<"x"<<h<<"\n";
+		FrameBufferObject* fbo = add_fbo(ip,name,GL_RGBA,w,h);
+		fbo->render_window = fleye_get_preview_window( state->fleye_state );
 	}
 	
     const Json::Value shadersObject = root["GLShaders"];
@@ -258,11 +288,11 @@ int create_image_processing(struct ImageProcessingState* ip, struct UserEnv* env
 		std::string funcName = get_string_value(env,cpuFuncObject.get("run",""));
 
 		// isn't it highly secure ? we're doing graphics anyway, we don't care ;-)
-		void(*setup_function)() = ( void(*)() ) dynlib_func_addr(plugin,setupName);
+		PluginSetupFunc setup_function = ( PluginSetupFunc ) dynlib_func_addr(plugin,setupName);
 		if( setup_function != 0 )
 		{ 
 			//std::cout<<"initialize plugin ...\n";
-			(*setup_function) ();
+			(*setup_function) ( ip );
 		}
 
 		CpuPass* cpu = new CpuPass;

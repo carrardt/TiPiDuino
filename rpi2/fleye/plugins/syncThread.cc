@@ -6,12 +6,12 @@
 
 FLEYE_REGISTER_PLUGIN(syncThread)
 
-void syncThread_setup()
+void syncThread_setup(const ImageProcessingState* ip)
 {
 	printf("syncThread plugin ready\n");
 }
 
-void syncThread_run(CPU_TRACKING_STATE * state)
+void syncThread_run(const ImageProcessingState* ip, CPU_TRACKING_STATE * state)
 {
 	int nToWait = state->nAvailCpuFuncs - state->nFinishedCpuFuncs;
 	while( nToWait > 0 )

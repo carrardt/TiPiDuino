@@ -70,7 +70,7 @@ static void gpio_write_values(float xf, float yf, int laserSwitch)
 	bcm2835_gpio_set_multi( set_mask );
 }
 
-void gpioPanTiltFollower_setup()
+void gpioPanTiltFollower_setup(const ImageProcessingState* ip)
 {
   int i;
   
@@ -97,7 +97,7 @@ void gpioPanTiltFollower_setup()
 
 #define INIT_COUNT 256
 #define ACQUIRE_COUNT 128
-void gpioPanTiltFollower_run(CPU_TRACKING_STATE * state)
+void gpioPanTiltFollower_run(const ImageProcessingState* ip, CPU_TRACKING_STATE * state)
 {
 	struct timeval T2;
 	gettimeofday(&T2,NULL);

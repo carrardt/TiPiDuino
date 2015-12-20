@@ -2,7 +2,12 @@
 {
 	"EnvDefaults" :
 	{
-		"CCMD" : 5
+		"CCMD" : 4
+	}
+	,
+	"RenderBuffers" :
+	{
+		"l2c-render-buffer" : {}
 	}
 	,
 	"FrameBufferObjects" :
@@ -14,42 +19,38 @@
     "GLShaders" :
     {
 		"init" : {
-			"vertex-shader" : "common_vs" ,
 			"fragment-shader" : "maskInitL2Cross_fs" ,
-			"rendering" : { "function" : "gl_fill" } ,
 			"textures" : { "tex" : "CAMERA" } ,
-			"output" : "fbo1" ,
-			"passes" : 1
+			"output" : "fbo1"
 		}
 		,
 		"l2cross" : {
-			"vertex-shader" : "common_vs" ,
 			"fragment-shader" : "L2CrossIteration_fs" ,
-			"rendering" : { "function" : "gl_fill" } ,
 			"textures" : { "tex" : ["fbo1","fbo2"] } ,
 			"output" : ["fbo2","fbo1"] ,
 			"passes" : "$CCMD"
 		}
 		,
+		"l2cross-final" : {
+			"fragment-shader" : "L2CrossIteration_fs" ,
+			"textures" : { "tex" : "l2cross" } ,
+			"output" : "l2c-render-buffer"
+		}
+		,
 		"display" : {
-			"vertex-shader" : "common_vs" ,
 			"fragment-shader" : "drawL2Cross_fs" ,
-			"rendering" : { "function" : "gl_fill" } ,
-			"textures" : { "tex_l2cross" : "l2cross" , "tex_camera" : "CAMERA" } ,
-			"output" : "DISPLAY" ,
-			"passes" : 1
+			"textures" : { "tex_l2cross" : "l2cross" , "tex_camera" : "CAMERA" }
+		}
+		,
+		"overlay" : {
+			"vertex-shader" : "zhue_vs" ,
+			"fragment-shader" : "color_fs" ,
+			"rendering" : { "plugin" : "l2CrossCenter" , "function" : "drawObjectPosition" }
 		}
     }
     ,
     "CPUFunctions" :
     {
-		"glReadBack" : {
-			"plugin" : "glReadBack" , 
-			"setup" : "glReadBack_setup" ,
-			"run" : "glReadBack_run" ,
-			"thread-id" : 0
-		}
-		,
 		"l2CrossCenter" : {
 			"plugin" : "l2CrossCenter" , 
 			"setup" : "l2CrossCenter_setup" ,
@@ -65,5 +66,5 @@
 		}
     }
     ,
-    "ProcessingLoop" : [ "init", "l2cross", "glReadBack", "l2CrossCenter", "syncThread", "display" ]
+    "ProcessingLoop" : [ "init", "l2cross", "display", "l2cross-final", "l2CrossCenter", "syncThread", "overlay" ]
 }
