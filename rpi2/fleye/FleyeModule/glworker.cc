@@ -230,13 +230,11 @@ int glworker_redraw(struct FleyeCommonState* state, struct ImageProcessingState*
 	while( nPrevTasksToWait > 0 )
 	{
 		waitEndProcessingSem( state->fleye_state );
-		//vcos_semaphore_wait( & ip->cpu_tracking_state.end_processing_sem );
 		-- nPrevTasksToWait;
 	}
 	ip->cpu_tracking_state.nAvailCpuFuncs = 0;
 	ip->cpu_tracking_state.nFinishedCpuFuncs = 0;
 
-    //glClear(GL_COLOR_BUFFER_BIT /*| GL_DEPTH_BUFFER_BIT*/);
     GLCHK( glActiveTexture(GL_TEXTURE0) );
 
 	for( ProcessingStep& ps : ip->processing_step )

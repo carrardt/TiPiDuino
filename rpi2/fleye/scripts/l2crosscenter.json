@@ -18,31 +18,31 @@
     ,
     "GLShaders" :
     {
-		"init" : {
+		"gpu-init" : {
 			"fragment-shader" : "maskInitL2Cross_fs" ,
 			"textures" : { "tex" : "CAMERA" } ,
 			"output" : "fbo1"
 		}
 		,
-		"l2cross" : {
+		"gpu-l2cross" : {
 			"fragment-shader" : "L2CrossIteration_fs" ,
 			"textures" : { "tex" : ["fbo1","fbo2"] } ,
 			"output" : ["fbo2","fbo1"] ,
 			"passes" : "$CCMD"
 		}
 		,
-		"l2cross-final" : {
+		"gpu-l2cross-final" : {
 			"fragment-shader" : "L2CrossIteration_fs" ,
-			"textures" : { "tex" : "l2cross" } ,
+			"textures" : { "tex" : "gpu-l2cross" } ,
 			"output" : "l2c-render-buffer"
 		}
 		,
-		"display" : {
+		"gpu-display" : {
 			"fragment-shader" : "drawL2Cross_fs" ,
-			"textures" : { "tex_l2cross" : "l2cross" , "tex_camera" : "CAMERA" }
+			"textures" : { "tex_l2cross" : "gpu-l2cross" , "tex_camera" : "CAMERA" }
 		}
 		,
-		"overlay" : {
+		"gpu-overlay" : {
 			"vertex-shader" : "zhue_vs" ,
 			"fragment-shader" : "color_fs" ,
 			"rendering" : { "plugin" : "l2CrossCenter" , "function" : "drawObjectPosition" }
@@ -51,14 +51,14 @@
     ,
     "CPUFunctions" :
     {
-		"l2CrossCenter" : {
+		"cpu-l2CrossCenter" : {
 			"plugin" : "l2CrossCenter" , 
 			"setup" : "l2CrossCenter_setup" ,
 			"run" : "l2CrossCenter_run" ,
 			"thread-id" : 1
 		}
 		,
-		"syncThread" : {
+		"cpu-syncThread" : {
 			"plugin" : "syncThread" , 
 			"setup" : "syncThread_setup" ,
 			"run" : "syncThread_run" ,
@@ -66,5 +66,5 @@
 		}
     }
     ,
-    "ProcessingLoop" : [ "init", "l2cross", "display", "l2cross-final", "l2CrossCenter", "syncThread", "overlay" ]
+    "ProcessingLoop" : [ "gpu-init", "gpu-l2cross", "gpu-l2cross-final", "cpu-l2CrossCenter", "gpu-display", "cpu-syncThread", "gpu-overlay" ]
 }

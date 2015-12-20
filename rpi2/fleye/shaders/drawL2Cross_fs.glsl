@@ -27,7 +27,7 @@ vec3 rgblut(float x)
 void main(void)
 {
 	vec2 texcoord = normalizedWindowCoord();
-	//texcoord.y = 1.0 - texcoord.y;
+	texcoord.y = 1.0 - texcoord.y;
 	vec4 S = texture2D( tex_l2cross , texcoord );
 	float L = dot( texture2D( tex_camera , texcoord ).xyz , vec3(0.299,0.587,0.114) );
 
@@ -37,7 +37,7 @@ void main(void)
 	
 	vec3 bgColor = vec3(L,L,L);
 	if( d1>0.125 ) bgColor = vec3(0.0,0.5,0.0);
-	else if( d2>0.125 ) bgColor = vec3(0.5,0.0,0.0);
+	//else if( d2>0.125 ) bgColor = vec3(0.5,0.0,0.0);
 	
 	gl_FragColor.xyz = bgColor ;
 	gl_FragColor.w = 1.0;

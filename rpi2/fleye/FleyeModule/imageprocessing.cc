@@ -192,7 +192,7 @@ int create_image_processing(FleyeCommonState* state,ImageProcessingState* ip, Us
 		fbo->render_window = create_render_buffer(state->fleye_state,w,h);
 		fbo->width = w;
 		fbo->height = h;
-		fbo->texture = ip->texture["NULL"];
+		fbo->texture = new GLTexture;
 		ip->fbo[name] = fbo;
 	}
 
@@ -215,12 +215,9 @@ int create_image_processing(FleyeCommonState* state,ImageProcessingState* ip, Us
 
 		// building shader pass content
 		ShaderPass* shaderPass = new ShaderPass;
-		shadersDB[ name ] = shaderPass;
-		
 		shaderPass->finalTexture = new GLTexture();
-		shaderPass->finalTexture->format = GL_RGB;
-		shaderPass->finalTexture->target = GL_TEXTURE_2D;
-		shaderPass->finalTexture->texid = 0;
+		shadersDB[ name ] = shaderPass;
+
 		// add a texture alias to the shader output.
 		// name of the shader can be used as a texture name
 		std::cout<<"create texture alias '"<<name<<"'\n";

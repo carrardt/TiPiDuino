@@ -8,7 +8,7 @@ struct GLTexture
 	GLuint format;
 	GLenum target;
 	GLuint texid;
-	inline GLTexture() : format(GL_RGBA), target(GL_TEXTURE_2D), texid(0) {}
+	inline GLTexture() : format(GL_RGB), target(GL_TEXTURE_2D), texid(0) {}
 };
 
 #endif

@@ -18,11 +18,7 @@ static FleyeRenderWindow* render_buffer = 0;
 
 void l2CrossCenter_setup(const ImageProcessingState* ip)
 {
-	std::map<std::string,FrameBufferObject*>::const_iterator it = ip->fbo.find("l2c-render-buffer");
-	if( it != ip->fbo.end() )
-	{
-		render_buffer = it->second->render_window;
-	}
+	render_buffer = ip->getRenderBuffer("l2c-render-buffer");
 	std::cout<<"L2CrossCenter setup : render_buffer @"<<render_buffer<<"\n";
 }
 
@@ -36,7 +32,7 @@ void l2CrossCenter_run(const ImageProcessingState* ip, CPU_TRACKING_STATE * stat
 	int obj1_count=0, obj2_count=0;
 	int obj1_L2max=1, obj2_L2max=1;
 	
-	std::cout<<"base_ptr="<<base_ptr<<", w="<<width<<", h="<<height<<"\n";
+	//std::cout<<"base_ptr="<<base_ptr<<", w="<<width<<", h="<<height<<"\n";
 	
 	for(y=0;y<height;y++)
 	{
@@ -93,18 +89,28 @@ void l2CrossCenter_run(const ImageProcessingState* ip, CPU_TRACKING_STATE * stat
 	if(obj1_count>0)
 	{
 		//printf("%d %fx%f\n",count,state->width,state->height);
-		targetPosX = state->objectCenter[state->objectCount][0] = (double)obj1_sumx / (double)( obj1_count * width );
-		targetPosY = state->objectCenter[state->objectCount][1] = (double)obj1_sumy / (double)( obj1_count * height );
+		state->objectCenter[state->objectCount][0] = (double)obj1_sumx / (double)( obj1_count * width );
+		state->objectCenter[state->objectCount][1] = (double)obj1_sumy / (double)( obj1_count * height );
+		//std::cout<<"Target position : "<<targetPosX<<","<<targetPosY<<" : count="<<obj1_count<<"\n";
 		//printf("%f, %f\n",state->objectCenter[0][0],state->objectCenter[0][1]);
+
+		targetPosX = ( state->objectCenter[state->objectCount][0] - 0.5 ) * 2.0;
+		targetPosY = ( state->objectCenter[state->objectCount][1] - 0.5 ) * 2.0;
+
 		state->trackedObjects[ state->objectCount ++ ] = 0;
 	}
 
 	if(obj2_count>0)
 	{
 		//printf("%d %fx%f\n",count,state->width,state->height);
-		laserPosX = state->objectCenter[state->objectCount][0] = (double)obj2_sumx / (double)( obj2_count * width );
-		laserPosY = state->objectCenter[state->objectCount][1] = (double)obj2_sumy / (double)( obj2_count * height );
+		state->objectCenter[state->objectCount][0] = (double)obj2_sumx / (double)( obj2_count * width );
+		state->objectCenter[state->objectCount][1] = (double)obj2_sumy / (double)( obj2_count * height );
 		//printf("%f, %f\n",state->objectCenter[0][0],state->objectCenter[0][1]);
+		//std::cout<<"Laser position : "<<laserPosX<<","<<laserPosY<<" : count="<<obj2_count<<"\n";
+
+		laserPosX = ( state->objectCenter[state->objectCount][0] - 0.5 ) * 2.0;
+		laserPosY = ( state->objectCenter[state->objectCount][1] - 0.5 ) * 2.0;
+
 		state->trackedObjects[ state->objectCount ++ ] = 1;
 	}
 }
