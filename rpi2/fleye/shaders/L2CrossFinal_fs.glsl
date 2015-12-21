@@ -1,4 +1,4 @@
-#define UNIT (1.0/32.0)
+#define UNIT (1.0/128.0)
 
 /*
  *   w
@@ -53,5 +53,5 @@ void main(void)
 	float Br = clamp(C.z-0.5, 0.0, 1.0);
 	float Bu = clamp(C.w-0.5, 0.0, 1.0);
 
-	gl_FragColor = vec4( Ar , Au, Br , 1.0 );
+	gl_FragColor = vec4( Ar*32.0+Au, Br*32.0+Bu, 0.0, 1.0 );
 }

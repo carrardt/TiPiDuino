@@ -1,4 +1,4 @@
-#define UNIT (1.0/32.0)
+#define UNIT (1.0/128.0)
 
 /*
  *   w

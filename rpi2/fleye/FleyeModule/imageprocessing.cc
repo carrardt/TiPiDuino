@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <GLES2/gl2.h>
 #include <EGL/egl.h>
+#include <assert.h>
 
 #include <iostream>
 #include <fstream>
