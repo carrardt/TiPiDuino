@@ -256,7 +256,8 @@ int glworker_redraw(struct FleyeCommonState* state, struct ImageProcessingState*
 						if(swapBuffers)
 						{
 							//std::cout<<"swap buffers on "<<renwin<<"\n";
-							//glFinish();
+							glFlush();
+							glFinish();
 							eglSwapBuffers(renwin->display, renwin->surface);
 							swapBuffers = 0;
 						}

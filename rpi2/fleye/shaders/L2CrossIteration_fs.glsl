@@ -38,7 +38,7 @@ void main(void)
 
 	if( Ty_p<1.0 )
 	{
-		vec4 UpNbh = texture2D( tex, vec2(Tx_p,texcoord.y) );
+		vec4 UpNbh = texture2D( tex, vec2(texcoord.x,Ty_p) );
 
 		float Nbh1Class = clamp( sign(0.5-UpNbh.y) , 0.0 , 1.0 );
 		if( Nbh1Class==Obj1Class && C.y==UpNbh.y ) C.y += UNIT;

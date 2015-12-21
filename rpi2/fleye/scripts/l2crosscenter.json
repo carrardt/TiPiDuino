@@ -2,7 +2,7 @@
 {
 	"EnvDefaults" :
 	{
-		"CCMD" : 4
+		"CCMD" : 1
 	}
 	,
 	"RenderBuffers" :
@@ -32,7 +32,7 @@
 		}
 		,
 		"gpu-l2cross-final" : {
-			"fragment-shader" : "L2CrossIteration_fs" ,
+			"fragment-shader" : "L2CrossFinal_fs" , 
 			"textures" : { "tex" : "gpu-l2cross" } ,
 			"output" : "l2c-render-buffer"
 		}
