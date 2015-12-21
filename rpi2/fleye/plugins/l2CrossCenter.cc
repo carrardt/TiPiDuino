@@ -22,6 +22,8 @@ void l2CrossCenter_setup(const ImageProcessingState* ip)
 	std::cout<<"L2CrossCenter setup : render_buffer @"<<render_buffer<<"\n";
 }
 
+#define MINMAX_STAT(x) if(x<x##Min) x##Min=x; else if(x>x##Max) x##Max=x
+
 void l2CrossCenter_run(const ImageProcessingState* ip, CPU_TRACKING_STATE * state)
 {
 	uint32_t width=0, height=0;
@@ -33,6 +35,15 @@ void l2CrossCenter_run(const ImageProcessingState* ip, CPU_TRACKING_STATE * stat
 	int obj1_L2max=1, obj2_L2max=1;
 	
 	//std::cout<<"base_ptr="<<base_ptr<<", w="<<width<<", h="<<height<<"\n";
+	int u1Min=255;
+	int u1Max=0;
+	int r1Min=255;
+	int r1Max=0;
+	int u2Min=255;
+	int u2Max=0;
+	int r2Min=255;
+	int r2Max=0;
+	
 	
 	for(y=0;y<height;y++)
 	{
@@ -49,7 +60,8 @@ void l2CrossCenter_run(const ImageProcessingState* ip, CPU_TRACKING_STATE * stat
 				int r1 = ( value & 0x007F0000 ) >> 20;
 				int u1 = ( value & 0x00007F00 ) >> 12;
 
-				//if( r1>6 || u1>6 ) { std::cout<<"r1="<<r1<<", u1="<<u1<<"\n"; }
+				MINMAX_STAT(u1);
+				MINMAX_STAT(r1);
 
 				int m1 = (r1>u1) ? r1 : u1;
 
@@ -68,7 +80,8 @@ void l2CrossCenter_run(const ImageProcessingState* ip, CPU_TRACKING_STATE * stat
 				int r2 = ( value & 0x0000007F ) >> 4;
 				int u2 = ( value & 0x7F000000 ) >> 28;
 
-				//if( r2>6 || u2>6 ) { std::cout<<"r2="<<r2<<", u2="<<u2<<"\n"; }
+				MINMAX_STAT(u2);
+				MINMAX_STAT(r2);
 
 				int m2 = (r2>u2) ? r2 : u2;
 				if( m2>obj2_L2max ) { obj2_count = obj2_sumx = obj2_sumy = 0; obj2_L2max=m2; }
@@ -83,6 +96,9 @@ void l2CrossCenter_run(const ImageProcessingState* ip, CPU_TRACKING_STATE * stat
 			}
 		}
 	}
+
+	std::cout<<"u1=["<<u1Min<<';'<<u1Max<<"] r1=["<<r1Min<<';'<<r1Max<<"] => obj1_L2max="<<obj1_L2max<<"\n";
+	std::cout<<"u2=["<<u2Min<<';'<<u2Max<<"] r2=["<<r2Min<<';'<<r2Max<<"] => obj2_L2max="<<obj2_L2max<<"\n";
 
 	state->objectCount = 0;
 	

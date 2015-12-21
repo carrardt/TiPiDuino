@@ -190,9 +190,11 @@ int create_image_processing(FleyeCommonState* state,ImageProcessingState* ip, Us
 		std::cout<<"Add Render buffer '"<<name<<"' : "<<w<<"x"<<h<<"\n";
 		FrameBufferObject* fbo = new FrameBufferObject;
 		fbo->render_window = create_render_buffer(state->fleye_state,w,h);
+		assert( fbo->render_window != 0 );
 		fbo->width = w;
 		fbo->height = h;
 		fbo->texture = new GLTexture;
+		fbo->texture->format = GL_RGBA;
 		ip->fbo[name] = fbo;
 	}
 

@@ -9,17 +9,24 @@
 
 FrameBufferObject* add_fbo(ImageProcessingState* ip, const std::string& name, GLint colorFormat, GLint w, GLint h)
 {
+	// create frame buffer object storage
 	FrameBufferObject* fbo = new FrameBufferObject;
 	fbo->width = w;
 	fbo->height = h;
 	fbo->fb = 0;
+	glGenFramebuffers(1, & fbo->fb);
+
+	// create associtated texture
 	fbo->texture = new GLTexture;
+	fbo->texture->format = colorFormat;
+	fbo->texture->target = GL_TEXTURE_2D;
+	fbo->texture->texid = 0;
+	glGenTextures(1, & fbo->texture->texid );
+
+	// regiter fbo and texture with the same name
 	ip->fbo[name] = fbo;
 	ip->texture[name] = fbo->texture;
 
-	glGenFramebuffers(1, & fbo->fb);
-
-	glGenTextures(1, & fbo->texture->texid );
 	glBindTexture(fbo->texture->target, fbo->texture->texid);
 	glTexImage2D(fbo->texture->target, 0, fbo->texture->format, fbo->width, fbo->height, 0, fbo->texture->format/*GL_RGBA*/, GL_UNSIGNED_BYTE, NULL);
 	glTexParameteri(fbo->texture->target, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);

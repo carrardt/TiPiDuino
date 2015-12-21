@@ -76,7 +76,10 @@ struct FleyeNativeWindow* create_offscreen_native_window(int x, int y, int width
    VC_RECT_T src_rect = {0,0,0,0};
    VC_RECT_T dest_rect = {0,0,0,0};
 
+   alpha.mask = DISPMANX_NO_HANDLE;
+   alpha.flags = DISPMANX_FLAGS_ALPHA_FROM_SOURCE /*| DISPMANX_FLAGS_ALPHA_MIX*/;
    alpha.opacity = opacity;
+   
    dest_rect.x = x;
    dest_rect.y = y;
    dest_rect.width = width;
