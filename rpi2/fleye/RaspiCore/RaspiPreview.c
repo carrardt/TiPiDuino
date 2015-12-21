@@ -73,7 +73,9 @@ MMAL_STATUS_T raspipreview_create(RASPIPREVIEW_PARAMETERS *state)
    MMAL_PORT_T *preview_port = NULL;
    MMAL_STATUS_T status;
 
-   if (!state->wantPreview)
+	printf("**** wantPreview => %d\n",state->wantPreview);
+	
+  if (!state->wantPreview)
    {
       // No preview required, so create a null sink component to take its place
       status = mmal_component_create("vc.null_sink", &preview);
