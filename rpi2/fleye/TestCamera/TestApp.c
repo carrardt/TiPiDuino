@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <sys/time.h>
 
 #include "CameraStream.h"
 
@@ -46,11 +47,11 @@ int user_finalize(void* user_data)
 
 //static GLuint cameraTextureId = 0;
 //static EGLImageKHR camera_egl_image = EGL_NO_IMAGE_KHR;
-MMAL_BUFFER_HEADER_T * user_copy_buffer(MMAL_BUFFER_HEADER_T *buf, void* user_data)
+struct MMAL_BUFFER_HEADER_T * user_copy_buffer(struct MMAL_BUFFER_HEADER_T *buf, void* user_data)
 {
 	// hold buffer while we process it
-	static MMAL_BUFFER_HEADER_T * previous_buffer = NULL;
-    MMAL_BUFFER_HEADER_T * pb = previous_buffer;
+	static struct MMAL_BUFFER_HEADER_T * previous_buffer = NULL;
+    struct MMAL_BUFFER_HEADER_T * pb = previous_buffer;
 	
 	int* bufCount = (int*)user_data;
 	++ (*bufCount);

@@ -1,6 +1,6 @@
 #include "fleye/cpuworker.h"
 #include "fleye/plugin.h"
-#include "fleye/render_window.h"
+#include "fleye/FleyeRenderWindow.h"
 #include "fleye/fbo.h"
 #include "fleye/compiledshadercache.h"
 #include "fleye/imageprocessing.h"
@@ -36,8 +36,8 @@ void rgbatest_setup(FleyeContext* ctx)
 
 void rgbatest_run(FleyeContext* ctx)
 {
-	uint32_t width=0, height=0;
-	const uint32_t* base_ptr = (const uint32_t*) read_offscreen_render_window(render_buffer,&width,&height);
+	int width=0, height=0;
+	const uint32_t* base_ptr = (const uint32_t*) render_buffer->readBack(width,height);
 	
 	//std::cout<<"base_ptr="<<base_ptr<<", w="<<width<<", h="<<height<<"\n";
 	DECLARE_MINMAX_STAT(r);

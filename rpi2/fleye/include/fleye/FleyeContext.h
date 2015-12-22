@@ -4,16 +4,19 @@
 #include <stdint.h>
 #include <GLES2/gl2.h>
 
-struct UserEnv;
+#include <string>
+#include <map>
+
 struct ImageProcessingState;
 struct FleyeContextInternal;
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 struct FleyeContext
 {
+   FleyeContext();
+   ~FleyeContext();
+   void setIntegerVar(const std::string& key, int value);
+
+	
    /* Display rectangle for the native window */
    int32_t x;                          /// x-offset in pixels
    int32_t y;                          /// y-offset in pixels
@@ -33,28 +36,19 @@ struct FleyeContext
    struct FleyeRenderWindow* render_window;
    
    /* user env vars */
-   struct UserEnv* user_env; 
+	std::map<std::string,std::string> vars;
+	std::string script;
    
    /* image processing pipeline */
    struct ImageProcessingState* ip;
 
    struct FleyeContextInternal* priv;
+   
 };
 
 extern int postStartProcessingSem( struct FleyeContext* ctx );
 extern int waitStartProcessingSem( struct FleyeContext* ctx );
 extern int postEndProcessingSem( struct FleyeContext* ctx );
 extern int waitEndProcessingSem( struct FleyeContext* ctx );
-
-extern void fleye_create_user_env(struct FleyeContext* ctx);
-extern void fleye_set_processing_script(struct FleyeContext* ctx, const char* scriptName);
-extern const char* fleye_get_processing_script(struct FleyeContext* ctx);
-extern const char* fleye_optional_value(struct FleyeContext* ctx, const char* key);
-extern void fleye_add_optional_value(struct FleyeContext* ctx, const char* key, const char* value);
-
-#ifdef __cplusplus
-}
-#endif
-
 
 #endif

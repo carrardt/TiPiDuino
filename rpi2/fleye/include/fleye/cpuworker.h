@@ -6,10 +6,6 @@
 
 struct FleyeContext;
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 typedef void(*CpuProcessingFunc)(struct FleyeContext*);
 
 typedef struct CPU_TRACKING_STATE
@@ -32,10 +28,5 @@ typedef struct CPU_TRACKING_STATE
 
 // entry point for cpu processing thread
 void *cpuWorker(void *arg);
-
-#ifdef __cplusplus
-}
-#endif
-
 
 #endif

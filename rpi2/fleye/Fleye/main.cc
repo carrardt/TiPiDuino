@@ -1,17 +1,27 @@
-#include <stdio.h>
+extern "C" {
+#include "interface/mmal/mmal.h"
+#include "interface/vcos/vcos.h"
+}
 
+#include <GLES2/gl2.h>
+#include <GLES2/gl2ext.h>
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 #include "EGL/eglext_brcm.h"
-#include "interface/mmal/mmal.h"
-#include "interface/vcos/vcos.h"
+#include <stdio.h>
+#include <sys/time.h>
+
+#include <iostream>
+#include <sstream>
 
 #include "CameraStream.h"
 #include "glworker.h"
 #include "fleye/FleyeContext.h"
-#include "fleye/render_window.h"
 #include "fleye/cpuworker.h"
 #include "fleye/config.h"
+#include "fleye/FleyeRenderWindow.h"
+#include "fleye/imageprocessing.h"
+#include "fleye/fbo.h"
 
 struct FleyeContextInternal
 {
@@ -74,7 +84,7 @@ static void update_fps()
 
 static int user_process(void* user_data)
 {
-	struct FleyeContext* ctx = (struct FleyeContext*) user_data;
+	FleyeContext* ctx = (FleyeContext*) user_data;
 	glworker_redraw( ctx );
 	update_fps();
 	return 0;
@@ -82,41 +92,33 @@ static int user_process(void* user_data)
 
 static int user_initialize(void* user_data)
 {
-	static const EGLint egl_config_attribs[] =
-	{
-	   EGL_RED_SIZE,   8,
-	   EGL_GREEN_SIZE, 8,
-	   EGL_BLUE_SIZE,  8,
-	   EGL_ALPHA_SIZE, 8,
-	   EGL_DEPTH_SIZE, 16,
-	   EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
-	   EGL_NONE
-	};
 	struct FleyeContext* ctx = (struct FleyeContext*) user_data;
 	int rc=0;
-		
-	// create the main render window
-	ctx->render_window = create_render_window(ctx->x,ctx->y,ctx->width,ctx->height,egl_config_attribs);
-	assert( ctx->render_window != 0 );
-
-	// create camera texture
-    ctx->cameraTextureId = 0;
-	glGenTextures(1, & ctx->cameraTextureId );
-	assert( ctx->cameraTextureId != 0 );
+	printf("%p\n",ctx->priv);
+	printf("%p\n",ctx->priv->image_buf);
 	
 	// create semaphores for CPU Worker / GL Worker synchronization
-	rc = vcos_semaphore_create(& ctx->priv->start_processing_sem,"start_processing_sem", 1);
+	
+	VCOS_SEMAPHORE_T* sem;
+	sem = & ctx->priv->start_processing_sem;
+	memset(sem,0,sizeof(*sem));
+	rc = vcos_semaphore_create( sem, "start_processing_sem", 1);
 	assert( rc == VCOS_SUCCESS );
-	rc = vcos_semaphore_create(& ctx->priv->end_processing_sem,"end_processing_sem", 1);
+
+	sem = & ctx->priv->end_processing_sem;
+	memset(sem,0,sizeof(*sem));
+	rc = vcos_semaphore_create( sem,"end_processing_sem", 1);
 	assert( rc == VCOS_SUCCESS );
 	
 	rc = glworker_init(ctx);
 	assert(rc==0);
 	
-	rc = vcos_thread_create(& ctx->priv->cpuTrackingThread, "cpu_worker", NULL, cpuWorker, ctx );
+	VCOS_THREAD_T* cpuThread = & ctx->priv->cpuTrackingThread;
+	memset(cpuThread,0,sizeof(*cpuThread));
+	rc = vcos_thread_create( cpuThread, "cpu_worker", NULL, cpuWorker, ctx );
 	assert (rc == VCOS_SUCCESS);
 	
-	printf("Application initialized\n");
+	std::cout<<"Application initialized\n";
 	return 0;
 }
 
@@ -143,34 +145,114 @@ static MMAL_BUFFER_HEADER_T * user_copy_buffer(MMAL_BUFFER_HEADER_T *buf, void* 
 static int user_finalize(void* user_data)
 {
 	struct FleyeContext* ctx = (struct FleyeContext*) user_data;
-	printf("Application terminated\n");
+	
+	delete ctx;
+	
+	std::cout<<"Application terminated\n";
 	return 0;
+}
+
+FleyeContext::FleyeContext()
+	: x(0)
+	, y(0)
+	, width(648)
+	, height(486)
+	, captureWidth(1296)
+	, captureHeight(972)
+	, frameCounter(0)
+	, cameraTextureId(0)
+	, render_window(0)
+	, ip(0)
+	, priv(0)
+{
+	priv = new FleyeContextInternal;	
+	priv->egl_image = EGL_NO_IMAGE_KHR;
+	priv->image_buf = 0;
+}
+
+FleyeContext::~FleyeContext()
+{
+	std::cout<<"Cleaning resources...\n";
+	for( auto fbo : ip->fbo )
+	{
+		if( fbo.second->render_window != render_window )
+		{
+			delete fbo.second->render_window;
+			fbo.second->render_window = 0;
+		}
+	}
+	
+	delete render_window;
+	render_window = 0;
+	
+	delete ip;
+	ip = 0;
+	
+	delete priv;
+	priv = 0;
+}
+
+void FleyeContext::setIntegerVar(const std::string& key, int value)
+{
+	std::ostringstream oss;
+	oss<<value;
+	this->vars[key] = oss.str();
 }
 
 int main(int argc, char * argv[])
 {
-	static struct FleyeContext ctx;
-	static struct FleyeContextInternal privCtx;
-	
+	// must be called first, otherwise mml or vcos calls will fail
 	camera_streamer_init();
-	
-	memset(&ctx,0,sizeof(struct FleyeContext));
-	memset(&privCtx,0,sizeof(struct FleyeContextInternal));
 
-	ctx.priv = &privCtx;	
-	ctx.priv->egl_image = EGL_NO_IMAGE_KHR;
-	ctx.x = 0;
-	ctx.y = 0;
-	ctx.width = 648;
-	ctx.height = 486;
-	ctx.captureWidth = 1296;
-	ctx.captureHeight = 972;
+	FleyeContext * ctx = new FleyeContext;
 
-	fleye_create_user_env(&ctx);
-	fleye_set_processing_script(&ctx,"passthru");
-	fleye_add_optional_value(&ctx,"WIDTH","648");
-	fleye_add_optional_value(&ctx,"HEIGHT","486");
+	ctx->script = "passthru";
 
-	camera_stream(argc,argv,0,user_initialize,user_copy_buffer,user_process,user_finalize,&ctx);
+	int nArgs=1;
+	for(int i=1;i<argc;i++)
+	{
+		if( strcmp(argv[i],"-cres")==0 )
+		{
+			++i;
+			sscanf(argv[i],"%dx%d",&ctx->captureWidth,&ctx->captureHeight);
+		}
+		else if( strcmp(argv[i],"-res")==0 )
+		{
+			++i;
+			sscanf(argv[i],"%dx%d",&ctx->width,&ctx->height);
+		}
+		else if( strcmp(argv[i],"-script")==0 )
+		{
+			++i;
+			ctx->script = argv[i];
+		}
+		else if( strcmp(argv[i],"-set")==0 )
+		{
+			++i;
+			char key[256], value[256];
+			sscanf(argv[i],"%s=%s",key,value);
+			ctx->vars[key] = value;
+		}
+		else
+		{
+			printf("passing arg %d to %d (%s)\n",i,nArgs,argv[i]);
+			argv[nArgs++] = argv[i];
+		}
+	}
+	argc=nArgs;
+
+	ctx->vars["SCRIPT"] = ctx->script;
+	ctx->setIntegerVar("WIDTH",ctx->width);
+	ctx->setIntegerVar("HEIGHT",ctx->height);
+	ctx->setIntegerVar("CAM_WIDTH",ctx->captureWidth);
+	ctx->setIntegerVar("CAM_HEIGHT",ctx->captureHeight);
+
+	printf("Fleye:\n");
+	for( auto var : ctx->vars )
+	{
+		printf("\t%s = %s\n",var.first.c_str(),var.second.c_str());
+	}
+
+	camera_stream(argc,argv,0,user_initialize,user_copy_buffer,user_process,user_finalize,ctx);
 	printf("Bye!\n");
 }

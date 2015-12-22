@@ -1,6 +1,6 @@
 #include "fleye/cpuworker.h"
 #include "fleye/plugin.h"
-#include "fleye/render_window.h"
+#include "fleye/FleyeRenderWindow.h"
 #include "fleye/fbo.h"
 #include "fleye/compiledshadercache.h"
 #include "fleye/imageprocessing.h"
@@ -25,8 +25,8 @@ void l2CrossCenter_setup(FleyeContext* ctx)
 
 void l2CrossCenter_run(const ImageProcessingState* ip, CPU_TRACKING_STATE * state)
 {
-	uint32_t width=0, height=0;
-	const uint32_t* base_ptr = (const uint32_t*) read_offscreen_render_window(render_buffer,&width,&height);
+	int width=0, height=0;
+	const uint32_t* base_ptr = (const uint32_t*) render_buffer->readBack(width,height);
 	int x,y;
 	uint32_t obj1_sumx=0,obj1_sumy=0;
 	uint32_t obj2_sumx=0,obj2_sumy=0;

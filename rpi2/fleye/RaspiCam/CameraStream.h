@@ -26,29 +26,12 @@
 extern "C" {
 #endif
 
-#include "interface/mmal/mmal.h"
-#include "RaspiCamControl.h"
+struct MMAL_BUFFER_HEADER_T;
 
 typedef int(*UserStreamInitializeFunc)(void*);
 typedef int(*UserStreamFinalizeFunc)(void*);
 typedef int(*UserBufferProcessFunc)(void*);
-typedef MMAL_BUFFER_HEADER_T*(*UserBufferCopyFunc)(MMAL_BUFFER_HEADER_T*,void*);
-
-struct s_CameraStream
-{
-	RASPICAM_CAMERA_PARAMETERS camera_parameters;
-	MMAL_COMPONENT_T *camera_component;    /// Pointer to the camera component
-	MMAL_PORT_T *stream_port ;
-	MMAL_POOL_T * stream_pool;
-	MMAL_QUEUE_T *stream_queue;
-	int stream_stop ;
-	
-	UserBufferCopyFunc buffer_copy_func;
-	UserStreamInitializeFunc buffer_process_func;
-	void* user_data;
-};
-typedef struct s_CameraStream CameraStream;
-
+typedef struct MMAL_BUFFER_HEADER_T*(*UserBufferCopyFunc)(struct MMAL_BUFFER_HEADER_T*,void*);
 
 extern int camera_streamer_init();
 

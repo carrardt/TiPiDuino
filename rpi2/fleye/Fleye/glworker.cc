@@ -11,7 +11,7 @@
 #include "fleye/imageprocessing.h"
 #include "fleye/plugin.h"
 #include "fleye/shaderpass.h"
-#include "fleye/render_window.h"
+#include "fleye/FleyeRenderWindow.h"
 #include "fleye/fbo.h"
 #include "fleye/texture.h"
 #include "fleye/FleyeContext.h"
@@ -21,8 +21,25 @@ FLEYE_REGISTER_GL_DRAW(gl_fill)
 
 int glworker_init(struct FleyeContext* ctx)
 {	
-   FrameBufferObject dispWinFBO;
-   int i,rc;
+	static const EGLint egl_config_attribs[] =
+	{
+	   EGL_RED_SIZE,   8,
+	   EGL_GREEN_SIZE, 8,
+	   EGL_BLUE_SIZE,  8,
+	   EGL_ALPHA_SIZE, 8,
+	   EGL_DEPTH_SIZE, 16,
+	   EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
+	   EGL_NONE
+	};
+ 
+	// create the main render window
+	ctx->render_window = new FleyeRenderWindow(ctx->x,ctx->y,ctx->width,ctx->height,egl_config_attribs);
+	assert( ctx->render_window != 0 );
+
+	// create camera texture
+    ctx->cameraTextureId = 0;
+	glGenTextures(1, & ctx->cameraTextureId );
+	assert( ctx->cameraTextureId != 0 );
    
    FleyeRenderWindow* renwin = ctx->render_window;
    ImageProcessingState* ip = new ImageProcessingState;
@@ -33,9 +50,6 @@ int glworker_init(struct FleyeContext* ctx)
 	nullTexture->target = GL_TEXTURE_2D;
 	nullTexture->texid = 0;
 	ip->texture["NULL"] = nullTexture;
-
-	{ char tmp[64]; sprintf(tmp,"%d",ctx->width); fleye_add_optional_value(ctx,"WIDTH",tmp); }
-	{ char tmp[64]; sprintf(tmp,"%d",ctx->height); fleye_add_optional_value(ctx,"HEIGHT",tmp); }
 
 	// configure camera input texture
    GLCHK( glBindTexture(GL_TEXTURE_EXTERNAL_OES, ctx->cameraTextureId) );
@@ -63,7 +77,7 @@ int glworker_init(struct FleyeContext* ctx)
 	displayFBO->render_window = ctx->render_window;
 	ip->fbo["DISPLAY"] = displayFBO;
 
-	rc = read_image_processing_script( ctx, fleye_get_processing_script(ctx) );
+	int rc = read_image_processing_script( ctx );
 	if( rc != 0 )
 	{
 		std::cerr<<"Failed to initialize image processing pipeline\n";

@@ -16,12 +16,31 @@
 #include "bcm_host.h"
 #include "interface/vcos/vcos.h"
 
+#include "interface/mmal/mmal.h"
 #include "interface/mmal/mmal_logging.h"
 #include "interface/mmal/mmal_buffer.h"
 #include "interface/mmal/util/mmal_util.h"
 #include "interface/mmal/util/mmal_util_params.h"
 #include "interface/mmal/util/mmal_default_components.h"
 #include "interface/mmal/util/mmal_connection.h"
+
+#include "RaspiCamControl.h"
+
+// holds a camera stream context
+struct s_CameraStream
+{
+	RASPICAM_CAMERA_PARAMETERS camera_parameters;
+	MMAL_COMPONENT_T *camera_component;    /// Pointer to the camera component
+	MMAL_PORT_T *stream_port ;
+	MMAL_POOL_T * stream_pool;
+	MMAL_QUEUE_T *stream_queue;
+	int stream_stop ;
+	
+	UserBufferCopyFunc buffer_copy_func;
+	UserStreamInitializeFunc buffer_process_func;
+	void* user_data;
+};
+typedef struct s_CameraStream CameraStream;
 
 
 // signal handler. quit app properly when user press ^C

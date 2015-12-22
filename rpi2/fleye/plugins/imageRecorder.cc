@@ -2,7 +2,7 @@
 #include "fleye/cpuworker.h"
 #include "fleye/plugin.h"
 #include "fleye/config.h"
-#include "fleye/render_window.h"
+#include "fleye/FleyeRenderWindow.h"
 #include "fleye/fbo.h"
 #include "fleye/imageprocessing.h"
 #include "fleye/FleyeContext.h"
@@ -24,10 +24,9 @@ void imageRecorder_setup(FleyeContext* ctx)
 
 void imageRecorder_run(FleyeContext* ctx)
 {
-	static int count = 0;
 	char tmp[128];
-	uint32_t width=0, height=0;
-	uint8_t* image = (uint8_t*) read_offscreen_render_window(render_buffer,&width,&height);
+	int width=0, height=0;
+	uint8_t* image = render_buffer->readBack(width,height);
 	uint32_t imgSize = width * height * 4;
 	for(uint32_t i=0;i<(width * height);i++)
 	{
@@ -41,7 +40,7 @@ void imageRecorder_run(FleyeContext* ctx)
 		image[i*4+3] = a;
 	}
 	
-	sprintf(tmp,"/tmp/capture%04d.tga",count++);
+	sprintf(tmp,"/tmp/capture%04d.tga",ctx->frameCounter);
 	std::cout<<"write image @"<<(void*)image<<" ("<<width<<'x'<<height<<") to "<<tmp<<"\n";
 	FILE* fp = fopen(tmp,"w");
 	write_tga(fp, width,  height, image, imgSize);

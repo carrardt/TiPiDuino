@@ -15,7 +15,7 @@
 #include "fleye/texture.h"
 #include "fleye/plugin.h"
 #include "fleye/FleyeContext.h"
-#include "fleye/render_window.h"
+#include "fleye/FleyeRenderWindow.h"
 
 FleyeRenderWindow* ImageProcessingState::getRenderBuffer(const std::string& name) const
 {
@@ -41,7 +41,7 @@ static const EGLint egl_fbo_attribs[] =
    EGL_NONE
 };
 
-static int64_t get_integer_value( FleyeContext* env, Json::Value x )
+static int64_t get_integer_value( FleyeContext* ctx, Json::Value x )
 {
 	if( x.isNumeric() ) return x.asInt64();
 	
@@ -52,7 +52,7 @@ static int64_t get_integer_value( FleyeContext* env, Json::Value x )
 		std::string resolvedStr = s;
 		if( s[0] == '$' )
 		{
-			resolvedStr = fleye_optional_value( env, s.c_str()+1 );
+			resolvedStr = ctx->vars[s.substr(1)];
 		}
 		std::istringstream iss(resolvedStr);
 		int64_t i = 0 ;
@@ -63,14 +63,14 @@ static int64_t get_integer_value( FleyeContext* env, Json::Value x )
 	return 0;
 }
 
-static std::string get_string_value( FleyeContext* env, Json::Value x )
+static std::string get_string_value( FleyeContext* ctx, Json::Value x )
 {
 	//if( ! x.isString() ) return "";
 	std::string s = x.asString();
 	if( s.empty() ) return s;
 	if( s[0] == '$' )
 	{
-		s = fleye_optional_value( env, s.c_str()+1 );
+		s = ctx->vars[s.substr(1)];
 	}
 	return s;
 }
@@ -144,7 +144,7 @@ FrameSet get_frame_set(FleyeContext* env, Json::Value frame)
 	return FrameSet(); //all frames
 }
 
-int read_image_processing_script(FleyeContext* ctx, const std::string& filename)
+int read_image_processing_script(FleyeContext* ctx)
 {
 	// TODO: transferer dans inc_fs et inc_vs
 	static const std::string uniforms = 	
@@ -165,7 +165,7 @@ int read_image_processing_script(FleyeContext* ctx, const std::string& filename)
 	ctx->ip->cpu_tracking_state.nAvailCpuFuncs = 0;
 	ctx->ip->cpu_tracking_state.nFinishedCpuFuncs = 0;
 
-	std::string filePath = std::string(FLEYE_SCRIPT_DIR) + "/" + filename + ".json";
+	std::string filePath = std::string(FLEYE_SCRIPT_DIR) + "/" + ctx->script + ".json";
 	std::cout<<"reading "<<filePath<<"\n\n";
 	std::ifstream scriptFile(filePath.c_str());
     Json::Value root;   // will contains the root value after parsing.
@@ -182,12 +182,12 @@ int read_image_processing_script(FleyeContext* ctx, const std::string& filename)
     const Json::Value envDefaults = root["EnvDefaults"];
     for( auto var : envDefaults.getMemberNames() )
 	{
-		std::string value = fleye_optional_value(ctx,var.c_str());
+		std::string value = ctx->vars[var];
 		if( value.empty() )
 		{
 			value = get_string_value(ctx,envDefaults[var]);
 			std::cout<<"User variable '"<<var<<"' defaults to '"<<value<<"'\n";
-			fleye_add_optional_value( ctx, var.c_str() , value.c_str() );
+			ctx->vars[var] = value;
 		}
 	}
  
@@ -199,7 +199,7 @@ int read_image_processing_script(FleyeContext* ctx, const std::string& filename)
 		int64_t h = get_integer_value(ctx,rbuf.get("height","$HEIGHT"));
 		std::cout<<"Add Render buffer '"<<name<<"' : "<<w<<"x"<<h<<"\n";
 		FrameBufferObject* fbo = new FrameBufferObject;
-		fbo->render_window = create_offscreen_render_window(w,h,egl_fbo_attribs,ctx->render_window);
+		fbo->render_window = new FleyeRenderWindow(0,0,w,h,egl_fbo_attribs,ctx->render_window,true);
 		assert( fbo->render_window != 0 );
 		fbo->width = w;
 		fbo->height = h;

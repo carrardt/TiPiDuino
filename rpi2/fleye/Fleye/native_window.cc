@@ -1,8 +1,9 @@
-#include "native_window.h"
+extern "C" {
 #include "interface/vmcs_host/vc_dispmanx.h"
+}
 
+#include "native_window.h"
 #include <stdio.h>
-
 
 /** Creates a native window for the GL surface using dispmanx
  * @param fleye_state A pointer to the GL preview state.
@@ -18,7 +19,7 @@ struct FleyeNativeWindow* create_native_window(int x, int y, int width, int heig
    //DISPMANX_ELEMENT_HANDLE_T elem;
    //DISPMANX_UPDATE_HANDLE_T update;
 
-	struct FleyeNativeWindow* fleye_win = malloc(sizeof(struct FleyeNativeWindow));
+	FleyeNativeWindow* fleye_win = (FleyeNativeWindow*) malloc(sizeof(struct FleyeNativeWindow));
 	memset(fleye_win,0,sizeof(struct FleyeNativeWindow));
 
 	fleye_win->width = width;
@@ -84,7 +85,7 @@ struct FleyeNativeWindow* create_offscreen_native_window(int x, int y, int width
    src_rect.width = dest_rect.width << 16;
    src_rect.height = dest_rect.height << 16;
 
-	struct FleyeNativeWindow* fleye_win = malloc(sizeof(struct FleyeNativeWindow));
+	FleyeNativeWindow* fleye_win = (FleyeNativeWindow*) malloc(sizeof(struct FleyeNativeWindow));
 	memset(fleye_win,0,sizeof(struct FleyeNativeWindow));
 
 	fleye_win->width = width;
