@@ -37,5 +37,6 @@ add_subdirectory(RaspiCam)
 add_subdirectory(TestCamera)
 
 find_package(Jsoncpp REQUIRED)
-add_subdirectory(FleyeModule)
+add_subdirectory(Fleye)
 add_subdirectory(RaspiCore)
+

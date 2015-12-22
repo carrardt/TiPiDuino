@@ -1,3 +1,6 @@
+/*
+ * Note : to get maximum frame rate choose -ex fixedfps
+ * */
 #define _GNU_SOURCE
 
 #include <stdio.h>
@@ -8,12 +11,11 @@
 #include <errno.h>
 #include <sysexits.h>
 
-#define VERSION_STRING "v1.3.8"
+#include "CameraStream.h"
 
 #include "bcm_host.h"
 #include "interface/vcos/vcos.h"
 
-#include "interface/mmal/mmal.h"
 #include "interface/mmal/mmal_logging.h"
 #include "interface/mmal/mmal_buffer.h"
 #include "interface/mmal/util/mmal_util.h"
@@ -21,37 +23,16 @@
 #include "interface/mmal/util/mmal_default_components.h"
 #include "interface/mmal/util/mmal_connection.h"
 
-#include "RaspiCamControl.h"
 
-// Standard port setting for the camera component
-#define MMAL_CAMERA_PREVIEW_PORT 0
-#define MMAL_CAMERA_VIDEO_PORT 1
-#define MMAL_CAMERA_CAPTURE_PORT 2
-
-// Stills format information
-// 0 implies variable
-#define STILLS_FRAME_RATE_NUM 0
-#define STILLS_FRAME_RATE_DEN 1
-
-#define PREVIEW_FRAME_RATE_NUM 0
-#define PREVIEW_FRAME_RATE_DEN 1
-
-#define FULL_RES_PREVIEW_FRAME_RATE_NUM 0
-#define FULL_RES_PREVIEW_FRAME_RATE_DEN 1
-
-#define CAPTURE_WIDTH 1296
-#define CAPTURE_HEIGHT 972
-
-#define VIDEO_OUTPUT_BUFFERS_NUM 3
-
-typedef void(*StreamOutputCallbackT)(MMAL_PORT_T*,MMAL_BUFFER_HEADER_T*);
-
-static MMAL_COMPONENT_T *camera_component=NULL;    /// Pointer to the camera component
-static MMAL_PORT_T *stream_port = NULL;
-static MMAL_POOL_T * stream_pool=NULL;
-static MMAL_QUEUE_T *stream_queue=NULL;
-static int stream_stop = 0;
-static RASPICAM_CAMERA_PARAMETERS camera_parameters;
+// signal handler. quit app properly when user press ^C
+static int UserInterrupt = 0;
+static void signal_handler(int signal_number)
+{
+   if (signal_number == SIGINT)
+   {
+	   UserInterrupt = 1;
+   }
+}
 
 static void camera_control_callback(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buffer)
 {
@@ -88,7 +69,7 @@ static void camera_control_callback(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buf
 /*********************************/
 /** Create the camera component **/
 /*********************************/
-static MMAL_COMPONENT_T * create_camera_component()
+static void create_camera_component(CameraStream* cs, int cameraNum)
 {
    MMAL_STATUS_T status = MMAL_SUCCESS;
    MMAL_COMPONENT_T *camera = 0;
@@ -105,7 +86,7 @@ static MMAL_COMPONENT_T * create_camera_component()
    assert(status==MMAL_SUCCESS);
 
    MMAL_PARAMETER_INT32_T camera_num =
-      {{MMAL_PARAMETER_CAMERA_NUM, sizeof(camera_num)}, 0 };
+      {{MMAL_PARAMETER_CAMERA_NUM, sizeof(camera_num)}, cameraNum };
    status = mmal_port_parameter_set(camera->control, &camera_num.hdr);
    assert(status==MMAL_SUCCESS);
 
@@ -145,20 +126,20 @@ static MMAL_COMPONENT_T * create_camera_component()
    }
  
 	// set user camera configuration
-   raspicamcontrol_set_all_parameters(camera, &camera_parameters);
+   raspicamcontrol_set_all_parameters(camera, &cs->camera_parameters);
 
    // Now set up the port formats
    format = preview_port->format;
    format->encoding = MMAL_ENCODING_OPAQUE;
    format->encoding_variant = MMAL_ENCODING_I420;
 
-   if(camera_parameters.shutter_speed > 6000000)
+   if(cs->camera_parameters.shutter_speed > 6000000)
    {
         MMAL_PARAMETER_FPS_RANGE_T fps_range = {{MMAL_PARAMETER_FPS_RANGE, sizeof(fps_range)},
                                                      { 50, 1000 }, {166, 1000}};
         mmal_port_parameter_set(preview_port, &fps_range.hdr);
    }
-   else if(camera_parameters.shutter_speed > 1000000)
+   else if(cs->camera_parameters.shutter_speed > 1000000)
    {
         MMAL_PARAMETER_FPS_RANGE_T fps_range = {{MMAL_PARAMETER_FPS_RANGE, sizeof(fps_range)},
                                                      { 166, 1000 }, {999, 1000}};
@@ -189,13 +170,13 @@ static MMAL_COMPONENT_T * create_camera_component()
 
 	// configure still port format
    format = still_port->format;
-   if(camera_parameters.shutter_speed > 6000000)
+   if(cs->camera_parameters.shutter_speed > 6000000)
    {
         MMAL_PARAMETER_FPS_RANGE_T fps_range = {{MMAL_PARAMETER_FPS_RANGE, sizeof(fps_range)},
                                                      { 50, 1000 }, {166, 1000}};
         mmal_port_parameter_set(still_port, &fps_range.hdr);
    }
-   else if(camera_parameters.shutter_speed > 1000000)
+   else if(cs->camera_parameters.shutter_speed > 1000000)
    {
         MMAL_PARAMETER_FPS_RANGE_T fps_range = {{MMAL_PARAMETER_FPS_RANGE, sizeof(fps_range)},
                                                      { 167, 1000 }, {999, 1000}};
@@ -223,61 +204,16 @@ static MMAL_COMPONENT_T * create_camera_component()
    status = mmal_component_enable(camera);
    assert(status==MMAL_SUCCESS);
 
-   return camera;
+   cs->camera_component = camera;
 }
 
-
-int configure_camera_stream(MMAL_PORT_T *stream_port, StreamOutputCallbackT cb, void* cb_data)
+static void camera_stream_callback(MMAL_PORT_T* port,MMAL_BUFFER_HEADER_T* buf)
 {
-   MMAL_STATUS_T status;
-   printf("%s port %p\n", __PRETTY_FUNCTION__, stream_port);
-
-   /* Enable ZERO_COPY mode on the preview port which instructs MMAL to only
-    * pass the 4-byte opaque buffer handle instead of the contents of the opaque
-    * buffer.
-    * The opaque handle is resolved on VideoCore by the GL driver when the EGL
-    * image is created.
-    */
-   status = mmal_port_parameter_set_boolean(stream_port,
-         MMAL_PARAMETER_ZERO_COPY, MMAL_TRUE);
-   assert(status==MMAL_SUCCESS);
-
-   status = mmal_port_format_commit(stream_port);
-   assert(status==MMAL_SUCCESS);
-
-   /* For GL a pool of opaque buffer handles must be allocated in the client.
-    * These buffers are used to create the EGL images.
-    */
-   stream_port->buffer_num = stream_port->buffer_num_recommended;
-   stream_port->buffer_size = stream_port->buffer_size_recommended;
-
-   printf("Creating buffer pool for GL renderer num %d size %d\n",
-         stream_port->buffer_num, stream_port->buffer_size);
-
-   /* Pool + queue to hold preview frames */
-   stream_pool = mmal_port_pool_create(stream_port,
-         stream_port->buffer_num, stream_port->buffer_size);
-   assert(stream_pool!=NULL);
-
-   /* Place filled buffers from the preview port in a queue to render */
-   stream_queue = mmal_queue_create();
-   assert(stream_queue!=NULL);
-
-   /* Enable preview port callback */
-   stream_port->userdata = (struct MMAL_PORT_USERDATA_T*) cb_data;
-   status = mmal_port_enable(stream_port, cb);
-   assert(status==MMAL_SUCCESS);
-
-   return (status == MMAL_SUCCESS ? 0 : -1);
-}
-
-void gl_stream_callback(MMAL_PORT_T* port,MMAL_BUFFER_HEADER_T* buf)
-{
-   void* user_data = port->userdata;
+   CameraStream* cs = (CameraStream*) port->userdata;
    if (buf->length == 0)
    {
       printf("%s: zero-length buffer => EOS\n", port->name);
-      stream_stop = 1;
+      cs->stream_stop = 1;
       mmal_buffer_header_release(buf);
    }
    else if (buf->data == NULL)
@@ -290,94 +226,61 @@ void gl_stream_callback(MMAL_PORT_T* port,MMAL_BUFFER_HEADER_T* buf)
       /* Enqueue the preview frame for rendering and return to
        * avoid blocking MMAL core.
        */
-      mmal_queue_put(stream_queue, buf);
+      mmal_queue_put(cs->stream_queue, buf);
    }
 }
 
-#if 0
-static void main_loop()
+static int configure_camera_stream(CameraStream* cs)
 {
-   MMAL_BUFFER_HEADER_T *buf;
-   MMAL_STATUS_T st;
-   int rc;
+   MMAL_STATUS_T status;
 
-   printf("%s: port %p\n", __PRETTY_FUNCTION__, preview_port);
-   
-   fleyeutil_gl_init(state);
+   /* Enable ZERO_COPY mode on the preview port which instructs MMAL to only
+    * pass the 4-byte opaque buffer handle instead of the contents of the opaque
+    * buffer.
+    * The opaque handle is resolved on VideoCore by the GL driver when the EGL
+    * image is created.
+    */
+   status = mmal_port_parameter_set_boolean(cs->stream_port,
+         MMAL_PARAMETER_ZERO_COPY, MMAL_TRUE);
+   assert(status==MMAL_SUCCESS);
 
-   while (state->common.preview_stop == 0)
-   {
-	  /* Send empty buffers to camera preview port */
-	  while ((buf = mmal_queue_get(state->preview_pool->queue)) != NULL)
-	  {
-		 st = mmal_port_send_buffer(preview_port, buf);
-		 if (st != MMAL_SUCCESS)
-		 {
-			fprintf(stderr,"Failed to send buffer to %s\n", preview_port->name);
-		 }
-	  }
-	  /* Process returned buffers */
-	  if (preview_process_returned_bufs(state) != 0)
-	  {
-		 fprintf(stderr,"Preview error. Exiting.\n");
-		 state->common.preview_stop = 1;
-	  }
-   }
+   status = mmal_port_format_commit(cs->stream_port);
+   assert(status==MMAL_SUCCESS);
 
-   
-   /* Make sure all buffers are returned on exit */
-   while ((buf = mmal_queue_get(state->preview_queue)) != NULL)
-   {
-      mmal_buffer_header_release(buf);
-   }
+   /* For GL a pool of opaque buffer handles must be allocated in the client.
+    * These buffers are used to create the EGL images.
+    */
+   cs->stream_port->buffer_num = cs->stream_port->buffer_num_recommended;
+   cs->stream_port->buffer_size = cs->stream_port->buffer_size_recommended;
 
-   /* Tear down GL */
-   fleyeutil_gl_term(state);
-   
-   printf("Exiting preview worker\n");
-   return NULL;
-}
-#endif
+   printf("Creating buffer pool for GL renderer num %d size %d\n",
+         cs->stream_port->buffer_num, cs->stream_port->buffer_size);
 
-//static GLuint cameraTextureId = 0;
-//static EGLImageKHR camera_egl_image = EGL_NO_IMAGE_KHR;
-int user_copy_stream_buffer(MMAL_BUFFER_HEADER_T *buf)
-{
-	/*
-   GLCHK(glBindTexture(GL_TEXTURE_EXTERNAL_OES, cameraTextureId));
-   if (camera_egl_image != EGL_NO_IMAGE_KHR)
-   {
-      // Discard the EGL image for the preview frame 
-      eglDestroyImageKHR(display, camera_egl_image);
-      camera_egl_image = EGL_NO_IMAGE_KHR;
-   }
-   camera_egl_image = eglCreateImageKHR(display, EGL_NO_CONTEXT, EGL_IMAGE_BRCM_MULTIMEDIA, (EGLClientBuffer) buf->data, NULL);
-   GLCHK(glEGLImageTargetTexture2DOES(GL_TEXTURE_EXTERNAL_OES, camera_egl_image));
-   */
-   return 0;
-}
-int user_stream_process()
-{
-	return 0;
-}
-int user_stream_initialize()
-{
-	return 0;
-}
-int user_stream_finalize()
-{
-	return 0;
+   /* Pool + queue to hold preview frames */
+   cs->stream_pool = mmal_port_pool_create(cs->stream_port,
+         cs->stream_port->buffer_num, cs->stream_port->buffer_size);
+   assert(cs->stream_pool!=NULL);
+
+   /* Place filled buffers from the preview port in a queue to render */
+   cs->stream_queue = mmal_queue_create();
+   assert(cs->stream_queue!=NULL);
+
+   /* Enable preview port callback */
+   cs->stream_port->userdata = (struct MMAL_PORT_USERDATA_T*) cs;
+   status = mmal_port_enable(cs->stream_port, camera_stream_callback);
+   assert(status==MMAL_SUCCESS);
+
+   return (status == MMAL_SUCCESS ? 0 : -1);
 }
 
-static int stream_process_buffer(MMAL_BUFFER_HEADER_T *buf)
+static int stream_process_buffer(CameraStream* cs, MMAL_BUFFER_HEADER_T *buf)
 {
    static MMAL_BUFFER_HEADER_T * prev_buf = NULL; 
    int rc = 0;
 
    if (buf)
    {
-      /* Update the texture to the new viewfinder image which should */
-		 rc = user_copy_stream_buffer( buf );
+		 rc = (*cs->buffer_copy_func)( buf, cs->user_data );
 		 if (rc != 0)
 		 {
 			fprintf(stderr,"%s: Failed to update RGBX texture %d\n",
@@ -392,28 +295,28 @@ static int stream_process_buffer(MMAL_BUFFER_HEADER_T *buf)
       prev_buf = buf;
    }
 
-   /*  Do the drawing */
-   user_stream_process();
+   /*  Do the processing */
+   (*cs->buffer_process_func)( cs->user_data );
 
    return rc;
 }
 
-static int stream_process_returned_bufs()
+static int stream_process_returned_bufs(CameraStream* cs)
 {
    MMAL_BUFFER_HEADER_T *buf;
    int new_frame = 0;
    int rc = 0;
 
-   while ((buf = mmal_queue_get(stream_queue)) != NULL)
+   while ((buf = mmal_queue_get(cs->stream_queue)) != NULL)
    {
-      if (stream_stop == 0)
+      if (cs->stream_stop == 0)
       {
          new_frame = 1;
-         rc = stream_process_buffer(buf);
+         rc = stream_process_buffer(cs,buf);
          if (rc != 0)
          {
             fprintf(stderr,"%s: Error drawing frame. Stopping.\n", __PRETTY_FUNCTION__);
-            stream_stop = 1;
+            cs->stream_stop = 1;
             return rc;
          }
       }
@@ -422,46 +325,72 @@ static int stream_process_returned_bufs()
    // uncomment if you want more frames per second than the camera delivers
    /*if (! new_frame)
    {
-      rc = stream_process_buffer(NULL);
+      rc = stream_process_buffer(cs,NULL);
    }*/
    
    return rc;
 }
 
-static void signal_handler(int signal_number)
+int camera_streamer_init()
 {
-   if (signal_number == SIGINT)
-   {
-	   stream_stop = 1;
-   }
+   /*********************************/
+   /** HW interface init           **/
+   /*********************************/
+   bcm_host_init();
+   vcos_init();
+   
+   return 0;	
 }
 
-int main(int argc, char * argv[])
+int camera_stream(int argc, char * argv[],
+	int cameraNum,
+	UserStreamInitializeFunc user_init_func,
+	UserBufferCopyFunc buf_copy_func,
+	UserBufferProcessFunc buf_proc_func,
+	UserStreamFinalizeFunc user_final_func,
+	void* user_data )
 {
    MMAL_STATUS_T status = MMAL_SUCCESS;
    MMAL_PORT_T *stream_port = NULL;
    MMAL_BUFFER_HEADER_T *buf = NULL;
    int i;
+   CameraStream* camstream = NULL; 
    
-   bcm_host_init();
    
-   vcos_init();
+   /*********************************/
+   /** Allocate Camera context     **/
+   /*********************************/
+   camstream = (CameraStream*) malloc(sizeof(CameraStream));
+   memset(camstream,0,sizeof(CameraStream));
+   camstream->buffer_copy_func = buf_copy_func;
+   camstream->buffer_process_func = buf_proc_func;
+   camstream->user_data = user_data;
+
 
    /*********************************/
    /** Parse RaspiCam command line **/
    /*********************************/
-	raspicamcontrol_set_defaults(&camera_parameters);
+   raspicamcontrol_set_defaults(&camstream->camera_parameters);
    for(i=1;i<argc;i++)
    {
 		if(argv[i][0]=='-')
 		{
-         const char *second_arg = (i + 1 < argc) ? argv[i + 1] : NULL;
-         int parms_used = raspicamcontrol_parse_cmdline(&camera_parameters, &argv[i][1], second_arg);
-         i += parms_used - 1;
+			if( strcmp(argv[i],"-help")==0 )
+			{
+				raspicamcontrol_display_help();
+				exit(1);
+			}
+			else
+			{
+				const char *second_arg = (i + 1 < argc) ? argv[i + 1] : NULL;
+				int parms_used = raspicamcontrol_parse_cmdline(&camstream->camera_parameters, &argv[i][1], second_arg);
+				i += parms_used - 1;
+			}
 	    }
 	    else
 	    {
 			fprintf(stderr,"Invalid argument '%s'\n",argv[i]);
+			raspicamcontrol_display_help();
 			exit(1);
 		}
 	}
@@ -470,44 +399,64 @@ int main(int argc, char * argv[])
    /*********************************/
    /** Camera streaming setup      **/
    /*********************************/
-	camera_component = create_camera_component();
+	create_camera_component(camstream, cameraNum);
 	printf("Camera Ok\n");
 	
-	stream_port = camera_component->output[MMAL_CAMERA_PREVIEW_PORT];
-	configure_camera_stream(stream_port, gl_stream_callback, NULL );
-	printf("Streaming Ok\n");
+	camstream->stream_port = camstream->camera_component->output[MMAL_CAMERA_PREVIEW_PORT];
+	configure_camera_stream(camstream);
+	printf("Stream configuration Ok\n");
 	
 	
+   /*********************************/
+   /** CTRL-C signal handler       **/
+   /*********************************/
+   camstream->stream_stop = 0;
+   signal(SIGINT, signal_handler);
+
+   /*********************************/
+   /** User initialization         **/
+   /*********************************/
+   if( user_init_func != NULL ) { (*user_init_func)(camstream->user_data); }
+
+
    /*********************************/
    /** streaming main loop         **/
    /*********************************/
-   stream_stop = 0;
-   signal(SIGINT, signal_handler);
-
-   user_stream_initialize();
-   while ( stream_stop == 0 )
+   printf("Start streaming ...\n");
+   while ( !UserInterrupt && !camstream->stream_stop )
    {
 	  /* Send empty buffers to camera preview port */
-	  while ((buf = mmal_queue_get(stream_pool->queue)) != NULL)
+	  while ((buf = mmal_queue_get(camstream->stream_pool->queue)) != NULL)
 	  {
-		 status = mmal_port_send_buffer(stream_port, buf);
+		 status = mmal_port_send_buffer(camstream->stream_port, buf);
 		 assert(status==MMAL_SUCCESS);
 	  }
 	  /* Process returned buffers */
-	  if (stream_process_returned_bufs() != 0)
+	  if (stream_process_returned_bufs(camstream) != 0)
 	  {
 		 fprintf(stderr,"Preview error. Exiting.\n");
-		 stream_stop = 1;
+		 camstream->stream_stop = 1;
 	  }
    }
-   printf("Stop streaming\n");
+   printf("\n... Stop streaming\n");
+   
+ 
+   /*********************************/
+   /** clean-up                    **/
+   /*********************************/
    /* Make sure all buffers are returned on exit */
-   while ((buf = mmal_queue_get(stream_queue)) != NULL)
+   while ((buf = mmal_queue_get(camstream->stream_queue)) != NULL)
    {
       mmal_buffer_header_release(buf);
    }
-   user_stream_finalize();
+   
+	// user finalization func
+   if( user_final_func != NULL ) { (*user_final_func)(camstream->user_data); }
 	
 	// finalize camera component
-	mmal_component_destroy(camera_component);
+	mmal_component_destroy(camstream->camera_component);
+	
+	free(camstream);
+	
+	return 0;
 }
