@@ -5,6 +5,7 @@
 #include "fleye/render_window.h"
 #include "fleye/fbo.h"
 #include "fleye/imageprocessing.h"
+#include "fleye/FleyeContext.h"
 
 #include "thirdparty/tga.h"
 
@@ -15,13 +16,13 @@ FLEYE_REGISTER_PLUGIN(imageRecorder)
 
 static FleyeRenderWindow* render_buffer = 0;
 
-void imageRecorder_setup(const ImageProcessingState* ip)
+void imageRecorder_setup(FleyeContext* ctx)
 {
-	render_buffer = ip->getRenderBuffer("video");
+	render_buffer = ctx->ip->getRenderBuffer("video");
 	std::cout<<"imageRecorder setup : render_buffer @"<<render_buffer<<"\n";
 }
 
-void imageRecorder_run(const ImageProcessingState* ip, CPU_TRACKING_STATE * state)
+void imageRecorder_run(FleyeContext* ctx)
 {
 	static int count = 0;
 	char tmp[128];

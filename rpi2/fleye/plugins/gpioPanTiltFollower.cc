@@ -3,9 +3,11 @@
 #include <sys/time.h>
 
 #include "fleye/cpuworker.h"
+#include "fleye/plugin.h"
+#include "fleye/FleyeContext.h"
+#include "fleye/imageprocessing.h"
 #include "fleye/compiledshadercache.h"
 #include "thirdparty/bcm2835.h"
-#include "fleye/plugin.h"
 
 FLEYE_REGISTER_PLUGIN(gpioPanTiltFollower)
 FLEYE_REGISTER_GL_DRAW(drawOverlay)
@@ -70,7 +72,7 @@ static void gpio_write_values(float xf, float yf, int laserSwitch)
 	bcm2835_gpio_set_multi( set_mask );
 }
 
-void gpioPanTiltFollower_setup(const ImageProcessingState* ip)
+void gpioPanTiltFollower_setup(FleyeContext* ctx)
 {
   int i;
   
@@ -97,8 +99,10 @@ void gpioPanTiltFollower_setup(const ImageProcessingState* ip)
 
 #define INIT_COUNT 256
 #define ACQUIRE_COUNT 128
-void gpioPanTiltFollower_run(const ImageProcessingState* ip, CPU_TRACKING_STATE * state)
+void gpioPanTiltFollower_run(FleyeContext* ctx)
 {
+	CPU_TRACKING_STATE* state = & ctx->ip->cpu_tracking_state;
+	
 	struct timeval T2;
 	gettimeofday(&T2,NULL);
 	double deltaT = (T2.tv_sec-prevTime.tv_sec)*1000.0 + (T2.tv_usec-prevTime.tv_usec)*0.001;

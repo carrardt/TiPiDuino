@@ -9,14 +9,13 @@
 #include <sstream>
 #include <json/json.h>
 
-#include "fleye/fleye_c.h"
 #include "fleye/imageprocessing.h"
 #include "fleye/shaderpass.h"
 #include "fleye/fbo.h"
 #include "fleye/texture.h"
-#include "fleye/fleyecommonstate.h"
 #include "fleye/plugin.h"
-
+#include "fleye/FleyeContext.h"
+#include "fleye/render_window.h"
 
 FleyeRenderWindow* ImageProcessingState::getRenderBuffer(const std::string& name) const
 {
@@ -31,8 +30,18 @@ FleyeRenderWindow* ImageProcessingState::getRenderBuffer(const std::string& name
 	}
 }
 
+static const EGLint egl_fbo_attribs[] =
+{
+   EGL_RED_SIZE,   8,
+   EGL_GREEN_SIZE, 8,
+   EGL_BLUE_SIZE,  8,
+   EGL_ALPHA_SIZE, 8,
+   EGL_DEPTH_SIZE, 16,
+   EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
+   EGL_NONE
+};
 
-static int64_t get_integer_value( struct UserEnv* env, Json::Value x )
+static int64_t get_integer_value( FleyeContext* env, Json::Value x )
 {
 	if( x.isNumeric() ) return x.asInt64();
 	
@@ -54,7 +63,7 @@ static int64_t get_integer_value( struct UserEnv* env, Json::Value x )
 	return 0;
 }
 
-static std::string get_string_value( struct UserEnv* env, Json::Value x )
+static std::string get_string_value( FleyeContext* env, Json::Value x )
 {
 	//if( ! x.isString() ) return "";
 	std::string s = x.asString();
@@ -107,7 +116,7 @@ static std::string readShader(const std::string& shaderName)
 	}
 }
 
-static std::vector<std::string> get_string_array(struct UserEnv* env, Json::Value l)
+static std::vector<std::string> get_string_array(FleyeContext* env, Json::Value l)
 {
 	std::vector<std::string> v;
 	if( l.isArray() )
@@ -124,7 +133,7 @@ static std::vector<std::string> get_string_array(struct UserEnv* env, Json::Valu
 	return v;
 }
 
-FrameSet get_frame_set(struct UserEnv* env, Json::Value frame)
+FrameSet get_frame_set(FleyeContext* env, Json::Value frame)
 {
 	if( frame.isString() )
 	{
@@ -135,7 +144,7 @@ FrameSet get_frame_set(struct UserEnv* env, Json::Value frame)
 	return FrameSet(); //all frames
 }
 
-int create_image_processing(FleyeCommonState* state,ImageProcessingState* ip, UserEnv* env, const std::string& filename)
+int read_image_processing_script(FleyeContext* ctx, const std::string& filename)
 {
 	// TODO: transferer dans inc_fs et inc_vs
 	static const std::string uniforms = 	
@@ -152,9 +161,9 @@ int create_image_processing(FleyeCommonState* state,ImageProcessingState* ip, Us
 
 	static const std::string inc_fs = readShader("inc_fs");
 
-	ip->cpu_tracking_state.cpuFunc = 0;
-	ip->cpu_tracking_state.nAvailCpuFuncs = 0;
-	ip->cpu_tracking_state.nFinishedCpuFuncs = 0;
+	ctx->ip->cpu_tracking_state.cpuFunc = 0;
+	ctx->ip->cpu_tracking_state.nAvailCpuFuncs = 0;
+	ctx->ip->cpu_tracking_state.nFinishedCpuFuncs = 0;
 
 	std::string filePath = std::string(FLEYE_SCRIPT_DIR) + "/" + filename + ".json";
 	std::cout<<"reading "<<filePath<<"\n\n";
@@ -173,12 +182,12 @@ int create_image_processing(FleyeCommonState* state,ImageProcessingState* ip, Us
     const Json::Value envDefaults = root["EnvDefaults"];
     for( auto var : envDefaults.getMemberNames() )
 	{
-		std::string value = fleye_optional_value(env,var.c_str());
+		std::string value = fleye_optional_value(ctx,var.c_str());
 		if( value.empty() )
 		{
-			value = get_string_value(env,envDefaults[var]);
+			value = get_string_value(ctx,envDefaults[var]);
 			std::cout<<"User variable '"<<var<<"' defaults to '"<<value<<"'\n";
-			fleye_add_optional_value( env, var.c_str() , value.c_str() );
+			fleye_add_optional_value( ctx, var.c_str() , value.c_str() );
 		}
 	}
  
@@ -186,28 +195,28 @@ int create_image_processing(FleyeCommonState* state,ImageProcessingState* ip, Us
 	for( auto name : renbufs.getMemberNames() )
 	{
 		const Json::Value rbuf = renbufs[name];
-		int64_t w = get_integer_value(env,rbuf.get("width","$WIDTH"));
-		int64_t h = get_integer_value(env,rbuf.get("height","$HEIGHT"));
+		int64_t w = get_integer_value(ctx,rbuf.get("width","$WIDTH"));
+		int64_t h = get_integer_value(ctx,rbuf.get("height","$HEIGHT"));
 		std::cout<<"Add Render buffer '"<<name<<"' : "<<w<<"x"<<h<<"\n";
 		FrameBufferObject* fbo = new FrameBufferObject;
-		fbo->render_window = create_render_buffer(state->fleye_state,w,h);
+		fbo->render_window = create_offscreen_render_window(w,h,egl_fbo_attribs,ctx->render_window);
 		assert( fbo->render_window != 0 );
 		fbo->width = w;
 		fbo->height = h;
 		fbo->texture = new GLTexture;
 		fbo->texture->format = GL_RGBA;
-		ip->fbo[name] = fbo;
+		ctx->ip->fbo[name] = fbo;
 	}
 
     const Json::Value fbos = root["FrameBufferObjects"];
 	for( auto name : fbos.getMemberNames() )
 	{
 		const Json::Value fboValue = fbos[name];
-		int64_t w = get_integer_value(env,fboValue.get("width","$WIDTH"));
-		int64_t h = get_integer_value(env,fboValue.get("height","$HEIGHT"));
+		int64_t w = get_integer_value(ctx,fboValue.get("width","$WIDTH"));
+		int64_t h = get_integer_value(ctx,fboValue.get("height","$HEIGHT"));
 		std::cout<<"Add Frame Buffer Object '"<<name<<"' : "<<w<<"x"<<h<<"\n";
-		FrameBufferObject* fbo = add_fbo(ip,name,GL_RGBA,w,h);
-		fbo->render_window = fleye_get_preview_window( state->fleye_state );
+		FrameBufferObject* fbo = add_fbo(ctx->ip,name,GL_RGBA,w,h);
+		fbo->render_window = ctx->render_window;
 	}
 	
     const Json::Value shadersObject = root["GLShaders"];
@@ -224,7 +233,7 @@ int create_image_processing(FleyeCommonState* state,ImageProcessingState* ip, Us
 		// add a texture alias to the shader output.
 		// name of the shader can be used as a texture name
 		std::cout<<"create texture alias '"<<name<<"'\n";
-		ip->texture[ name ] = shaderPass->finalTexture;
+		ctx->ip->texture[ name ] = shaderPass->finalTexture;
 	}
 	for( auto name : shadersObject.getMemberNames() )
 	{
@@ -234,17 +243,17 @@ int create_image_processing(FleyeCommonState* state,ImageProcessingState* ip, Us
 
 		// read vertex shader
 		shaderPass->vertexSource = vs_attributes+"\n"+uniforms+"\n"+
-			readShader( get_string_value(env,shader.get("vertex-shader","common_vs")) );
+			readShader( get_string_value(ctx,shader.get("vertex-shader","common_vs")) );
 		std::cout<<"\tVertex shader size = "<<shaderPass->vertexSource.size()<<"\n";
 		
 		// read fragment shader
 		shaderPass->fragmentSourceWithoutTextures = uniforms+"\n"+inc_fs+"\n" +
-			readShader( get_string_value(env,shader.get("fragment-shader","passthru_fs")) );
+			readShader( get_string_value(ctx,shader.get("fragment-shader","passthru_fs")) );
 		std::cout<<"\tFramgent shader size = "<<shaderPass->fragmentSourceWithoutTextures.size()<<"\n";
 
 		const Json::Value render = shader["rendering"];
-		std::string renderPlugin = get_string_value(env,render.get("plugin",""));
-		std::string renderFunc = get_string_value(env,render.get("function","gl_fill"));
+		std::string renderPlugin = get_string_value(ctx,render.get("plugin",""));
+		std::string renderFunc = get_string_value(ctx,render.get("function","gl_fill"));
 		shaderPass->gl_draw = (GLRenderFunctionT) dynlib_func_addr( renderPlugin, renderFunc );
 		std::cout<<"\tRendering: plugin="<<renderPlugin<<" function="<<renderFunc<<" @"<<shaderPass->gl_draw<<"\n";
 
@@ -254,10 +263,10 @@ int create_image_processing(FleyeCommonState* state,ImageProcessingState* ip, Us
 			TextureInput texInput;
 			texInput.uniformName = name;
 			std::cout<<"\tInput '"<<texInput.uniformName<<"' <-";
-			for( auto textureName : get_string_array(env,textures[name]) )
+			for( auto textureName : get_string_array(ctx,textures[name]) )
 			{
 				std::cout<<" "<<textureName;
-				GLTexture* tex = ip->texture[textureName];
+				GLTexture* tex = ctx->ip->texture[textureName];
 				if( tex != 0 ) { texInput.texPool.push_back( tex ); }
 				else { std::cerr<<" texture '"<<textureName<<"' not found\n"; }
 			}
@@ -266,14 +275,14 @@ int create_image_processing(FleyeCommonState* state,ImageProcessingState* ip, Us
 		}
 		
 		std::cout<<"\tOutput :";
-		for( auto name : get_string_array(env,shader.get("output","DISPLAY")) )
+		for( auto name : get_string_array(ctx,shader.get("output","DISPLAY")) )
 		{
 			std::cout<<" "<<name;
-			shaderPass->fboPool.push_back( ip->fbo[name] );
+			shaderPass->fboPool.push_back( ctx->ip->fbo[name] );
 		}
 		std::cout<<"\n";
 
-		shaderPass->numberOfPasses = get_integer_value(env,shader.get("passes",1));
+		shaderPass->numberOfPasses = get_integer_value(ctx,shader.get("passes",1));
 		std::cout<<"\tPasses : "<<shaderPass->numberOfPasses<<"\n";
 	}
 
@@ -283,20 +292,20 @@ int create_image_processing(FleyeCommonState* state,ImageProcessingState* ip, Us
 	{
 		//std::cout<<"\n+++++ Parsing cpu pass "<<name<<" +++++\n";
 		const Json::Value cpuFuncObject = cpuFuncsObject[name];
-		std::string plugin = get_string_value(env,cpuFuncObject.get("plugin",""));
-		std::string setupName = get_string_value(env,cpuFuncObject.get("setup",""));
-		std::string funcName = get_string_value(env,cpuFuncObject.get("run",""));
+		std::string plugin = get_string_value(ctx,cpuFuncObject.get("plugin",""));
+		std::string setupName = get_string_value(ctx,cpuFuncObject.get("setup",""));
+		std::string funcName = get_string_value(ctx,cpuFuncObject.get("run",""));
 
 		// isn't it highly secure ? we're doing graphics anyway, we don't care ;-)
 		PluginSetupFunc setup_function = ( PluginSetupFunc ) dynlib_func_addr(plugin,setupName);
 		if( setup_function != 0 )
 		{ 
 			//std::cout<<"initialize plugin ...\n";
-			(*setup_function) ( ip );
+			(*setup_function) ( ctx );
 		}
 
 		CpuPass* cpu = new CpuPass;
-		cpu->exec_thread = get_integer_value(env,cpuFuncObject.get("thread-id",0));
+		cpu->exec_thread = get_integer_value(ctx,cpuFuncObject.get("thread-id",0));
 		cpu->cpu_processing = (CpuProcessingFunc) dynlib_func_addr(plugin,funcName);
 		std::cout<<"cpu pass '"<<name<<"' : thread="<<cpu->exec_thread<<", function @"<<cpu->cpu_processing<<"\n";
 		cpuFuncDB[name] = cpu;
@@ -308,17 +317,17 @@ int create_image_processing(FleyeCommonState* state,ImageProcessingState* ip, Us
 		std::string name;
 		if( stepValue.isString() )
 		{
-			name = get_string_value(env,stepValue);
+			name = get_string_value(ctx,stepValue);
 		}
 		else if( stepValue.isObject() )
 		{
-			name = get_string_value(env,stepValue["step"]);
-			ps.onFrames = get_frame_set(env,stepValue["frames"]);
+			name = get_string_value(ctx,stepValue["step"]);
+			ps.onFrames = get_frame_set(ctx,stepValue["frames"]);
 		}
 		ps.shaderPass = shadersDB[name];
 		ps.cpuPass = cpuFuncDB[name];
 		std::cout<<"add step '"<<name<<"' "<<ps.onFrames.modulus<<"/"<<ps.onFrames.value<<"\n";
-		ip->processing_step.push_back( ps );
+		ctx->ip->processing_step.push_back( ps );
 	}
 	
 	return 0;

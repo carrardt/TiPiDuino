@@ -60,7 +60,6 @@ int fleyeutil_gl_init(FleyeState *fleye_state)
 	}
 
 	// initialize GL Worker and read processing script
-	fleye_state->common.fleye_state = fleye_state;
     fleye_state->ip = glworker_init( &fleye_state->common , fleye_state->user_env );
     if( fleye_state->ip == NULL ) return -1;
 

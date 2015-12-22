@@ -46,23 +46,18 @@ int user_finalize(void* user_data)
 
 //static GLuint cameraTextureId = 0;
 //static EGLImageKHR camera_egl_image = EGL_NO_IMAGE_KHR;
-int user_copy_buffer(MMAL_BUFFER_HEADER_T *buf, void* user_data)
+MMAL_BUFFER_HEADER_T * user_copy_buffer(MMAL_BUFFER_HEADER_T *buf, void* user_data)
 {
+	// hold buffer while we process it
+	static MMAL_BUFFER_HEADER_T * previous_buffer = NULL;
+    MMAL_BUFFER_HEADER_T * pb = previous_buffer;
+	
 	int* bufCount = (int*)user_data;
 	++ (*bufCount);
 	
-	/*
-   GLCHK(glBindTexture(GL_TEXTURE_EXTERNAL_OES, cameraTextureId));
-   if (camera_egl_image != EGL_NO_IMAGE_KHR)
-   {
-      // Discard the EGL image for the preview frame 
-      eglDestroyImageKHR(display, camera_egl_image);
-      camera_egl_image = EGL_NO_IMAGE_KHR;
-   }
-   camera_egl_image = eglCreateImageKHR(display, EGL_NO_CONTEXT, EGL_IMAGE_BRCM_MULTIMEDIA, (EGLClientBuffer) buf->data, NULL);
-   GLCHK(glEGLImageTargetTexture2DOES(GL_TEXTURE_EXTERNAL_OES, camera_egl_image));
-   */
-   return 0;
+   previous_buffer = buf;
+
+   return pb;
 }
 
 int main(int argc, char * argv[])

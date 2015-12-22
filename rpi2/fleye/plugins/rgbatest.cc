@@ -4,6 +4,7 @@
 #include "fleye/fbo.h"
 #include "fleye/compiledshadercache.h"
 #include "fleye/imageprocessing.h"
+#include "fleye/FleyeContext.h"
 
 #include <iostream>
 
@@ -11,13 +12,13 @@ FLEYE_REGISTER_PLUGIN(rgbatest)
 
 static FleyeRenderWindow* render_buffer = 0;
 
-void rgbatest_setup(const ImageProcessingState* ip)
+void rgbatest_setup(FleyeContext* ctx)
 {
-	render_buffer = ip->getRenderBuffer("rgbatest");
+	render_buffer = ctx->ip->getRenderBuffer("rgbatest");
 	std::cout<<"rgbatest setup : render_buffer @"<<render_buffer<<"\n";
 }
 
-#define DECLARE_MINMAX_STAT(x) uint32_t x##Min=256, x##Max=0, x##MinX=128, x##MinY=128, x##MaxX=128, x##MaxY=128;
+#define DECLARE_MINMAX_STAT(x) uint32_t x##Min=256, x##Max=0, x##MinX=128, x##MinY=128, x##MaxX=128, x##MaxY=128
 
 #define UPDATE_MINMAX_STAT(v,x,y) \
 	if(v<v##Min) { \
@@ -29,10 +30,11 @@ void rgbatest_setup(const ImageProcessingState* ip)
 		v##MaxX=x; \
 		v##MaxY=y; \
 	}
+
 #define PRINT_MINMAX_STAT(x) \
 	std::cout<<#x<<" : min="<<x##Min<<" @"<<x##MinX<<','<<x##MinY<<" max="<<x##Max<<" @"<<x##MaxX<<','<<x##MaxY<<"\n";
 
-void rgbatest_run(const ImageProcessingState* ip, CPU_TRACKING_STATE * state)
+void rgbatest_run(FleyeContext* ctx)
 {
 	uint32_t width=0, height=0;
 	const uint32_t* base_ptr = (const uint32_t*) read_offscreen_render_window(render_buffer,&width,&height);

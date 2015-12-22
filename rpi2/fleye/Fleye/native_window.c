@@ -30,9 +30,7 @@ struct FleyeNativeWindow* create_native_window(int x, int y, int width, int heig
    dest_rect.width = width;
    dest_rect.height = height;
 
-   printf("%s: %d,%d,%d,%d %d,%d,0x%x,0x%x\n", __PRETTY_FUNCTION__,
-         src_rect.x, src_rect.y, src_rect.width, src_rect.height,
-         dest_rect.x, dest_rect.y, dest_rect.width, dest_rect.height);
+   printf("%s(%d,%d,%d,%d,%d)\n", __PRETTY_FUNCTION__,x,y,width,height,opacity);
 
    src_rect.width = dest_rect.width << 16;
    src_rect.height = dest_rect.height << 16;

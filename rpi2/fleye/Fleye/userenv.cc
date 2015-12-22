@@ -1,48 +1,35 @@
-#include <string.h>
-#include <stdio.h>
-#include "fleye/fleye_c.h"
-#include "fleye/config.h"
+#include "fleye/FleyeContext.h"
+
+#include <string>
+#include <map>
 
 struct UserEnv
 {
-        int n_opt_values;
-        char opt_values[MAX_OPT_VALUES][2][32];
-        char tracking_script[64];
+	std::map<std::string,std::string> vars;
+	std::string script;
 };
 
-struct UserEnv* fleye_create_user_env()
+void fleye_create_user_env(struct FleyeContext* ctx)
 {
-	struct UserEnv* uenv = new UserEnv; //malloc( sizeof(struct UserEnv) );
-	memset(uenv,0,sizeof(struct UserEnv));
-	return uenv;
+	ctx->user_env = new UserEnv;
 }
 
-void fleye_set_processing_script(struct UserEnv* uenv, const char* scriptName)
+void fleye_set_processing_script(struct FleyeContext* ctx, const char* scriptName)
 {
-	if( scriptName==0 ) scriptName="";
-	strncpy(uenv->tracking_script,scriptName,63);
-	printf("Processing script is now '%s'\n",uenv->tracking_script);
+	ctx->user_env->script = scriptName;
 }
 
-const char* fleye_get_processing_script(struct UserEnv* uenv)
+const char* fleye_get_processing_script(struct FleyeContext* ctx)
 {
-	return uenv->tracking_script;
+	return ctx->user_env->script.c_str();
 }
 
-const char* fleye_optional_value(struct UserEnv* env, const char* key)
+const char* fleye_optional_value(struct FleyeContext* ctx, const char* key)
 {
-	int i;
-	for(i=0;i<env->n_opt_values;i++)
-	{
-		if( strcmp(env->opt_values[i][0],key) == 0 ) return env->opt_values[i][1];
-	}
-	return "";
+	return ctx->user_env->vars[key].c_str();
 }
 
-int fleye_add_optional_value(struct UserEnv* env, const char* key, const char* value)
+void fleye_add_optional_value(struct FleyeContext* ctx, const char* key, const char* value)
 {
-	strcpy(env->opt_values[env->n_opt_values][0],key);
-	strcpy(env->opt_values[env->n_opt_values][1],value);
-	++ env->n_opt_values;
-	return env->n_opt_values ;
+	ctx->user_env->vars[key] = value;
 }

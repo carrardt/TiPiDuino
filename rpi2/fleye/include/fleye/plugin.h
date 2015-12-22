@@ -1,14 +1,12 @@
 #ifndef __fleye_plugin_H_
 #define __fleye_plugin_H_
 
-struct CPU_TRACKING_STATE;
-struct CompiledShaderCache;
-struct ImageProcessingState;
+struct FleyeContext;
 
-typedef void(*PluginSetupFunc)(const ImageProcessingState*);
+typedef void(*PluginSetupFunc)(FleyeContext*);
 
 #define FLEYE_REGISTER_PLUGIN(name) \
-extern "C" { void name##_setup(const ImageProcessingState*); void name##_run(const ImageProcessingState*,CPU_TRACKING_STATE*); }
+extern "C" { void name##_setup(FleyeContext*); void name##_run(FleyeContext*); }
 
 #define FLEYE_REGISTER_GL_DRAW(name) \
 extern "C" { void name(CompiledShaderCache*,int); }

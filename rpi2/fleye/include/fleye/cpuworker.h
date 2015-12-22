@@ -4,16 +4,16 @@
 #include "fleye/config.h"
 #include <stdint.h>
 
-struct CPU_TRACKING_STATE;
-struct FleyeState;
-struct ImageProcessingState;
+struct FleyeContext;
 
-typedef void(*CpuProcessingFunc)(const ImageProcessingState*,CPU_TRACKING_STATE*);
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+typedef void(*CpuProcessingFunc)(struct FleyeContext*);
 
 typedef struct CPU_TRACKING_STATE
 {
-  struct FleyeState* fleye_state;
-  
   volatile  int do_processing;
 
   // output
@@ -29,5 +29,13 @@ typedef struct CPU_TRACKING_STATE
   volatile int cpuFunc;
 
 } CPU_TRACKING_STATE;
+
+// entry point for cpu processing thread
+void *cpuWorker(void *arg);
+
+#ifdef __cplusplus
+}
+#endif
+
 
 #endif

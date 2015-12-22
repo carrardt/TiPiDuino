@@ -32,7 +32,7 @@ extern "C" {
 typedef int(*UserStreamInitializeFunc)(void*);
 typedef int(*UserStreamFinalizeFunc)(void*);
 typedef int(*UserBufferProcessFunc)(void*);
-typedef int(*UserBufferCopyFunc)(MMAL_BUFFER_HEADER_T*,void*);
+typedef MMAL_BUFFER_HEADER_T*(*UserBufferCopyFunc)(MMAL_BUFFER_HEADER_T*,void*);
 
 struct s_CameraStream
 {

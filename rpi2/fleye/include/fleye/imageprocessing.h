@@ -25,7 +25,6 @@ struct ImageProcessingState
 	FleyeRenderWindow* getRenderBuffer(const std::string& name) const;
 };
 
-int create_image_processing(FleyeCommonState* state,ImageProcessingState* ip, UserEnv* env, const std::string& filename);
-
+int read_image_processing_script(FleyeContext* ctx, const std::string& filename);
 
 #endif

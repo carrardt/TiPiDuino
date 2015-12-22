@@ -4,6 +4,7 @@
 #include "fleye/fbo.h"
 #include "fleye/compiledshadercache.h"
 #include "fleye/imageprocessing.h"
+#include "fleye/FleyeContext.h"
 
 #include <iostream>
 
@@ -16,9 +17,9 @@ static float laserPosX = 0.0f;
 static float laserPosY = 0.0f;
 static FleyeRenderWindow* render_buffer = 0;
 
-void l2CrossCenter_setup(const ImageProcessingState* ip)
+void l2CrossCenter_setup(FleyeContext* ctx)
 {
-	render_buffer = ip->getRenderBuffer("l2c-render-buffer");
+	render_buffer = ctx->ip->getRenderBuffer("l2c-render-buffer");
 	std::cout<<"L2CrossCenter setup : render_buffer @"<<render_buffer<<"\n";
 }
 

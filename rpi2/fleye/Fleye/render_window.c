@@ -1,7 +1,7 @@
+#include <stdio.h>
+
 #include "fleye/render_window.h"
 #include "native_window.h"
-
-#include <stdio.h>
 
 /** Creates the EGL context and window surface for the native window
  * using specified arguments.
@@ -97,6 +97,9 @@ struct FleyeRenderWindow* create_render_window(int x, int y, int width, int heig
 {
 	int rc;
 	struct FleyeRenderWindow* renwin = (struct FleyeRenderWindow*) malloc( sizeof(struct FleyeRenderWindow) );
+
+    printf("%s(%d,%d,%d,%d,%p)\n", __PRETTY_FUNCTION__,x,y,width,height,attribs);
+
 	memset( renwin , 0 , sizeof(struct FleyeRenderWindow) );
 	renwin->fleye_window = create_native_window(x,y,width,height,255);
 	if( renwin->fleye_window == NULL )

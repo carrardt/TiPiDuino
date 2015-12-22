@@ -275,30 +275,22 @@ static int configure_camera_stream(CameraStream* cs)
 
 static int stream_process_buffer(CameraStream* cs, MMAL_BUFFER_HEADER_T *buf)
 {
-   static MMAL_BUFFER_HEADER_T * prev_buf = NULL; 
-   int rc = 0;
-
    if (buf)
    {
-		 rc = (*cs->buffer_copy_func)( buf, cs->user_data );
-		 if (rc != 0)
-		 {
-			fprintf(stderr,"%s: Failed to update RGBX texture %d\n",
-				  __PRETTY_FUNCTION__, rc);
-			return rc;
-		 }
+	  /* retreive unused previous buffer */
+	  MMAL_BUFFER_HEADER_T * prev_buf = (*cs->buffer_copy_func)( buf, cs->user_data );
+	  
       /* Now return the PREVIOUS MMAL buffer header back to the camera preview. */
       if (prev_buf)
       {
          mmal_buffer_header_release(prev_buf);
 	  }
-      prev_buf = buf;
    }
 
    /*  Do the processing */
    (*cs->buffer_process_func)( cs->user_data );
 
-   return rc;
+   return 0;
 }
 
 static int stream_process_returned_bufs(CameraStream* cs)
