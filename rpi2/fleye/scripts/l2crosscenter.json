@@ -55,7 +55,7 @@
 			"plugin" : "l2CrossCenter" , 
 			"setup" : "l2CrossCenter_setup" ,
 			"run" : "l2CrossCenter_run" ,
-			"thread-id" : 1
+			"thread-id" : 0
 		}
 		,
 		"cpu-syncThread" : {
@@ -66,5 +66,6 @@
 		}
     }
     ,
-    "ProcessingLoop" : [ "gpu-init", "gpu-l2cross", "gpu-l2cross-final", "cpu-l2CrossCenter", "gpu-display", "cpu-syncThread", "gpu-overlay" ]
+    //"ProcessingLoop" : [ "gpu-init", "gpu-l2cross", "gpu-l2cross-final", "cpu-l2CrossCenter", "gpu-display", "cpu-syncThread", "gpu-overlay" ]
+    "ProcessingLoop" : [ "gpu-init", "gpu-l2cross", "gpu-l2cross-final", "cpu-l2CrossCenter", "gpu-display", "gpu-overlay" ]
 }

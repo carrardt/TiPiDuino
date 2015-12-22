@@ -23,7 +23,7 @@ void l2CrossCenter_setup(FleyeContext* ctx)
 	std::cout<<"L2CrossCenter setup : render_buffer @"<<render_buffer<<"\n";
 }
 
-void l2CrossCenter_run(const ImageProcessingState* ip, CPU_TRACKING_STATE * state)
+void l2CrossCenter_run(FleyeContext* ctx)
 {
 	int width=0, height=0;
 	const uint32_t* base_ptr = (const uint32_t*) render_buffer->readBack(width,height);
