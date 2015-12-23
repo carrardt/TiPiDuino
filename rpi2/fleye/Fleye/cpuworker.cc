@@ -1,14 +1,15 @@
-#include <stdio.h>
 #include "fleye/cpuworker.h"
 #include "fleye/FleyeContext.h"
 #include "fleye/imageprocessing.h"
+
+#include "iostream"
 
 void *cpuWorker(void *arg)
 {
 	FleyeContext * ctx = (FleyeContext *) arg;
 	CPU_TRACKING_STATE* state = & ctx->ip->cpu_tracking_state;
 	
-	printf("cpuTrackingWorker started\n");
+	if( ctx->verbose ) { std::cout<<"CPU worker started\n"; }
 	state->cpuFunc = 0;
 	
 	//vcos_semaphore_wait( & state->start_processing_sem );

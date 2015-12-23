@@ -32,7 +32,7 @@ void rgbatest_setup(FleyeContext* ctx)
 	}
 
 #define PRINT_MINMAX_STAT(x) \
-	std::cout<<#x<<" : min="<<x##Min<<" @"<<x##MinX<<','<<x##MinY<<" max="<<x##Max<<" @"<<x##MaxX<<','<<x##MaxY<<"\n";
+	std::cout<<" "<<#x<<":"<<x##Min<<"@"<<x##MinX<<','<<x##MinY<<"/"<<x##Max<<"@"<<x##MaxX<<','<<x##MaxY;
 
 void rgbatest_run(FleyeContext* ctx)
 {
@@ -62,9 +62,10 @@ void rgbatest_run(FleyeContext* ctx)
 			UPDATE_MINMAX_STAT(a,x,y);
 		}
 	}
-	std::cout<<"size="<<width<<'x'<<height<<"\n";
+	std::cout<<"size="<<width<<'x'<<height;
 	PRINT_MINMAX_STAT(r);
 	PRINT_MINMAX_STAT(g);
 	PRINT_MINMAX_STAT(b);
 	PRINT_MINMAX_STAT(a);
+	std::cout<<"\r";
 }

@@ -61,7 +61,7 @@ void FleyeRenderWindow::create_egl_context(const EGLint * attribs, FleyeRenderWi
    EGLConfig config;
    EGLint num_configs;
 
-   printf("%s\n", __PRETTY_FUNCTION__);
+   // printf("%s\n", __PRETTY_FUNCTION__);
 
    if (this->fleye_window->native_window == NULL)
    {

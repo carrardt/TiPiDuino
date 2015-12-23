@@ -166,15 +166,14 @@ int read_image_processing_script(FleyeContext* ctx)
 	ctx->ip->cpu_tracking_state.nFinishedCpuFuncs = 0;
 
 	std::string filePath = std::string(FLEYE_SCRIPT_DIR) + "/" + ctx->script + ".json";
-	std::cout<<"reading "<<filePath<<"\n\n";
+	if( ctx->verbose ) { std::cout<<"reading "<<filePath<<"\n\n"; }
 	std::ifstream scriptFile(filePath.c_str());
     Json::Value root;   // will contains the root value after parsing.
     Json::Reader reader;
     bool parsingSuccessful = reader.parse( scriptFile, root );
     if ( !parsingSuccessful ){
         // report to the user the failure and their locations in the document.
-        std::cerr<< "Failed to parse script\n"
-                   << reader.getFormattedErrorMessages();
+        std::cerr<< "Failed to parse script\n"<< reader.getFormattedErrorMessages();
         return 1;
     }
     
@@ -186,7 +185,7 @@ int read_image_processing_script(FleyeContext* ctx)
 		if( value.empty() )
 		{
 			value = get_string_value(ctx,envDefaults[var]);
-			std::cout<<"User variable '"<<var<<"' defaults to '"<<value<<"'\n";
+			if( ctx->verbose ) { std::cout<<"User variable '"<<var<<"' defaults to '"<<value<<"'\n"; }
 			ctx->vars[var] = value;
 		}
 	}
@@ -197,7 +196,7 @@ int read_image_processing_script(FleyeContext* ctx)
 		const Json::Value rbuf = renbufs[name];
 		int64_t w = get_integer_value(ctx,rbuf.get("width","$WIDTH"));
 		int64_t h = get_integer_value(ctx,rbuf.get("height","$HEIGHT"));
-		std::cout<<"Add Render buffer '"<<name<<"' : "<<w<<"x"<<h<<"\n";
+		if( ctx->verbose ) { std::cout<<"Add Render buffer '"<<name<<"' : "<<w<<"x"<<h<<"\n"; }
 		FrameBufferObject* fbo = new FrameBufferObject;
 		fbo->render_window = new FleyeRenderWindow(0,0,w,h,egl_fbo_attribs,ctx->render_window,true);
 		assert( fbo->render_window != 0 );
@@ -214,7 +213,7 @@ int read_image_processing_script(FleyeContext* ctx)
 		const Json::Value fboValue = fbos[name];
 		int64_t w = get_integer_value(ctx,fboValue.get("width","$WIDTH"));
 		int64_t h = get_integer_value(ctx,fboValue.get("height","$HEIGHT"));
-		std::cout<<"Add Frame Buffer Object '"<<name<<"' : "<<w<<"x"<<h<<"\n";
+		if( ctx->verbose ) { std::cout<<"Add Frame Buffer Object '"<<name<<"' : "<<w<<"x"<<h<<"\n"; }
 		FrameBufferObject* fbo = add_fbo(ctx->ip,name,GL_RGBA,w,h);
 		fbo->render_window = ctx->render_window;
 	}
@@ -232,60 +231,65 @@ int read_image_processing_script(FleyeContext* ctx)
 
 		// add a texture alias to the shader output.
 		// name of the shader can be used as a texture name
-		std::cout<<"create texture alias '"<<name<<"'\n";
+		//if( ctx->verbose ) { std::cout<<"create texture alias '"<<name<<"'\n"; }
 		ctx->ip->texture[ name ] = shaderPass->finalTexture;
 	}
 	for( auto name : shadersObject.getMemberNames() )
 	{
-		std::cout<<"Shader '"<<name<<"'\n";
+		if( ctx->verbose ) { std::cout<<"Shader '"<<name<<"'\n"; }
 		Json::Value shader = shadersObject[name];
 		ShaderPass* shaderPass = shadersDB[ name ];
 
 		// read vertex shader
 		shaderPass->vertexSource = vs_attributes+"\n"+uniforms+"\n"+
 			readShader( get_string_value(ctx,shader.get("vertex-shader","common_vs")) );
-		std::cout<<"\tVertex shader size = "<<shaderPass->vertexSource.size()<<"\n";
+		if( ctx->verbose ) { std::cout<<"\tVertex shader size = "<<shaderPass->vertexSource.size()<<"\n"; }
 		
 		// read fragment shader
 		shaderPass->fragmentSourceWithoutTextures = uniforms+"\n"+inc_fs+"\n" +
 			readShader( get_string_value(ctx,shader.get("fragment-shader","passthru_fs")) );
-		std::cout<<"\tFramgent shader size = "<<shaderPass->fragmentSourceWithoutTextures.size()<<"\n";
+		if( ctx->verbose ) { std::cout<<"\tFramgent shader size = "<<shaderPass->fragmentSourceWithoutTextures.size()<<"\n"; }
 
 		const Json::Value render = shader["rendering"];
 		std::string renderPlugin = get_string_value(ctx,render.get("plugin",""));
 		std::string renderFunc = get_string_value(ctx,render.get("function","gl_fill"));
 		shaderPass->gl_draw = (GLRenderFunctionT) dynlib_func_addr( renderPlugin, renderFunc );
-		std::cout<<"\tRendering: plugin="<<renderPlugin<<" function="<<renderFunc<<" @"<<shaderPass->gl_draw<<"\n";
+		if( ctx->verbose ) { 
+			std::cout<<"\tRender method:";
+			if(!renderPlugin.empty()) std::cout<<" plugin="<<renderPlugin;
+			std::cout<<" function="<<renderFunc<<" @"<<shaderPass->gl_draw<<"\n";
+		}
 
 		const Json::Value textures = shader["textures"];
 		for( auto name : textures.getMemberNames() )
 		{
 			TextureInput texInput;
 			texInput.uniformName = name;
-			std::cout<<"\tInput '"<<texInput.uniformName<<"' <-";
+			if( ctx->verbose ) { std::cout<<"\tInput '"<<texInput.uniformName<<"' <-"; }
 			for( auto textureName : get_string_array(ctx,textures[name]) )
 			{
-				std::cout<<" "<<textureName;
+				if( ctx->verbose ) { std::cout<<" "<<textureName; }
 				GLTexture* tex = ctx->ip->texture[textureName];
 				if( tex != 0 ) { texInput.texPool.push_back( tex ); }
 				else { std::cerr<<" texture '"<<textureName<<"' not found\n"; }
 			}
-			std::cout<<"\n";
+			if( ctx->verbose ) { std::cout<<"\n"; }
 			shaderPass->inputs.push_back( texInput );
 		}
 		
-		std::cout<<"\tOutput :";
+		if( ctx->verbose ) { std::cout<<"\tOutput :"; }
 		for( auto name : get_string_array(ctx,shader.get("output","DISPLAY")) )
 		{
-			std::cout<<" "<<name;
+			if( ctx->verbose ) { std::cout<<" "<<name; }
 			shaderPass->fboPool.push_back( ctx->ip->fbo[name] );
 		}
-		std::cout<<"\n";
+		if( ctx->verbose ) { std::cout<<"\n"; }
 
 		shaderPass->numberOfPasses = get_integer_value(ctx,shader.get("passes",1));
-		std::cout<<"\tPasses : "<<shaderPass->numberOfPasses<<"\n";
+		if( ctx->verbose ) { std::cout<<"\tPasses : "<<shaderPass->numberOfPasses<<"\n"; }
 	}
 
+	if( ctx->verbose ) { std::cout<<"CPU functions :\n"; }
     const Json::Value cpuFuncsObject = root["CPUFunctions"];
 	std::map< std::string , CpuPass* > cpuFuncDB;
 	for( auto name : cpuFuncsObject.getMemberNames() )
@@ -307,10 +311,11 @@ int read_image_processing_script(FleyeContext* ctx)
 		CpuPass* cpu = new CpuPass;
 		cpu->exec_thread = get_integer_value(ctx,cpuFuncObject.get("thread-id",0));
 		cpu->cpu_processing = (CpuProcessingFunc) dynlib_func_addr(plugin,funcName);
-		std::cout<<"cpu pass '"<<name<<"' : thread="<<cpu->exec_thread<<", function @"<<cpu->cpu_processing<<"\n";
+		if( ctx->verbose ) { std::cout<<"\t"<<name<<" : thread="<<cpu->exec_thread<<", function @"<<cpu->cpu_processing<<"\n"; }
 		cpuFuncDB[name] = cpu;
 	}
 	
+	if( ctx->verbose ) { std::cout<<"Processing loop :\n"; }
 	for( const Json::Value stepValue : root["ProcessingLoop"] )
 	{
 		ProcessingStep ps;
@@ -326,7 +331,7 @@ int read_image_processing_script(FleyeContext* ctx)
 		}
 		ps.shaderPass = shadersDB[name];
 		ps.cpuPass = cpuFuncDB[name];
-		std::cout<<"add step '"<<name<<"' "<<ps.onFrames.modulus<<"/"<<ps.onFrames.value<<"\n";
+		if( ctx->verbose ) { std::cout<<"\tstep '"<<name<<"' "<<ps.onFrames.modulus<<"/"<<ps.onFrames.value<<"\n"; }
 		ctx->ip->processing_step.push_back( ps );
 	}
 	

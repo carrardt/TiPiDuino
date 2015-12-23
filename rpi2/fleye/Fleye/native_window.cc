@@ -31,7 +31,7 @@ struct FleyeNativeWindow* create_native_window(int x, int y, int width, int heig
    dest_rect.width = width;
    dest_rect.height = height;
 
-   printf("%s(%d,%d,%d,%d,%d)\n", __PRETTY_FUNCTION__,x,y,width,height,opacity);
+   //printf("%s(%d,%d,%d,%d,%d)\n", __PRETTY_FUNCTION__,x,y,width,height,opacity);
 
    src_rect.width = dest_rect.width << 16;
    src_rect.height = dest_rect.height << 16;
@@ -165,7 +165,7 @@ int read_offscreen_image(struct FleyeNativeWindow* fleye_win, uint8_t* dst_buffe
  */
 void destroy_native_window(struct FleyeNativeWindow* fleye_win)
 {
-   printf("%s\n", __PRETTY_FUNCTION__);
+   //printf("%s\n", __PRETTY_FUNCTION__);
    if (fleye_win->disp != DISPMANX_NO_HANDLE)
    {
       vc_dispmanx_display_close(fleye_win->disp);

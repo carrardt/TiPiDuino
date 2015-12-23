@@ -86,16 +86,18 @@ int glworker_init(struct FleyeContext* ctx)
 	}
 
 	GLCHK( glDisable(GL_DEPTH_TEST) );
-	
+
 	// allocate space for CPU processing
-	
-	printf( "EGL_CLIENT_APIS: %s\n", eglQueryString( renwin->display, EGL_CLIENT_APIS ) );
-	printf( "EGL_VENDOR: %s\n", eglQueryString( renwin->display, EGL_VENDOR ) );
-	printf( "EGL_VERSION: %s\n", eglQueryString( renwin->display, EGL_VERSION ) );
-	printf( "EGL_EXTENSIONS: %s\n", eglQueryString( renwin->display, EGL_EXTENSIONS ) );
-	printf( "GL_VERSION: %s\n", glGetString( GL_VERSION ) );
-	printf( "GL_SHADING_LANGUAGE_VERSION: %s\n", glGetString( GL_SHADING_LANGUAGE_VERSION ) );
-	printf( "GL_EXTENSIONS: %s\n", glGetString( GL_EXTENSIONS ) );
+	if( ctx->verbose )
+	{
+		printf( "EGL_CLIENT_APIS: %s\n", eglQueryString( renwin->display, EGL_CLIENT_APIS ) );
+		printf( "EGL_VENDOR: %s\n", eglQueryString( renwin->display, EGL_VENDOR ) );
+		printf( "EGL_VERSION: %s\n", eglQueryString( renwin->display, EGL_VERSION ) );
+		printf( "EGL_EXTENSIONS: %s\n", eglQueryString( renwin->display, EGL_EXTENSIONS ) );
+		printf( "GL_VERSION: %s\n", glGetString( GL_VERSION ) );
+		printf( "GL_SHADING_LANGUAGE_VERSION: %s\n", glGetString( GL_SHADING_LANGUAGE_VERSION ) );
+		printf( "GL_EXTENSIONS: %s\n", glGetString( GL_EXTENSIONS ) );
+	}
 
 	ip->cpu_tracking_state.objectCount = 0;
 	ip->cpu_tracking_state.do_processing = 1;

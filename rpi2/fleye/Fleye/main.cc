@@ -8,7 +8,6 @@ extern "C" {
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 #include "EGL/eglext_brcm.h"
-#include <stdio.h>
 #include <sys/time.h>
 
 #include <iostream>
@@ -78,7 +77,7 @@ static void update_fps()
       fps = (float) frame_count / ((time_now - time_start) / 1000.0);
       frame_count = 0;
       time_start = time_now;
-      printf("%3.2f FPS\n", fps);
+      std::cout<<fps<<" FPS\n";
    }
 }
 
@@ -94,11 +93,8 @@ static int user_initialize(void* user_data)
 {
 	struct FleyeContext* ctx = (struct FleyeContext*) user_data;
 	int rc=0;
-	printf("%p\n",ctx->priv);
-	printf("%p\n",ctx->priv->image_buf);
 	
 	// create semaphores for CPU Worker / GL Worker synchronization
-	
 	VCOS_SEMAPHORE_T* sem;
 	sem = & ctx->priv->start_processing_sem;
 	memset(sem,0,sizeof(*sem));
@@ -110,15 +106,17 @@ static int user_initialize(void* user_data)
 	rc = vcos_semaphore_create( sem,"end_processing_sem", 1);
 	assert( rc == VCOS_SUCCESS );
 	
+	// initialize GL and read processinf script
 	rc = glworker_init(ctx);
 	assert(rc==0);
 	
+	// create the cpu worker thread
 	VCOS_THREAD_T* cpuThread = & ctx->priv->cpuTrackingThread;
 	memset(cpuThread,0,sizeof(*cpuThread));
 	rc = vcos_thread_create( cpuThread, "cpu_worker", NULL, cpuWorker, ctx );
 	assert (rc == VCOS_SUCCESS);
 	
-	std::cout<<"Application initialized\n";
+	if( ctx->verbose ) { std::cout<<"Application initialized\n"; }
 	return 0;
 }
 
@@ -148,7 +146,7 @@ static int user_finalize(void* user_data)
 	
 	delete ctx;
 	
-	std::cout<<"Application terminated\n";
+	if( ctx->verbose ) { std::cout<<"Application terminated\n"; }
 	return 0;
 }
 
@@ -164,6 +162,7 @@ FleyeContext::FleyeContext()
 	, render_window(0)
 	, ip(0)
 	, priv(0)
+	, verbose(false)
 {
 	priv = new FleyeContextInternal;	
 	priv->egl_image = EGL_NO_IMAGE_KHR;
@@ -172,7 +171,7 @@ FleyeContext::FleyeContext()
 
 FleyeContext::~FleyeContext()
 {
-	std::cout<<"Cleaning resources...\n";
+	if( verbose ) { std::cout<<"Cleaning resources...\n"; }
 	for( auto fbo : ip->fbo )
 	{
 		if( fbo.second->render_window != render_window )
@@ -211,15 +210,19 @@ int main(int argc, char * argv[])
 	int nArgs=1;
 	for(int i=1;i<argc;i++)
 	{
-		if( strcmp(argv[i],"-cres")==0 )
+		if( strcmp(argv[i],"-v")==0 )
 		{
-			++i;
-			sscanf(argv[i],"%dx%d",&ctx->captureWidth,&ctx->captureHeight);
+			ctx->verbose = true;
 		}
 		else if( strcmp(argv[i],"-res")==0 )
 		{
 			++i;
-			sscanf(argv[i],"%dx%d",&ctx->width,&ctx->height);
+			sscanf(argv[i],"%dx%d",&ctx->captureWidth,&ctx->captureHeight);
+		}
+		else if( strcmp(argv[i],"-geom")==0 )
+		{
+			++i;
+			sscanf(argv[i],"%dx%d+%d+%d",&ctx->width,&ctx->height,&ctx->x,&ctx->y);
 		}
 		else if( strcmp(argv[i],"-script")==0 )
 		{
@@ -235,7 +238,7 @@ int main(int argc, char * argv[])
 		}
 		else
 		{
-			printf("passing arg %d to %d (%s)\n",i,nArgs,argv[i]);
+			//printf("passing arg %d to %d (%s)\n",i,nArgs,argv[i]);
 			argv[nArgs++] = argv[i];
 		}
 	}
@@ -247,10 +250,13 @@ int main(int argc, char * argv[])
 	ctx->setIntegerVar("CAM_WIDTH",ctx->captureWidth);
 	ctx->setIntegerVar("CAM_HEIGHT",ctx->captureHeight);
 
-	printf("Fleye:\n");
-	for( auto var : ctx->vars )
+	if( ctx->verbose )
 	{
-		printf("\t%s = %s\n",var.first.c_str(),var.second.c_str());
+		std::cout<<"Fleye vars:\n";
+		for( auto var : ctx->vars )
+		{
+			std::cout<<"\t"<<var.first.c_str()<<" = "<<var.second.c_str()<<"\n";
+		}
 	}
 
 	camera_stream(argc,argv,0,user_initialize,user_copy_buffer,user_process,user_finalize,ctx);

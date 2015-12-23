@@ -44,6 +44,7 @@ struct FleyeContext
 
    struct FleyeContextInternal* priv;
    
+   bool verbose;
 };
 
 extern int postStartProcessingSem( struct FleyeContext* ctx );

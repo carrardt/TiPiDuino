@@ -3,13 +3,9 @@ project (Fleye)
 
 # various usage samples
 # 
-# ./fleye -v -ex fixedfps -w 1296 -h 972 -p 32,32,800,544 --script wincoord
-# ./fleye -v -ex fixedfps -w 1296 -h 972 -p 32,32,800,544 --script normcoord
-# ./fleye -v -ex fixedfps -w 1296 -h 972 -p 32,32,352,272 --script wincoord
-# ./fleye -v -ex fixedfps -w 1296 -h 972 -p 32,32,352,272 --script normcoord
-# sudo ./fleye -v -ex fixedfps -drc off -w 1296 -h 972 -p 0,0,384,256 --set "CCMD 5" --script l2centerfollow 
-# ./RaspiCore/fleye -v -ex fixedfps -drc off -w 2592 -h 1944 -p 0,0,768,512 --script simplefbo
-# ./RaspiCore/fleye -v -ex fixedfps -drc off -w 2592 -h 1944 -p 0,0,768,512 --script l2cross
+# ./Fleye/fleye -v -ex fixedfps -res 1296x972 -geom 800x544+32+32 -script wincoord
+# ./Fleye/fleye -v -ex fixedfps -res 2592x1944 -geom 768x512 -script l2cross
+# sudo ./Fleye/fleye -v -ex fixedfps -drc off -w 1296 -h 972 -p 0,0,384,256 -set "CCMD=5" -script l2centerfollow 
 
 
 # Raspberry Pi VideoCore HW Abstraction Layer

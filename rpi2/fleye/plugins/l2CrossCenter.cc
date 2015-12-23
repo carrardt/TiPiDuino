@@ -15,6 +15,7 @@ static float targetPosX = 0.0f;
 static float targetPosY = 0.0f;
 static float laserPosX = 0.0f;
 static float laserPosY = 0.0f;
+
 static FleyeRenderWindow* render_buffer = 0;
 
 void l2CrossCenter_setup(FleyeContext* ctx)
@@ -44,20 +45,13 @@ void l2CrossCenter_run(FleyeContext* ctx)
 			uint32_t g = ( value >> 8) & 0x000000FF;
 			//uint32_t b = ( value >> 16) & 0x000000FF;
 			//uint32_t a = ( value >> 24) & 0x000000FF;
-			
-			uint32_t v1 = (r+1) / 2;			
-			uint32_t v2 = (g+1) / 2;
-			
-			uint32_t r1 = v1 / 32;
-			uint32_t u1 = v1 % 32;
-			uint32_t r2 = v2 / 32;
-			uint32_t u2 = v2 % 32;
-
-			uint32_t m1 = (r1>u1) ? r1 : u1;
-			uint32_t m2 = (r2>u2) ? r2 : u2;
-				
-			if( m1 > 0 )
+							
+			if( r > 0 )
 			{
+				uint32_t v1 = (r+1) / 2;			
+				uint32_t r1 = v1 / 32;
+				uint32_t u1 = v1 % 32;
+				uint32_t m1 = (r1>u1) ? r1 : u1;
 				if( m1 > obj1_L2max )
 				{ 
 					obj1_count = 0;
@@ -69,15 +63,19 @@ void l2CrossCenter_run(FleyeContext* ctx)
 				if( m1 == obj1_L2max )
 				{
 					obj1_sumx += x;
-					//if( r1 >= 1 ) obj1_sumx += 1<<(r1-1);
+					if( r1 >= 1 ) obj1_sumx += 1<<(r1-1);
 					obj1_sumy += y;
-					//if( u1 >= 1 ) obj1_sumy += 1<<(u1-1);
+					if( u1 >= 1 ) obj1_sumy += 1<<(u1-1);
 					++ obj1_count;
 					//std::cout<<"obj1_count="<<obj1_count<<"\n";
 				}
 			}
-			if( m2 > 0 )
+			if( g > 0 )
 			{
+				uint32_t v2 = (g+1) / 2;
+				uint32_t r2 = v2 / 32;
+				uint32_t u2 = v2 % 32;
+				uint32_t m2 = (r2>u2) ? r2 : u2;
 				if( m2 > obj2_L2max )
 				{ 
 					obj2_count = 0;
@@ -88,9 +86,9 @@ void l2CrossCenter_run(FleyeContext* ctx)
 				if( m2 == obj2_L2max )
 				{
 					obj2_sumx += x;
-					//if( r2 >= 1 ) obj2_sumx += 1<<(r2-1);
+					if( r2 >= 1 ) obj2_sumx += 1<<(r2-1);
 					obj2_sumy += y;
-					//if( u2 >= 1 ) obj2_sumy += 1<<(u2-1);
+					if( u2 >= 1 ) obj2_sumy += 1<<(u2-1);
 					++ obj2_count;
 				}
 			}

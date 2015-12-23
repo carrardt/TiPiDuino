@@ -26,7 +26,7 @@
 
 #include "RaspiCamControl.h"
 
-// holds a camera stream context
+// a camera stream context
 struct s_CameraStream
 {
 	RASPICAM_CAMERA_PARAMETERS camera_parameters;
@@ -231,13 +231,13 @@ static void camera_stream_callback(MMAL_PORT_T* port,MMAL_BUFFER_HEADER_T* buf)
    CameraStream* cs = (CameraStream*) port->userdata;
    if (buf->length == 0)
    {
-      printf("%s: zero-length buffer => EOS\n", port->name);
+      //printf("%s: zero-length buffer => EOS\n", port->name);
       cs->stream_stop = 1;
       mmal_buffer_header_release(buf);
    }
    else if (buf->data == NULL)
    {
-      printf("%s: zero buffer handle\n", port->name);
+      //printf("%s: zero buffer handle\n", port->name);
       mmal_buffer_header_release(buf);
    }
    else
@@ -272,8 +272,7 @@ static int configure_camera_stream(CameraStream* cs)
    cs->stream_port->buffer_num = cs->stream_port->buffer_num_recommended;
    cs->stream_port->buffer_size = cs->stream_port->buffer_size_recommended;
 
-   printf("Creating buffer pool for GL renderer num %d size %d\n",
-         cs->stream_port->buffer_num, cs->stream_port->buffer_size);
+   //printf("Creating buffer pool for GL renderer num %d size %d\n", cs->stream_port->buffer_num, cs->stream_port->buffer_size);
 
    /* Pool + queue to hold preview frames */
    cs->stream_pool = mmal_port_pool_create(cs->stream_port,
