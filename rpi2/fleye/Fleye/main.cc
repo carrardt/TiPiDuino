@@ -153,10 +153,10 @@ static int user_finalize(void* user_data)
 FleyeContext::FleyeContext()
 	: x(0)
 	, y(0)
-	, width(648)
-	, height(486)
-	, captureWidth(1296)
-	, captureHeight(972)
+	, width(640)
+	, height(480)
+	, captureWidth(1280)
+	, captureHeight(960)
 	, frameCounter(0)
 	, cameraTextureId(0)
 	, render_window(0)
@@ -243,6 +243,11 @@ int main(int argc, char * argv[])
 		}
 	}
 	argc=nArgs;
+
+	ctx->captureWidth = VCOS_ALIGN_UP(ctx->captureWidth, 32);
+	ctx->captureHeight = VCOS_ALIGN_UP(ctx->captureHeight, 16);
+	ctx->width = VCOS_ALIGN_UP(ctx->width, 32);
+	ctx->height = VCOS_ALIGN_UP(ctx->height, 16);
 
 	ctx->vars["SCRIPT"] = ctx->script;
 	ctx->setIntegerVar("WIDTH",ctx->width);

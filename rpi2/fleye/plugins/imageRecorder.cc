@@ -30,16 +30,16 @@ void imageRecorder_run(FleyeContext* ctx)
 	uint32_t imgSize = width * height * 4;
 	for(uint32_t i=0;i<(width * height);i++)
 	{
-		uint8_t b = image[i*4+0];
+		uint8_t r = image[i*4+0];
 		uint8_t g = image[i*4+1];
-		uint8_t r = image[i*4+2];
+		uint8_t b = image[i*4+2];
 		uint8_t a = image[i*4+3];
 		image[i*4+0] = r;
 		image[i*4+1] = g;
 		image[i*4+2] = b;
 		image[i*4+3] = a;
 	}
-	
+
 	sprintf(tmp,"/tmp/capture%04d.tga",ctx->frameCounter);
 	std::cout<<"write image @"<<(void*)image<<" ("<<width<<'x'<<height<<") to "<<tmp<<"\n";
 	FILE* fp = fopen(tmp,"w");
