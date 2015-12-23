@@ -24,6 +24,16 @@ void l2CrossCenter_setup(FleyeContext* ctx)
 	std::cout<<"L2CrossCenter setup : render_buffer @"<<render_buffer<<"\n";
 }
 
+#define DECLARE_MINMAX_STAT(x) uint32_t x##Min=256, x##Max=0
+
+#define UPDATE_MINMAX_STAT(v) \
+	if(v<v##Min) v##Min=v; \
+	else if(v>v##Max) v##Max=v
+
+#define PRINT_MINMAX_STAT(x) \
+	std::cout<<" "<<#x<<"=["<<x##Min<<';'<<x##Max<<']';
+
+
 void l2CrossCenter_run(FleyeContext* ctx)
 {
 	CPU_TRACKING_STATE * state = & ctx->ip->cpu_tracking_state;
@@ -35,22 +45,36 @@ void l2CrossCenter_run(FleyeContext* ctx)
 	uint32_t obj1_count=0, obj2_count=0;
 	uint32_t obj1_L2max=1, obj2_L2max=1;
 	
+	DECLARE_MINMAX_STAT(v1);
+	DECLARE_MINMAX_STAT(u1);
+	DECLARE_MINMAX_STAT(r1);
+	DECLARE_MINMAX_STAT(v2);
+	DECLARE_MINMAX_STAT(u2);
+	DECLARE_MINMAX_STAT(r2);
+	
+	DECLARE_MINMAX_STAT(R);
+	DECLARE_MINMAX_STAT(G);
+
 	for(y=0;y<height;y++)
 	{
 		const uint32_t* p = base_ptr + y * width;
 		for(x=0;x<width;x++)
 		{
 			uint32_t value = *(p++);
-			uint32_t r = ( value ) & 0x000000FF;
-			uint32_t g = ( value >> 8) & 0x000000FF;
-			//uint32_t b = ( value >> 16) & 0x000000FF;
-			//uint32_t a = ( value >> 24) & 0x000000FF;
-							
-			if( r > 0 )
+			uint32_t R = ( value ) & 0x000000FF;
+			uint32_t G = ( value >> 8) & 0x000000FF;
+			//uint32_t B = ( value >> 16) & 0x000000FF;
+			//uint32_t A = ( value >> 24) & 0x000000FF;
+			
+			if( R != 0 )
 			{
-				uint32_t v1 = (r+1) / 2;			
-				uint32_t r1 = v1 / 32;
-				uint32_t u1 = v1 % 32;
+				UPDATE_MINMAX_STAT(R);
+				uint32_t v1 = (R+1) / 4;
+				uint32_t r1 = v1 / 8;
+				uint32_t u1 = v1 % 8;
+				UPDATE_MINMAX_STAT(v1);
+				UPDATE_MINMAX_STAT(u1);
+				UPDATE_MINMAX_STAT(r1);
 				uint32_t m1 = (r1>u1) ? r1 : u1;
 				if( m1 > obj1_L2max )
 				{ 
@@ -63,18 +87,22 @@ void l2CrossCenter_run(FleyeContext* ctx)
 				if( m1 == obj1_L2max )
 				{
 					obj1_sumx += x;
-					if( r1 >= 1 ) obj1_sumx += 1<<(r1-1);
+					//if( r1 >= 1 ) obj1_sumx += 1<<(r1-1);
 					obj1_sumy += y;
-					if( u1 >= 1 ) obj1_sumy += 1<<(u1-1);
+					//if( u1 >= 1 ) obj1_sumy += 1<<(u1-1);
 					++ obj1_count;
 					//std::cout<<"obj1_count="<<obj1_count<<"\n";
 				}
 			}
-			if( g > 0 )
+			if( G != 0 )
 			{
-				uint32_t v2 = (g+1) / 2;
-				uint32_t r2 = v2 / 32;
-				uint32_t u2 = v2 % 32;
+				UPDATE_MINMAX_STAT(G);
+				uint32_t v2 = (G+1) / 4;
+				uint32_t r2 = v2 / 8;
+				uint32_t u2 = v2 % 8;
+				UPDATE_MINMAX_STAT(v2);
+				UPDATE_MINMAX_STAT(u2);
+				UPDATE_MINMAX_STAT(r2);
 				uint32_t m2 = (r2>u2) ? r2 : u2;
 				if( m2 > obj2_L2max )
 				{ 
@@ -86,9 +114,9 @@ void l2CrossCenter_run(FleyeContext* ctx)
 				if( m2 == obj2_L2max )
 				{
 					obj2_sumx += x;
-					if( r2 >= 1 ) obj2_sumx += 1<<(r2-1);
+					//if( r2 >= 1 ) obj2_sumx += 1<<(r2-1);
 					obj2_sumy += y;
-					if( u2 >= 1 ) obj2_sumy += 1<<(u2-1);
+					//if( u2 >= 1 ) obj2_sumy += 1<<(u2-1);
 					++ obj2_count;
 				}
 			}
@@ -96,10 +124,7 @@ void l2CrossCenter_run(FleyeContext* ctx)
 	}
 
 	state->objectCount = 0;
-	
-	//std::cout<<"obj1: count="<<obj1_count<<", L2Max="<<obj1_L2max<<"\n";
-	//std::cout<<"obj2: count="<<obj2_count<<", L2Max="<<obj2_L2max<<"\n";
-	
+		
 	if(obj1_count>0)
 	{
 		//printf("%d %fx%f\n",count,state->width,state->height);
@@ -127,10 +152,27 @@ void l2CrossCenter_run(FleyeContext* ctx)
 
 		state->trackedObjects[ state->objectCount ++ ] = 1;
 	}
+
+	if( ctx->frameCounter%30 == 0 )
+	{
+		PRINT_MINMAX_STAT(R);
+		PRINT_MINMAX_STAT(v1);
+		PRINT_MINMAX_STAT(u1);
+		PRINT_MINMAX_STAT(r1);
+		PRINT_MINMAX_STAT(G);
+		PRINT_MINMAX_STAT(v2);
+		PRINT_MINMAX_STAT(u2);
+		PRINT_MINMAX_STAT(r2);
+		std::cout<<" c1="<<obj1_count<<" m1="<<obj1_L2max;
+		std::cout<<" c2="<<obj2_count<<" m2="<<obj2_L2max<<"\n";
+/*		std::cout<<"target @"<<targetPosX<<','<<targetPosY<<"\n";
+		std::cout<<"laser @"<<laserPosX<<','<<laserPosY<<"\n";*/
+	}
 }
 
 void drawObjectPosition(struct CompiledShaderCache* compiledShader, int pass)
 {
+	//std::cout<<"draw overlay\n";
 	GLfloat varray[24];
 	int i;
 	for(i=0;i<4;i++)

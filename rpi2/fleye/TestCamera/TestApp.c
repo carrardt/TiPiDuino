@@ -64,6 +64,6 @@ struct MMAL_BUFFER_HEADER_T * user_copy_buffer(struct MMAL_BUFFER_HEADER_T *buf,
 int main(int argc, char * argv[])
 {
 	int buffer_count=0;
-	camera_stream(argc,argv,0,user_initialize,user_copy_buffer,user_process,user_finalize,&buffer_count);
+	camera_stream(argc,argv,0,1296,972,user_initialize,user_copy_buffer,user_process,user_finalize,&buffer_count);
 	printf("Buffers processed = %d\n",buffer_count);
 }

@@ -299,6 +299,8 @@ int read_image_processing_script(FleyeContext* ctx)
 		std::string plugin = get_string_value(ctx,cpuFuncObject.get("plugin",""));
 		std::string setupName = get_string_value(ctx,cpuFuncObject.get("setup",""));
 		std::string funcName = get_string_value(ctx,cpuFuncObject.get("run",""));
+		if(setupName.empty()) setupName=plugin+"_setup";
+		if(funcName.empty()) funcName=plugin+"_run";
 
 		// isn't it highly secure ? we're doing graphics anyway, we don't care ;-)
 		PluginSetupFunc setup_function = ( PluginSetupFunc ) dynlib_func_addr(plugin,setupName);

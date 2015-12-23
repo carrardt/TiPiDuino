@@ -1,3 +1,5 @@
+#define UNIT (1.0/32.0)
+
 float greenMask(vec3 p)
 {
 	const float greenThreshold = 0.667;
@@ -30,9 +32,8 @@ void main(void)
 			   + texture2D(tex, vec2(texcoord.x+step.x*0.5, texcoord.y-step.y*0.5) ).xyz
 			   + texture2D(tex, vec2(texcoord.x+step.x*0.5, texcoord.y+step.y*0.5) ).xyz ) * 0.25;
 			   
-	float gm = clamp( sign(greenMask(ftex)-0.5) , 0.0 , 0.5 );
+	float gm = greenMask(ftex) * UNIT;
+	float lm = laserMask(ftex) * UNIT;
 
-	float lm = clamp( sign(laserMask(ftex)-0.5) , 0.0 , 0.5 );
-	
 	gl_FragColor = vec4(gm,gm,lm,lm);
 }

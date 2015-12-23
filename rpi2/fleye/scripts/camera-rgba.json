@@ -1,0 +1,35 @@
+// green / red objects tracking
+{
+	"RenderBuffers" :
+	{
+		"rgbatest" : {}
+	}
+    ,
+    "GLShaders" :
+    {
+		// this pass copies camera to "rgbatest" render buffer, which the plugin can read
+		"gpu-rgbatest" : {
+			"textures" : { "tex" : "CAMERA" } ,
+			"output" : "rgbatest"
+		}
+		,
+		// this pass just displays the camera image
+		"gpu-display" : {
+			"fragment-shader" : "passthru_fs", 
+			"textures" : { "tex" : "CAMERA" }
+		}
+    }
+    ,
+    "CPUFunctions" :
+    {
+		// this plugin compute statistics about R,G,B,A components read from renderbuffer "rgbatest"
+		"cpu-rgbatest" : {
+			"plugin" : "rgbatest" , 
+			"setup" : "rgbatest_setup" ,
+			"run" : "rgbatest_run" ,
+			"thread-id" : 0
+		}
+    }
+    ,
+    "ProcessingLoop" : [ "gpu-rgbatest", "cpu-rgbatest" , "gpu-display" ]
+}

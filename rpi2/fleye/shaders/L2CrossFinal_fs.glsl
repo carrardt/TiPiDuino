@@ -1,4 +1,4 @@
-#define UNIT (1.0/128.0)
+#define UNIT (1.0/32.0)
 
 /*
  *   w
@@ -20,38 +20,45 @@ void main(void)
 
 	float Tx_p = tx + step2i.x;
 	float Ty_p = ty + step2i.y;
-	
-	// 0.0 means Class 1, 1.0 means void
-	float Obj1Class = clamp( sign(0.5-C.x) , 0.0 , 1.0 );
-	float Obj2Class = clamp( sign(0.5-C.z) , 0.0 , 1.0 );
-	
+		
 	if( Tx_p<1.0 )
 	{
-		vec4 RightNbh = texture2D( tex, vec2(Tx_p,texcoord.y) );
+		vec4 nbh = texture2D( tex, vec2(Tx_p,texcoord.y) );
 
-		float Nbh1Class = clamp( sign(0.5-RightNbh.x) , 0.0 , 1.0 );
-		if( Nbh1Class==Obj1Class && C.x==RightNbh.x ) C.x += UNIT;
+		if( nbh.x>0.0 && nbh.x==C.x )
+		{
+			C.x += UNIT;
+		}
 
-		float Nbh2Class = clamp( sign(0.5-RightNbh.z) , 0.0 , 1.0 );
-		if( Nbh2Class==Obj2Class && C.z==RightNbh.z ) C.z += UNIT;		
+		if( nbh.z>0.0 && nbh.z==C.z )
+		{
+			C.z += UNIT;
+		}
 	}
 
 	if( Ty_p<1.0 )
 	{
-		vec4 UpNbh = texture2D( tex, vec2(texcoord.x,Ty_p) );
+		vec4 nbh = texture2D( tex, vec2(texcoord.x,Ty_p) );
 
-		float Nbh1Class = clamp( sign(0.5-UpNbh.y) , 0.0 , 1.0 );
-		if( Nbh1Class==Obj1Class && C.y==UpNbh.y ) C.y += UNIT;
+		if( nbh.y>0.0 && nbh.y==C.y )
+		{
+			C.y += UNIT;
+		}
 
-		float Nbh2Class = clamp( sign(0.5-UpNbh.w) , 0.0 , 1.0 );
-		if( Nbh2Class==Obj2Class && C.w==UpNbh.w ) C.w += UNIT;		
+		if( nbh.w>0.0 && nbh.w==C.w )
+		{
+			C.w += UNIT;
+		}
 	}
 
-	float Ar = clamp(C.x-0.5, 0.0, 1.0);
-	float Au = clamp(C.y-0.5, 0.0, 1.0);
+	float Ar = floor(C.x*32.0+0.5) ;
+	float Au = floor(C.y*32.0+0.5) ;
 
-	float Br = clamp(C.z-0.5, 0.0, 1.0);
-	float Bu = clamp(C.w-0.5, 0.0, 1.0);
+	float Br = floor(C.z*32.0+0.5);
+	float Bu = floor(C.w*32.0+0.5);
 
-	gl_FragColor = vec4( Ar*32.0+Au, Br*32.0+Bu, 0.0, 1.0 );
+	// Warning: count must be <8, Ar,Au,Br,Bu are <8*UNIT, <0.0625
+	//Bu=UNIT*3.0;
+	//Br=UNIT*4.0;
+	gl_FragColor = vec4( (Ar/8.0) + (Au/64.0), (Br/8.0)+(Bu/64.0), 0.0, 1.0 );
 }

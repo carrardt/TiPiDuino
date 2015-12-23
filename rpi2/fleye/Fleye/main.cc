@@ -233,7 +233,7 @@ int main(int argc, char * argv[])
 		{
 			++i;
 			char key[256], value[256];
-			sscanf(argv[i],"%s=%s",key,value);
+			sscanf(argv[i],"%s %s",key,value);
 			ctx->vars[key] = value;
 		}
 		else
@@ -259,6 +259,6 @@ int main(int argc, char * argv[])
 		}
 	}
 
-	camera_stream(argc,argv,0,user_initialize,user_copy_buffer,user_process,user_finalize,ctx);
+	camera_stream(argc,argv,0,ctx->captureWidth,ctx->captureHeight,user_initialize,user_copy_buffer,user_process,user_finalize,ctx);
 	printf("Bye!\n");
 }

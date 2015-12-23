@@ -6,6 +6,9 @@ project (Fleye)
 # ./Fleye/fleye -v -ex fixedfps -res 1296x972 -geom 800x544+32+32 -script wincoord
 # ./Fleye/fleye -v -ex fixedfps -res 2592x1944 -geom 768x512 -script l2cross
 # sudo ./Fleye/fleye -v -ex fixedfps -drc off -w 1296 -h 972 -p 0,0,384,256 -set "CCMD=5" -script l2centerfollow 
+# optimal resolution/performance
+# ./Fleye/fleye -ex fixedfps -res 1296x972 -geom 1024x768 -v
+# ./Fleye/fleye -ex fixedfps -res 1296x972 -geom 648x486 -script camera-rgba
 
 
 # Raspberry Pi VideoCore HW Abstraction Layer

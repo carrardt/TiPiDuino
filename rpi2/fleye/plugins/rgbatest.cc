@@ -67,5 +67,5 @@ void rgbatest_run(FleyeContext* ctx)
 	PRINT_MINMAX_STAT(g);
 	PRINT_MINMAX_STAT(b);
 	PRINT_MINMAX_STAT(a);
-	std::cout<<"\r";
+	std::cout<<"                \r";
 }

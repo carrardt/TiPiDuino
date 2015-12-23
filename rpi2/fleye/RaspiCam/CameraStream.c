@@ -35,6 +35,8 @@ struct s_CameraStream
 	MMAL_POOL_T * stream_pool;
 	MMAL_QUEUE_T *stream_queue;
 	int stream_stop ;
+	int captureWidth;
+	int captureHeight;
 	
 	UserBufferCopyFunc buffer_copy_func;
 	UserStreamInitializeFunc buffer_process_func;
@@ -115,7 +117,7 @@ static void create_camera_component(CameraStream* cs, int cameraNum)
    status = mmal_port_parameter_set_uint32(camera->control, MMAL_PARAMETER_CAMERA_CUSTOM_SENSOR_CONFIG, sensor_mode);
    assert(status==MMAL_SUCCESS);
 
-   preview_port = camera->output[MMAL_CAMERA_PREVIEW_PORT];
+   preview_port = camera->output[MMAL_CAMERA_PREVIEW_PORT]; // this is the one we use
    video_port = camera->output[MMAL_CAMERA_VIDEO_PORT];
    still_port = camera->output[MMAL_CAMERA_CAPTURE_PORT];
 
@@ -128,12 +130,12 @@ static void create_camera_component(CameraStream* cs, int cameraNum)
       MMAL_PARAMETER_CAMERA_CONFIG_T cam_config =
       {
          { MMAL_PARAMETER_CAMERA_CONFIG, sizeof(cam_config) },
-         .max_stills_w = CAPTURE_WIDTH,
-         .max_stills_h = CAPTURE_HEIGHT,
+         .max_stills_w = cs->captureWidth,
+         .max_stills_h = cs->captureHeight,
          .stills_yuv422 = 0,
          .one_shot_stills = 1,
-         .max_preview_video_w = CAPTURE_WIDTH,
-         .max_preview_video_h = CAPTURE_HEIGHT,
+         .max_preview_video_w = cs->captureWidth,
+         .max_preview_video_h = cs->captureHeight,
          .num_preview_video_frames = 3,
          .stills_capture_circular_buffer_height = 0,
          .fast_preview_resume = 0,
@@ -166,14 +168,14 @@ static void create_camera_component(CameraStream* cs, int cameraNum)
    }
 
 	// Use a full FOV 4:3 mode
-	format->es->video.width = VCOS_ALIGN_UP(CAPTURE_WIDTH, 32);
-	format->es->video.height = VCOS_ALIGN_UP(CAPTURE_HEIGHT, 16);
+	format->es->video.width = VCOS_ALIGN_UP(cs->captureWidth, 32);
+	format->es->video.height = VCOS_ALIGN_UP(cs->captureHeight, 16);
 	format->es->video.crop.x = 0;
 	format->es->video.crop.y = 0;
-	format->es->video.crop.width = CAPTURE_WIDTH;
-	format->es->video.crop.height = CAPTURE_HEIGHT;
-	format->es->video.frame_rate.num = PREVIEW_FRAME_RATE_NUM;
-	format->es->video.frame_rate.den = PREVIEW_FRAME_RATE_DEN;
+	format->es->video.crop.width = cs->captureWidth;
+	format->es->video.crop.height = cs->captureHeight;
+	format->es->video.frame_rate.num = FRAME_RATE_NUM;
+	format->es->video.frame_rate.den = FRAME_RATE_DEN;
 
 	status = mmal_port_format_commit(preview_port);
 	assert(status==MMAL_SUCCESS);
@@ -183,41 +185,10 @@ static void create_camera_component(CameraStream* cs, int cameraNum)
 	status = mmal_port_format_commit(video_port);
 	assert(status==MMAL_SUCCESS);
 	
-   // Ensure there are enough buffers to avoid dropping frames
-   if (video_port->buffer_num < VIDEO_OUTPUT_BUFFERS_NUM)
-      video_port->buffer_num = VIDEO_OUTPUT_BUFFERS_NUM;
-
-	// configure still port format
-   format = still_port->format;
-   if(cs->camera_parameters.shutter_speed > 6000000)
-   {
-        MMAL_PARAMETER_FPS_RANGE_T fps_range = {{MMAL_PARAMETER_FPS_RANGE, sizeof(fps_range)},
-                                                     { 50, 1000 }, {166, 1000}};
-        mmal_port_parameter_set(still_port, &fps_range.hdr);
-   }
-   else if(cs->camera_parameters.shutter_speed > 1000000)
-   {
-        MMAL_PARAMETER_FPS_RANGE_T fps_range = {{MMAL_PARAMETER_FPS_RANGE, sizeof(fps_range)},
-                                                     { 167, 1000 }, {999, 1000}};
-        mmal_port_parameter_set(still_port, &fps_range.hdr);
-   }
-   // Set our stills format on the stills (for encoder) port
-   format->encoding = MMAL_ENCODING_OPAQUE;
-   format->es->video.width = VCOS_ALIGN_UP(CAPTURE_WIDTH, 32);
-   format->es->video.height = VCOS_ALIGN_UP(CAPTURE_HEIGHT, 16);
-   format->es->video.crop.x = 0;
-   format->es->video.crop.y = 0;
-   format->es->video.crop.width = CAPTURE_WIDTH;
-   format->es->video.crop.height = CAPTURE_HEIGHT;
-   format->es->video.frame_rate.num = STILLS_FRAME_RATE_NUM;
-   format->es->video.frame_rate.den = STILLS_FRAME_RATE_DEN;
-
-   status = mmal_port_format_commit(still_port);
-   assert(status==MMAL_SUCCESS);
-
-   /* Ensure there are enough buffers to avoid dropping frames */
-   if (still_port->buffer_num < VIDEO_OUTPUT_BUFFERS_NUM)
-      still_port->buffer_num = VIDEO_OUTPUT_BUFFERS_NUM;
+	// Set the same format on the still  port (which we dont use here)
+	mmal_format_full_copy(still_port->format, format);
+	status = mmal_port_format_commit(still_port);
+	assert(status==MMAL_SUCCESS);
 
    /* Enable component */
    status = mmal_component_enable(camera);
@@ -341,11 +312,11 @@ static int stream_process_returned_bufs(CameraStream* cs)
    return rc;
 }
 
+/*********************************/
+/** HW interface init           **/
+/*********************************/
 int camera_streamer_init()
 {
-   /*********************************/
-   /** HW interface init           **/
-   /*********************************/
    bcm_host_init();
    vcos_init();
    
@@ -354,6 +325,8 @@ int camera_streamer_init()
 
 int camera_stream(int argc, char * argv[],
 	int cameraNum,
+	int captureWidth,
+	int captureHeight,
 	UserStreamInitializeFunc user_init_func,
 	UserBufferCopyFunc buf_copy_func,
 	UserBufferProcessFunc buf_proc_func,
@@ -375,6 +348,8 @@ int camera_stream(int argc, char * argv[],
    camstream->buffer_copy_func = buf_copy_func;
    camstream->buffer_process_func = buf_proc_func;
    camstream->user_data = user_data;
+   camstream->captureWidth = captureWidth;
+   camstream->captureHeight = captureHeight;
 
 
    /*********************************/
@@ -410,7 +385,7 @@ int camera_stream(int argc, char * argv[],
    /** Camera streaming setup      **/
    /*********************************/
 	create_camera_component(camstream, cameraNum);
-	printf("Camera Ok\n");
+	printf("Camera Ok (%dx%d)\n",camstream->captureWidth,camstream->captureHeight);
 	
 	camstream->stream_port = camstream->camera_component->output[MMAL_CAMERA_PREVIEW_PORT];
 	configure_camera_stream(camstream);

@@ -8,17 +8,8 @@
 
 // Stills format information
 // 0 implies variable
-#define STILLS_FRAME_RATE_NUM 0
-#define STILLS_FRAME_RATE_DEN 1
-
-#define PREVIEW_FRAME_RATE_NUM 0
-#define PREVIEW_FRAME_RATE_DEN 1
-
-#define FULL_RES_PREVIEW_FRAME_RATE_NUM 0
-#define FULL_RES_PREVIEW_FRAME_RATE_DEN 1
-
-#define CAPTURE_WIDTH 1296
-#define CAPTURE_HEIGHT 972
+#define FRAME_RATE_NUM 0
+#define FRAME_RATE_DEN 1
 
 #define VIDEO_OUTPUT_BUFFERS_NUM 3
 
@@ -37,11 +28,14 @@ extern int camera_streamer_init();
 
 extern int camera_stream(int argc, char * argv[],
 	int cameraNum,
+	int captureWidth,
+	int captureHeight,
 	UserStreamInitializeFunc user_init_func,
 	UserBufferCopyFunc buf_copy_func,
 	UserBufferProcessFunc buf_proc_func,
 	UserStreamFinalizeFunc user_final_func,
-	void* user_data );
+	void* user_data )
+;
 
 
 #ifdef __cplusplus
