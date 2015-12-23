@@ -5,15 +5,17 @@
  * x * y
  *   z
  */
+float incrementL2( float c, float nbh )
+{
+	float nbhOk = clamp( sign(nbh-UNIT*0.5) , 0.0 , 1.0 );
+	float same = 1.0 - abs(sign(nbh-c));
+	return c + same*nbhOk*UNIT;
+}
 
 void main(void)
 {
 	vec2 texcoord = normalizedWindowCoord();
 	vec4 C = texture2D( tex, texcoord );
-	/*if( C.x < 0.5 )
-	{
-		discard;
-	}*/
 
 	float tx = texcoord.x;
 	float ty = texcoord.y;
@@ -23,32 +25,16 @@ void main(void)
 		
 	if( Tx_p<1.0 )
 	{
-		vec4 nbh = texture2D( tex, vec2(Tx_p,texcoord.y) );
-
-		if( nbh.x>0.0 && nbh.x==C.x )
-		{
-			C.x += UNIT;
-		}
-
-		if( nbh.z>0.0 && nbh.z==C.z )
-		{
-			C.z += UNIT;
-		}
+		vec4 nbh = texture2D( tex, vec2(Tx_p,ty) );
+		C.x = incrementL2( C.x, nbh.x);
+		C.z = incrementL2( C.z, nbh.z);
 	}
 
 	if( Ty_p<1.0 )
 	{
-		vec4 nbh = texture2D( tex, vec2(texcoord.x,Ty_p) );
-
-		if( nbh.y>0.0 && nbh.y==C.y )
-		{
-			C.y += UNIT;
-		}
-
-		if( nbh.w>0.0 && nbh.w==C.w )
-		{
-			C.w += UNIT;
-		}
+		vec4 nbh = texture2D( tex, vec2(tx,Ty_p) );
+		C.y = incrementL2( C.y, nbh.y);
+		C.w = incrementL2( C.w, nbh.w);
 	}
 
 	gl_FragColor = C;

@@ -13,7 +13,7 @@
 	"FrameBufferObjects" :
 	{
 		"fbo1" : {} ,
-		"fbo2" : {}
+		"fbo2" : {} ,
 		"fbo-dbg" : {}
 	}
     ,
@@ -44,9 +44,9 @@
 			"output" : "fbo-dbg"
 		}
 		,
-		"gpu-display" : {
-			"fragment-shader" : "drawL2Cross_fs" ,
-			"textures" : { "tex_l2cross" : "gpu-l2cross" , "tex_camera" : "CAMERA" }
+		"gpu-display-dbg" : {
+			"fragment-shader" : "drawL2CrossDBG_fs" ,
+			"textures" : { "tex_l2cross" : "fbo-dbg" , "tex_camera" : "CAMERA" }
 		}
 		,
 		"gpu-overlay" : {
@@ -69,6 +69,14 @@
 		}
     }
     ,
-    "ProcessingLoop" : [ "gpu-init", "gpu-l2cross", "gpu-l2cross-final", "cpu-l2CrossCenter", "gpu-display", "cpu-syncThread", "gpu-overlay" ]
-    //"ProcessingLoop" : [ "gpu-init", "gpu-l2cross", "gpu-l2cross-final", "cpu-l2CrossCenter", "gpu-display", "gpu-overlay" ]
+    "ProcessingLoop" : [
+		"gpu-init", 
+		"gpu-l2cross", 
+		"gpu-l2cross-final", 
+		"cpu-l2CrossCenter", 
+		"gpu-l2cross-final-dbg", 
+		"gpu-display-dbg", 
+		"cpu-syncThread", 
+		"gpu-overlay"
+		]
 }
