@@ -1,6 +1,7 @@
 # compile plugin dynamic libraries
 
 include_directories(.. ../include ${GL_INC_DIR})
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 
 file(GLOB PLUGIN_SOURCE_FILES "*.cc")
 foreach(PLUGIN_SRC ${PLUGIN_SOURCE_FILES})

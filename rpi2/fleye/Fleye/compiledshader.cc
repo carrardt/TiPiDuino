@@ -1,4 +1,4 @@
-#include "fleye/compiledshadercache.h"
+#include "fleye/compiledshader.h"
 #include "fleye/shaderprogram.h"
 #include "fleye/shaderpass.h"
 #include "fleye/texture.h"
@@ -10,7 +10,7 @@
 #include <string>
 #include <iostream>
 
-CompiledShaderCache* get_compiled_shader(ShaderPass* shaderPass, int passIteration)
+CompiledShader* get_compiled_shader(ShaderPass* shaderPass, int passIteration)
 {
 	std::string image_external_pragma;
 	std::string uniformDeclare;
@@ -32,7 +32,7 @@ CompiledShaderCache* get_compiled_shader(ShaderPass* shaderPass, int passIterati
 		else { std::cerr<<"no texture for input "<<i<<"\n";  }
 	}
 
-	for( CompiledShaderCache& cs :  shaderPass->shaderCahe )
+	for( CompiledShader& cs :  shaderPass->shaderCahe )
 	{
 		bool match = true;
 		assert( nTextureInputs == cs.textureTargets.size() );
@@ -43,7 +43,7 @@ CompiledShaderCache* get_compiled_shader(ShaderPass* shaderPass, int passIterati
 		if( match ) { return &cs; }
 	}
 	
-	CompiledShaderCache compiledShader;
+	CompiledShader compiledShader;
 	compiledShader.textureTargets = texTargets ;
 	for(int i=0;i<nTextureInputs;i++)
 	{

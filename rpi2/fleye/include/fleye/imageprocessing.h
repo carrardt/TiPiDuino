@@ -17,7 +17,7 @@ struct FleyeRenderWindow;
 
 struct ImageProcessingState
 {
-	CPU_TRACKING_STATE cpu_tracking_state;
+	CpuWorkerState cpu_tracking_state;
 	std::vector<ProcessingStep> processing_step;
 	std::map<std::string,GLTexture*> texture;
 	std::map<std::string,FrameBufferObject*> fbo;

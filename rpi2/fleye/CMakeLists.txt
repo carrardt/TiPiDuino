@@ -21,8 +21,9 @@ SET(GL_LIB_DIR "${VCLIB}")
 
 # Resource directories
 SET(GLSL_SHADER_DIR ${CMAKE_CURRENT_SOURCE_DIR}/shaders)
-SET(SCRIPTS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/scripts )
-SET(PLUGINS_DIR ${CMAKE_CURRENT_BINARY_DIR}/plugins )
+SET(SCRIPTS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/scripts)
+SET(PLUGINS_DIR ${CMAKE_CURRENT_BINARY_DIR}/plugins)
+SET(DATA_DIR ${CMAKE_CURRENT_SOURCE_DIR}/data)
 
 add_subdirectory(thirdparty)
 add_subdirectory(gpiotest)

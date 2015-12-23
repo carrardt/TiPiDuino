@@ -1,0 +1,24 @@
+// simple passthru (display camera)
+{
+	"Textures" :
+	{
+		"bitmapfont" : { }
+	}
+	,
+	"GLShaders" :
+	{
+		"passthru" : {
+			"fragment-shader" : "passthru_fs" , 
+			"textures" : { "tex" : "CAMERA" } 
+		}
+		,
+		"text-overlay" : {
+			"vertex-shader" : "text_vs" , 
+			"fragment-shader" : "text_fs" , 
+			"textures" : { "font" : "bitmapfont" } ,
+			"rendering" : "drawText"
+		}
+	}
+	,
+	"ProcessingLoop" : [ "passthru" , "text-overlay" ]
+}

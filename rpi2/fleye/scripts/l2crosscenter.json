@@ -14,7 +14,6 @@
 	{
 		"fbo1" : {} ,
 		"fbo2" : {}
-		"fbo-dbg" : {}
 	}
     ,
     "GLShaders" :
@@ -38,12 +37,6 @@
 			"output" : "l2c-render-buffer"
 		}
 		,
-		"gpu-l2cross-final-dbg" : {
-			"fragment-shader" : "L2CrossFinal_fs" , 
-			"textures" : { "tex" : "gpu-l2cross" } ,
-			"output" : "fbo-dbg"
-		}
-		,
 		"gpu-display" : {
 			"fragment-shader" : "drawL2Cross_fs" ,
 			"textures" : { "tex_l2cross" : "gpu-l2cross" , "tex_camera" : "CAMERA" }
@@ -52,7 +45,7 @@
 		"gpu-overlay" : {
 			"vertex-shader" : "zhue_vs" ,
 			"fragment-shader" : "color_fs" ,
-			"rendering" : { "plugin" : "l2CrossCenter" , "function" : "drawObjectPosition" }
+			"rendering" : { "plugin" : "drawTrackingPos" }
 		}
     }
     ,
@@ -69,6 +62,12 @@
 		}
     }
     ,
-    "ProcessingLoop" : [ "gpu-init", "gpu-l2cross", "gpu-l2cross-final", "cpu-l2CrossCenter", "gpu-display", "cpu-syncThread", "gpu-overlay" ]
-    //"ProcessingLoop" : [ "gpu-init", "gpu-l2cross", "gpu-l2cross-final", "cpu-l2CrossCenter", "gpu-display", "gpu-overlay" ]
+    "ProcessingLoop" : [
+		"gpu-init", 
+		"gpu-l2cross", 
+		"gpu-l2cross-final", 
+		"cpu-l2CrossCenter", 
+		"gpu-display", 
+		"cpu-syncThread", 
+		"gpu-overlay" ]
 }

@@ -6,11 +6,8 @@
 #include "fleye/plugin.h"
 #include "fleye/FleyeContext.h"
 #include "fleye/imageprocessing.h"
-#include "fleye/compiledshadercache.h"
+#include "fleye/compiledshader.h"
 #include "thirdparty/bcm2835.h"
-
-FLEYE_REGISTER_PLUGIN(gpioPanTiltFollower)
-FLEYE_REGISTER_GL_DRAW(drawOverlay)
 
 #define SERVO_X_VALUE_MIN 250
 #define SERVO_X_VALUE_MAX 750
@@ -72,190 +69,161 @@ static void gpio_write_values(float xf, float yf, int laserSwitch)
 	bcm2835_gpio_set_multi( set_mask );
 }
 
-void gpioPanTiltFollower_setup(FleyeContext* ctx)
+struct gpioPanTiltFollower : public FleyePlugin
 {
-  int i;
-  
-  if (!bcm2835_init())
-  {
-    printf("bcm2835_init failed\n");
-    return;
-  }
+	void setup(FleyeContext* ctx)
+	{
+	  int i;
+	  
+	  if (!bcm2835_init())
+	  {
+		printf("bcm2835_init failed\n");
+		return;
+	  }
 
-  // reserve 24 GPIO pins as output
-  for(i=0;i<24;++i)
-  {
-	bcm2835_gpio_fsel(i, BCM2835_GPIO_FSEL_OUTP);
-	bcm2835_gpio_write(i, LOW);
-  }
+	  // reserve 24 GPIO pins as output
+	  for(i=0;i<24;++i)
+	  {
+		bcm2835_gpio_fsel(i, BCM2835_GPIO_FSEL_OUTP);
+		bcm2835_gpio_write(i, LOW);
+	  }
 
-	//autoCalibration = 1;
+		//autoCalibration = 1;
 
-  gpio_write_values(0.5,0.5,0);
-  printf("GPIO pan/tilt follower ready\n");
+	  gpio_write_values(0.5,0.5,0);
+	  printf("GPIO pan/tilt follower ready\n");
 
-  gettimeofday(&prevTime,NULL);
-}
+	  gettimeofday(&prevTime,NULL);
+	}
 
 #define INIT_COUNT 256
 #define ACQUIRE_COUNT 128
-void gpioPanTiltFollower_run(FleyeContext* ctx)
-{
-	CPU_TRACKING_STATE* state = & ctx->ip->cpu_tracking_state;
-	
-	struct timeval T2;
-	gettimeofday(&T2,NULL);
-	double deltaT = (T2.tv_sec-prevTime.tv_sec)*1000.0 + (T2.tv_usec-prevTime.tv_usec)*0.001;
-	prevTime = T2;
-
-	if( state->objectCount < 1 ) return;
-
-	double xf = ( state->objectCenter[0][0] - 0.5 ) * 2.0;
-	double yf = ( state->objectCenter[0][1] - 0.5 ) * 2.0;
-	double dist2 = xf*xf + yf*yf;
-
-	laserPosX = ( state->objectCenter[1][0] - 0.5 ) * 2.0;
-	laserPosY = ( state->objectCenter[1][1] - 0.5 ) * 2.0;
-
-	if( autoCalibration )
-	{		
-		if( autoCalibrationState != autoCalibrationStateOld )
-		{
-			printf("calibration step %d\n",autoCalibrationState);
-			autoCalibrationStateOld = autoCalibrationState;
-		}
-		
-		switch( autoCalibrationState )
-		{
-			case 0 :
-				if( dist2 > 0.0001 )
-				{
-					targetPosX = xf;
-					targetPosY = yf;
-					laserPosX = 0.0;
-					laserPosY = 0.0;
-					gpio_write_values(0.5,0.5,(counter++)%2);
-				}
-				else
-				{
-					gpio_write_values(0.5,0.5,0);
-					counter = 0;
-					targetPosX = 0.0;
-					targetPosY = 0.0;
-					++ autoCalibrationState;
-				}
-				break;
-				
-			case 1 :
-				targetPosX += xf;
-				targetPosY += yf;
-				++ counter;
-				if(counter==32)
-				{
-					targetPosX /= counter;
-					targetPosY /= counter;
-					++ autoCalibrationState;
-					counter=0;
-				}
-				break;
-
-			case 2 :
-				autoCalibration = 0;
-				break;
-		}
-	}
-	else
+	void run(FleyeContext* ctx)
 	{
-		const double MaxUncertainty = 1000.0;
-		double Dx = (xf-targetPrevX) / deltaT;
-		double Dy = (yf-targetPrevY) / deltaT;
-		double d2 = Dx*Dx+Dy*Dy;
-		double d = sqrt(d2);
-		double motionStability = 0.0;
-		double Nx = 0.0;
-		double Ny = 0.0;
-		if( d > 1e-8 )
-		{
-			Nx = Dx / d;
-			Ny = Dy / d;
-			double dirStability = ( Nx * targetDirX + Ny * targetDirY );
-			double Ax = ( Dx - targetSpeedX ) / deltaT;
-			double Ay = ( Dy - targetSpeedY ) / deltaT;
-			double accelNorm = sqrt(Ax*Ax+Ay*Ay);
-			// motionStability = ( M_PI - angle ) * d;
-			// printf("instability=%5.5f, angle=%5.5f, accel=%5.5f,\n",motionUncertainty,angle,accel);
+		CpuWorkerState* state = & ctx->ip->cpu_tracking_state;
+
+		struct timeval T2;
+		gettimeofday(&T2,NULL);
+		double deltaT = (T2.tv_sec-prevTime.tv_sec)*1000.0 + (T2.tv_usec-prevTime.tv_usec)*0.001;
+		prevTime = T2;
+
+		if( state->objectCount < 1 ) return;
+
+		double xf = ( state->objectCenter[0][0] - 0.5 ) * 2.0;
+		double yf = ( state->objectCenter[0][1] - 0.5 ) * 2.0;
+		double dist2 = xf*xf + yf*yf;
+
+		laserPosX = ( state->objectCenter[1][0] - 0.5 ) * 2.0;
+		laserPosY = ( state->objectCenter[1][1] - 0.5 ) * 2.0;
+
+		if( autoCalibration )
+		{		
+			if( autoCalibrationState != autoCalibrationStateOld )
+			{
+				printf("calibration step %d\n",autoCalibrationState);
+				autoCalibrationStateOld = autoCalibrationState;
+			}
+			
+			switch( autoCalibrationState )
+			{
+				case 0 :
+					if( dist2 > 0.0001 )
+					{
+						targetPosX = xf;
+						targetPosY = yf;
+						laserPosX = 0.0;
+						laserPosY = 0.0;
+						gpio_write_values(0.5,0.5,(counter++)%2);
+					}
+					else
+					{
+						gpio_write_values(0.5,0.5,0);
+						counter = 0;
+						targetPosX = 0.0;
+						targetPosY = 0.0;
+						++ autoCalibrationState;
+					}
+					break;
+					
+				case 1 :
+					targetPosX += xf;
+					targetPosY += yf;
+					++ counter;
+					if(counter==32)
+					{
+						targetPosX /= counter;
+						targetPosY /= counter;
+						++ autoCalibrationState;
+						counter=0;
+					}
+					break;
+
+				case 2 :
+					autoCalibration = 0;
+					break;
+			}
 		}
 		else
 		{
+			const double MaxUncertainty = 1000.0;
+			double Dx = (xf-targetPrevX) / deltaT;
+			double Dy = (yf-targetPrevY) / deltaT;
+			double d2 = Dx*Dx+Dy*Dy;
+			double d = sqrt(d2);
+			double motionStability = 0.0;
+			double Nx = 0.0;
+			double Ny = 0.0;
+			if( d > 1e-8 )
+			{
+				Nx = Dx / d;
+				Ny = Dy / d;
+				double dirStability = ( Nx * targetDirX + Ny * targetDirY );
+				double Ax = ( Dx - targetSpeedX ) / deltaT;
+				double Ay = ( Dy - targetSpeedY ) / deltaT;
+				double accelNorm = sqrt(Ax*Ax+Ay*Ay);
+				// motionStability = ( M_PI - angle ) * d;
+				// printf("instability=%5.5f, angle=%5.5f, accel=%5.5f,\n",motionUncertainty,angle,accel);
+			}
+			else
+			{
+				
+			}
 			
-		}
-		
-		double prevCoef = 1000.0;
-		
-		targetPosX = xf;
-		targetPosY = yf;
-		
-		
-		targetSpeedX = Dx;
-		targetSpeedY = Dy;
-		targetDirX	 = Nx;
-		targetDirY	 = Ny;
-		targetPrevX = targetPosX;
-		targetPrevY = targetPosY;
-		
-		
-		/*
-		double dx = TargetPosX - xf;
-		double dy = TargetPosY - yf ;
-		double l2norm = dx*dx+dy*dy;
-		if( (fabs(dx)+fabs(dy)) < 0.001 ) { return; }
-		
-		double servo_dx = dx / DXPosX;
-		double servo_dy = dy / DYPosY;
-		
-		ServoRefX += servo_dx*0.1;
-		ServoRefY += servo_dy*0.1;
-		
-		if( ServoRefX < 0.0 ) ServoRefX=0.0;
-		else if( ServoRefX > 1.0 ) ServoRefX=1.0;
+			double prevCoef = 1000.0;
+			
+			targetPosX = xf;
+			targetPosY = yf;
+			
+			
+			targetSpeedX = Dx;
+			targetSpeedY = Dy;
+			targetDirX	 = Nx;
+			targetDirY	 = Ny;
+			targetPrevX = targetPosX;
+			targetPrevY = targetPosY;
+			
+			
+			/*
+			double dx = TargetPosX - xf;
+			double dy = TargetPosY - yf ;
+			double l2norm = dx*dx+dy*dy;
+			if( (fabs(dx)+fabs(dy)) < 0.001 ) { return; }
+			
+			double servo_dx = dx / DXPosX;
+			double servo_dy = dy / DYPosY;
+			
+			ServoRefX += servo_dx*0.1;
+			ServoRefY += servo_dy*0.1;
+			
+			if( ServoRefX < 0.0 ) ServoRefX=0.0;
+			else if( ServoRefX > 1.0 ) ServoRefX=1.0;
 
-		if( ServoRefY < 0.0 ) ServoRefY=0.0;
-		else if( ServoRefY > 1.0 ) ServoRefY=1.0;
-		gpio_write_values( ServoRefX, ServoRefY, l2norm<0.001 ? 1 : 0 );
-		* */
+			if( ServoRefY < 0.0 ) ServoRefY=0.0;
+			else if( ServoRefY > 1.0 ) ServoRefY=1.0;
+			gpio_write_values( ServoRefX, ServoRefY, l2norm<0.001 ? 1 : 0 );
+			* */
+		}
 	}
-}
+};
 
-void drawOverlay(struct CompiledShaderCache* compiledShader, int pass)
-{
-	if( autoCalibrationState==0 || !autoCalibration )
-	{
-		GLfloat varray[24];
-		int i;
-		for(i=0;i<4;i++)
-		{
-			int x = i%2;
-			int y = ((i/2)+x)%2;
-			double ox = x ? -0.05 : 0.05;
-			double oy = y ? -0.05 : 0.05;
-			varray[i*3+0] = targetPosX +ox;
-			varray[i*3+1] = targetPosY +oy;
-			varray[i*3+2] = 0.333;
-		}
-		for(i=4;i<8;i++)
-		{
-			int x = i%2;
-			int y = ((i/2)+x)%2;
-			double ox = x ? -0.05 : 0.05;
-			double oy = y ? -0.05 : 0.05;
-			varray[i*3+0] = laserPosX+ox;
-			varray[i*3+1] = laserPosY+oy;
-			varray[i*3+2] = 0.0;
-		}
-
-		glEnableVertexAttribArray(compiledShader->shader.attribute_locations[0]);
-		glVertexAttribPointer(compiledShader->shader.attribute_locations[0], 3, GL_FLOAT, GL_FALSE, 0, varray);
-		glDrawArrays(GL_LINES, 0, 8);
-		glDisableVertexAttribArray(compiledShader->shader.attribute_locations[0]);
-	}
-}
+FLEYE_REGISTER_PLUGIN(gpioPanTiltFollower);

@@ -16,6 +16,7 @@
 #include "fleye/plugin.h"
 #include "fleye/FleyeContext.h"
 #include "fleye/FleyeRenderWindow.h"
+#include "thirdparty/tga.h"
 
 FleyeRenderWindow* ImageProcessingState::getRenderBuffer(const std::string& name) const
 {
@@ -75,33 +76,6 @@ static std::string get_string_value( FleyeContext* ctx, Json::Value x )
 	return s;
 }
 
-static void* dynlib_func_addr(const std::string& plugin, const std::string& funcName)
-{
-	void * handle = NULL;
-	if( ! plugin.empty() )
-	{
-		std::string libFile = FLEYE_PLUGIN_DIR;
-		libFile += "/lib" + plugin + ".so";
-		// std::cout<<"load plugin "<<libFile<<"\n";
-		handle = dlopen(libFile.c_str(), RTLD_GLOBAL | RTLD_NOW);
-		if(handle==NULL)
-		{
-			std::cerr<<"failed to load plugin "<<plugin<<"\n";
-			return 0;
-		}
-	}
-	else
-	{
-		handle = dlopen(NULL, RTLD_GLOBAL | RTLD_NOW);
-	}
-	void* proc_addr = dlsym(handle,funcName.c_str());
-	if( proc_addr == 0 )
-	{
-		std::cerr<<"failed to find symbol "<<funcName<<"\n";
-	}
-	return proc_addr;
-}
-
 static std::string readShader(const std::string& shaderName)
 {
 	std::string fileName = GLSL_SRC_DIR;
@@ -156,7 +130,7 @@ int read_image_processing_script(FleyeContext* ctx)
 		;
 
 	static const std::string vs_attributes = 
-		"attribute vec3 vertex;\n"
+		"attribute vec4 vertex;\n"
 		;
 
 	static const std::string inc_fs = readShader("inc_fs");
@@ -188,6 +162,35 @@ int read_image_processing_script(FleyeContext* ctx)
 			if( ctx->verbose ) { std::cout<<"User variable '"<<var<<"' defaults to '"<<value<<"'\n"; }
 			ctx->vars[var] = value;
 		}
+	}
+
+    const Json::Value textures = root["Textures"];
+	for( auto name : textures.getMemberNames() )
+	{
+		const Json::Value texValue = textures[name];
+		std::string fileName = get_string_value(ctx,texValue["file"]);
+		if( fileName.empty() ) fileName = name+".tga";
+		if( fileName[0]!='/' ) fileName = std::string(FLEYE_DATA_DIR) + "/" + fileName;
+		if( ctx->verbose ) { std::cout<<"Load texture '"<<name<<" from file '"<<fileName<<"' "; std::cout.flush(); }
+		struct tga_header hdr;
+		uint8_t* img = load_tga(fileName.c_str(), &hdr);
+		assert( img != NULL );
+		if( ctx->verbose ) { std::cout<<"size="<<hdr.image_info.width<<'x'<<hdr.image_info.height<<" ";  std::cout.flush(); }
+		GLTexture* tex = new GLTexture;
+		tex->format = GL_RGBA;
+		tex->target = GL_TEXTURE_2D;
+		glGenTextures( 1, & tex->texid );
+		assert( tex->texid != 0 );
+		if( ctx->verbose ) { std::cout<<"id="<<tex->texid<<"\n"; }
+		// configure camera input texture
+		GLCHK( glBindTexture(GL_TEXTURE_2D, tex->texid) );
+		GLCHK( glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, hdr.image_info.width, hdr.image_info.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, img) );
+		GLCHK( glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE) );
+		GLCHK( glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE) );
+		GLCHK( glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR) );
+		GLCHK( glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR) );
+		GLCHK( glBindTexture(GL_TEXTURE_2D,0) );
+		ctx->ip->texture[name] = tex;
 	}
  
     const Json::Value renbufs = root["RenderBuffers"];
@@ -229,9 +232,8 @@ int read_image_processing_script(FleyeContext* ctx)
 		shaderPass->finalTexture = new GLTexture();
 		shadersDB[ name ] = shaderPass;
 
-		// add a texture alias to the shader output.
 		// name of the shader can be used as a texture name
-		//if( ctx->verbose ) { std::cout<<"create texture alias '"<<name<<"'\n"; }
+		// it corresponds to the last fbo it rendered to (fbo is the only output that can be used as a texture)
 		ctx->ip->texture[ name ] = shaderPass->finalTexture;
 	}
 	for( auto name : shadersObject.getMemberNames() )
@@ -250,15 +252,9 @@ int read_image_processing_script(FleyeContext* ctx)
 			readShader( get_string_value(ctx,shader.get("fragment-shader","passthru_fs")) );
 		if( ctx->verbose ) { std::cout<<"\tFramgent shader size = "<<shaderPass->fragmentSourceWithoutTextures.size()<<"\n"; }
 
-		const Json::Value render = shader["rendering"];
-		std::string renderPlugin = get_string_value(ctx,render.get("plugin",""));
-		std::string renderFunc = get_string_value(ctx,render.get("function","gl_fill"));
-		shaderPass->gl_draw = (GLRenderFunctionT) dynlib_func_addr( renderPlugin, renderFunc );
-		if( ctx->verbose ) { 
-			std::cout<<"\tRender method:";
-			if(!renderPlugin.empty()) std::cout<<" plugin="<<renderPlugin;
-			std::cout<<" function="<<renderFunc<<" @"<<shaderPass->gl_draw<<"\n";
-		}
+		// load rendering function from plugin or builtin gl_fill
+		std::string pluginName = get_string_value(ctx,shader["rendering"]);
+		shaderPass->drawPlugin = FleyePlugin::plugin(ctx,pluginName);
 
 		const Json::Value textures = shader["textures"];
 		for( auto name : textures.getMemberNames() )
@@ -296,23 +292,10 @@ int read_image_processing_script(FleyeContext* ctx)
 	{
 		//std::cout<<"\n+++++ Parsing cpu pass "<<name<<" +++++\n";
 		const Json::Value cpuFuncObject = cpuFuncsObject[name];
-		std::string plugin = get_string_value(ctx,cpuFuncObject.get("plugin",""));
-		std::string setupName = get_string_value(ctx,cpuFuncObject.get("setup",""));
-		std::string funcName = get_string_value(ctx,cpuFuncObject.get("run",""));
-		if(setupName.empty()) setupName=plugin+"_setup";
-		if(funcName.empty()) funcName=plugin+"_run";
-
-		// isn't it highly secure ? we're doing graphics anyway, we don't care ;-)
-		PluginSetupFunc setup_function = ( PluginSetupFunc ) dynlib_func_addr(plugin,setupName);
-		if( setup_function != 0 )
-		{ 
-			//std::cout<<"initialize plugin ...\n";
-			(*setup_function) ( ctx );
-		}
-
+		std::string pluginName = get_string_value(ctx,cpuFuncObject["plugin"]);
 		CpuPass* cpu = new CpuPass;
 		cpu->exec_thread = get_integer_value(ctx,cpuFuncObject.get("thread-id",0));
-		cpu->cpu_processing = (CpuProcessingFunc) dynlib_func_addr(plugin,funcName);
+		cpu->cpu_processing = FleyePlugin::plugin(ctx,pluginName);
 		if( ctx->verbose ) { std::cout<<"\t"<<name<<" : thread="<<cpu->exec_thread<<", function @"<<cpu->cpu_processing<<"\n"; }
 		cpuFuncDB[name] = cpu;
 	}

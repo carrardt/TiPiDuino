@@ -55,15 +55,13 @@ int waitEndProcessingSem( struct FleyeContext* ctx )
 	vcos_semaphore_wait( & ctx->priv->end_processing_sem );
 }
 
-static void update_fps()
+static void update_fps(FleyeContext* ctx)
 {
-   static int frame_count = 0;
    static long long time_start = 0;
+   static uint32_t lastCount = 0;
    long long time_now;
    struct timeval te;
    float fps;
-
-   frame_count++;
 
    gettimeofday(&te, NULL);
    time_now = te.tv_sec * 1000LL + te.tv_usec / 1000;
@@ -72,12 +70,13 @@ static void update_fps()
    {
       time_start = time_now;
    }
-   else if (time_now - time_start > 5000)
+   else if (time_now - time_start > 1000)
    {
+	  uint32_t frame_count = ctx->frameCounter - lastCount;
       fps = (float) frame_count / ((time_now - time_start) / 1000.0);
-      frame_count = 0;
+      lastCount = ctx->frameCounter;
       time_start = time_now;
-      std::cout<<fps<<" FPS\n";
+      ctx->setIntegerVar("FPS",fps);
    }
 }
 
@@ -85,7 +84,7 @@ static int user_process(void* user_data)
 {
 	FleyeContext* ctx = (FleyeContext*) user_data;
 	glworker_redraw( ctx );
-	update_fps();
+	update_fps(ctx);
 	return 0;
 }
 
@@ -254,7 +253,8 @@ int main(int argc, char * argv[])
 	ctx->setIntegerVar("HEIGHT",ctx->height);
 	ctx->setIntegerVar("CAM_WIDTH",ctx->captureWidth);
 	ctx->setIntegerVar("CAM_HEIGHT",ctx->captureHeight);
-
+	ctx->setIntegerVar("FPS",0);
+	
 	if( ctx->verbose )
 	{
 		std::cout<<"Fleye vars:\n";

@@ -5,23 +5,26 @@
 #include "fleye/FleyeContext.h"
 #include "fleye/imageprocessing.h"
 
-FLEYE_REGISTER_PLUGIN(syncThread)
-
-void syncThread_setup(FleyeContext* ctx)
+struct syncThread : public FleyePlugin
 {
-	printf("syncThread plugin ready\n");
-}
-
-void syncThread_run(FleyeContext* ctx)
-{
-	CPU_TRACKING_STATE * state = & ctx->ip->cpu_tracking_state;
-	
-	int nToWait = state->nAvailCpuFuncs - state->nFinishedCpuFuncs;
-	while( nToWait > 0 )
+	void syncThread_setup(FleyeContext* ctx)
 	{
-		waitEndProcessingSem( ctx );
-		// vcos_semaphore_wait( & state->end_processing_sem );
-		-- nToWait;
+		printf("syncThread plugin ready\n");
 	}
-	state->nFinishedCpuFuncs = state->nAvailCpuFuncs; 
-}
+
+	void syncThread_run(FleyeContext* ctx)
+	{
+		CpuWorkerState * state = & ctx->ip->cpu_tracking_state;
+		
+		int nToWait = state->nAvailCpuFuncs - state->nFinishedCpuFuncs;
+		while( nToWait > 0 )
+		{
+			waitEndProcessingSem( ctx );
+			// vcos_semaphore_wait( & state->end_processing_sem );
+			-- nToWait;
+		}
+		state->nFinishedCpuFuncs = state->nAvailCpuFuncs; 
+	}
+};
+
+FLEYE_REGISTER_PLUGIN(syncThread);

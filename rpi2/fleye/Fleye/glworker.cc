@@ -18,10 +18,8 @@
 #include "fleye/FleyeContext.h"
 #include "glworker.h"
 
-FLEYE_REGISTER_GL_DRAW(gl_fill)
-
 int glworker_init(struct FleyeContext* ctx)
-{	
+{
 	static const EGLint egl_config_attribs[] =
 	{
 	   EGL_RED_SIZE,   8,
@@ -105,25 +103,10 @@ int glworker_init(struct FleyeContext* ctx)
     return 0;
 }
 
-// default drawing function
-void gl_fill(struct CompiledShaderCache* compiledShader, int pass)
+static void apply_shader_pass(FleyeContext* ctx, ProcessingStep* ps, int passCounter, int* needSwapBuffers)
 {
-	static GLfloat tstrip[12] = {
-		-1,-1,0,
-		-1,1,0, 
-		1,-1,0, 
-		1,1,0
-		};
-
-    GLCHK( glEnableVertexAttribArray(compiledShader->shader.attribute_locations[0]));
-	GLCHK( glVertexAttribPointer(compiledShader->shader.attribute_locations[0], 3, GL_FLOAT, GL_FALSE, 0, tstrip));
-	GLCHK( glDrawArrays(GL_TRIANGLE_STRIP, 0, 4));
-    GLCHK( glDisableVertexAttribArray(compiledShader->shader.attribute_locations[0]));
-}
-
-static void apply_shader_pass(ShaderPass* shaderPass, int passCounter, int* needSwapBuffers)
-{
-	CompiledShaderCache* compiledShader = get_compiled_shader( shaderPass, passCounter );
+	ShaderPass* shaderPass = ps->shaderPass;
+	CompiledShader* compiledShader = get_compiled_shader( shaderPass, passCounter );
 	if(compiledShader==0)
 	{
 		std::cerr<<"Error compiling shader\n";
@@ -187,9 +170,9 @@ static void apply_shader_pass(ShaderPass* shaderPass, int passCounter, int* need
 	if( (loc=compiledShader->shader.uniform_locations[4]) != -1 ) { GLCHK( glUniform2f(loc, p2i/destFBO->width, p2i/destFBO->height ) ); }
 
 	// call custom drawing function
-	if( shaderPass->gl_draw != 0 )
+	if( shaderPass->drawPlugin != 0 )
 	{
-		( * shaderPass->gl_draw ) (compiledShader,passCounter);
+		shaderPass->drawPlugin->draw(ctx, compiledShader, passCounter);
 	}
 	// detach textures
  	for(int i=nInputs-1;i>=0;i--)
@@ -214,7 +197,7 @@ static void apply_shader_pass(ShaderPass* shaderPass, int passCounter, int* need
     // GLCHK(glFinish());
 }
 
-int glworker_redraw(struct FleyeContext* ctx)
+int glworker_redraw(FleyeContext* ctx)
 {
 	int step = 0;
 	int swapBuffers = 0;
@@ -264,7 +247,7 @@ int glworker_redraw(struct FleyeContext* ctx)
 						//std::cout<<"make current on "<<renwin<<"\n";
 						eglMakeCurrent(renwin->display, renwin->surface, renwin->surface, renwin->context);
 					}
-					apply_shader_pass( ps.shaderPass, i, &swapBuffers);
+					apply_shader_pass( ctx, &ps, i, &swapBuffers);
 				}
 				if( nPasses>0 && fboPoolSize>0 )
 				{
@@ -284,7 +267,7 @@ int glworker_redraw(struct FleyeContext* ctx)
 				if( ps.cpuPass->exec_thread == 0 )
 				{
 					//printf("sync exec cpu step #%d\n",step);
-					( * ps.cpuPass->cpu_processing ) ( ctx );
+					ps.cpuPass->cpu_processing->run( ctx );
 				}
 				else
 				{

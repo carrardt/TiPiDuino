@@ -7,7 +7,7 @@
 void *cpuWorker(void *arg)
 {
 	FleyeContext * ctx = (FleyeContext *) arg;
-	CPU_TRACKING_STATE* state = & ctx->ip->cpu_tracking_state;
+	CpuWorkerState* state = & ctx->ip->cpu_tracking_state;
 	
 	if( ctx->verbose ) { std::cout<<"CPU worker started\n"; }
 	state->cpuFunc = 0;
@@ -19,7 +19,7 @@ void *cpuWorker(void *arg)
 	{
 		if( state->cpu_processing[ state->cpuFunc ] !=0 )
 		{
-			( * state->cpu_processing[ state->cpuFunc ] )( ctx );
+			state->cpu_processing[ state->cpuFunc ]->run( ctx );
 			
 			// signal that one more task has finished
 			postEndProcessingSem( ctx );

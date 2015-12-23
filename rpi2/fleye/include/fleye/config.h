@@ -29,9 +29,9 @@
 
 #define MAX_POINT_SIZE 512
 
-#ifndef NDEBUG
+//#ifndef NDEBUG
 #define CHECK_GL_ERRORS 1
-#endif
+//#endif
 
 #if defined(CHECK_GL_ERRORS)
 #include <stdio.h>

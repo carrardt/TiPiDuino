@@ -1,18 +1,18 @@
-#ifndef fleye_CompiledShaderCache_H_
-#define fleye_CompiledShaderCache_H_
+#ifndef fleye_CompiledShader_H_
+#define fleye_CompiledShader_H_
 
 #include "fleye/shaderprogram.h"
 
 struct GLTexture;
 struct ShaderPass;
 
-struct CompiledShaderCache
+struct CompiledShader
 {
 	std::vector<int> textureTargets;
 	std::vector<int> samplerUniformLocations;
 	ShaderProgram shader;
 };
 
-CompiledShaderCache* get_compiled_shader(ShaderPass* shaderPass, int passCount);
+CompiledShader* get_compiled_shader(ShaderPass* shaderPass, int passCount);
 
 #endif

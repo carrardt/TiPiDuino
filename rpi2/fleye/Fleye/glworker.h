@@ -3,16 +3,8 @@
 
 struct FleyeContext;
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-extern int glworker_init(struct FleyeContext* ctx);
-extern int glworker_redraw(struct FleyeContext* ctx);
-
-#ifdef __cplusplus
-}
-#endif
+int glworker_init(struct FleyeContext* ctx);
+int glworker_redraw(struct FleyeContext* ctx);
 
 
 #endif
