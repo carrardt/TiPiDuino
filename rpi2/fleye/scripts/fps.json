@@ -19,6 +19,11 @@
 			"rendering" : "drawText"
 		}
 	}
+    ,
+    "CPUFunctions" :
+    {
+		"print-fps" : {	"plugin" : "printFPS" }
+    }
 	,
-	"ProcessingLoop" : [ "passthru" , "text-overlay" ]
+	"ProcessingLoop" : [ "passthru" , "print-fps", "text-overlay" ]
 }

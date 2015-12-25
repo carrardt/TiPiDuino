@@ -23,13 +23,14 @@ struct drawTrackingPos : public FleyePlugin
 			float x = ( state->objectCenter[state->objectCount][0] - 0.5 ) * 2.0 ;
 			float y = ( state->objectCenter[state->objectCount][1] - 0.5 ) * 2.0 ;
 			float h = i / (float) state->objectCount;
+			std::cout<<i<<" : x="<<x<<", y="<<y<<"\n";
 			drawCross(compiledShader,x,y,h);
 		}
 
 		glDisableVertexAttribArray(compiledShader->shader.attribute_locations[0]);
 	}
 	
-	static void drawCross(struct CompiledShader* cs, float posx, float posy, float hue)
+	void drawCross(struct CompiledShader* cs, float posx, float posy, float hue)
 	{
 		GLfloat varray[12];
 		for(int i=0;i<4;i++)

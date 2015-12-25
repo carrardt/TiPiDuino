@@ -15,16 +15,17 @@ CompiledShader* get_compiled_shader(ShaderPass* shaderPass, int passIteration)
 	std::string image_external_pragma;
 	std::string uniformDeclare;
 	int i,rc;
-		
+	
+	//std::cout<<shaderPass<<" "<<shaderPass->inputs.back().texPool.size()<<"\n";
 	int nTextureInputs = shaderPass->inputs.size();
-	std::vector<int> texTargets(nTextureInputs);
+	std::vector<int> texTargets(nTextureInputs,GL_NONE);
 	for(int i=0;i<nTextureInputs;i++)
 	{ 
 		const TextureInput & texinput = shaderPass->inputs[i] ;
 		int texPoolSize = texinput.texPool.size();
-		texTargets[i] = GL_NONE;
 		if( texPoolSize > 0 )
 		{
+			
 			GLTexture* tex = texinput.texPool[ passIteration % texPoolSize ];
 			if( tex != 0 ) { texTargets[i] = tex->target ; }
 			else { std::cerr<<"Null texture pointer : input "<<i<<", pass "<<passIteration<<"\n"; }

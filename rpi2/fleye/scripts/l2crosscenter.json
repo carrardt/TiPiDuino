@@ -45,7 +45,7 @@
 		"gpu-overlay" : {
 			"vertex-shader" : "zhue_vs" ,
 			"fragment-shader" : "color_fs" ,
-			"rendering" : { "plugin" : "drawTrackingPos" }
+			"rendering" : "drawTrackingPos"
 		}
     }
     ,

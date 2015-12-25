@@ -271,6 +271,7 @@ int read_image_processing_script(FleyeContext* ctx)
 			}
 			if( ctx->verbose ) { std::cout<<"\n"; }
 			shaderPass->inputs.push_back( texInput );
+			//std::cout<<shaderPass<<" "<<shaderPass->inputs.back().texPool.size()<<"\n";
 		}
 		
 		if( ctx->verbose ) { std::cout<<"\tOutput :"; }
