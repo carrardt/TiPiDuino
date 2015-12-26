@@ -1,9 +1,0 @@
-// window (pixel) screen coordinates testing
-{
-	"GLShaders" :
-	{
-		"final" : { "fragment-shader" : "wincoord_fs" }
-	}
-	,
-	"ProcessingLoop" : [ "final" ]
-}
