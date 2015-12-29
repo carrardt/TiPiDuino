@@ -10,9 +10,6 @@ $(WIRING_SRC_DIR):
 	cd $(WIRING_SRC_DIR)
 	git checkout HEAD framework
 
-# ETL template library for avr
-ETL_ROOT=$(HOME)/dev/ETL
-
 # where to find personal sketches
 SKETCHES=$(HOME)/dev/TiPiDuino/sketches
 
@@ -98,6 +95,9 @@ all: $(USER_SKETCHES_TARGETS)
 wiring: $(WIRING_SRC_DIR) $(WIRING_LIB)
 user: $(USER_LIB)
 #exemples: $(WIRING_EXEMPLES)
+
+debug:
+	echo "Sketches : " $(SKETCHES)
 
 console:
 	cu -t -h -s 9600 -l $(SERIALPORT)

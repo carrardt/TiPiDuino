@@ -177,6 +177,13 @@ namespace avrtl
 		pulsePWMFast<CycleUSec,HighPeriodUSec>( tx, duration );
 	}
 
+	template<uint16_t CycleUSec,  uint16_t HighPeriodUSec>
+	static inline void longPulsePWM(auto tx,uint32_t durationUSec)
+	{
+		SCOPED_SIGNAL_PROCESSING;
+		pulsePWMFastTicks<microsecondsToTicks(CycleUSec),microsecondsToTicks(HighPeriodUSec)>( tx, durationUSec/CycleUSec );
+	}
+
 	static inline void pulseFast(auto tx, bool value, uint32_t duration)
 	{
 		INIT_CLOCK_COUNTER();
