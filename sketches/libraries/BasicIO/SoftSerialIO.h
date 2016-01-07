@@ -29,24 +29,25 @@ struct SoftSerialIO : public ByteStream
 		avrtl::DelayMicroseconds( bitPeriod ); // if we were low this establishes the end
 	}
 
-	virtual bool writeByte(uint8_t b)
+	void writeByteUnsafe(uint8_t b)
 	{
 	  byte mask;
-	  uint8_t oldSREG = SREG;
-	  cli();
-	  
 	  tx = 0;
-	  avrtl::DelayMicroseconds(bitDelay);
+	  avrtl::DelayMicrosecondsFast(bitDelay);
 	  for (mask = 0x01; mask; mask <<= 1) 
 	  {
 		if (b & mask) tx = 1;
 		else tx = 0;
-		avrtl::DelayMicroseconds(bitDelay);
+		avrtl::DelayMicrosecondsFast(bitDelay);
 	  }
 	  tx = 1;
-	  avrtl::DelayMicroseconds(bitDelay);
+	  avrtl::DelayMicrosecondsFast(bitDelay);
+	}
 
-	  SREG=oldSREG;
+	virtual bool writeByte(uint8_t b)
+	{
+	  SCOPED_SIGNAL_PROCESSING;	  
+	  writeByteUnsafe(b);
 	  return true;
 	}
 

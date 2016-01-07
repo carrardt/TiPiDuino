@@ -58,7 +58,6 @@ uint8_t HWSerialIO::readByte()
 	return c;
 }
 
-
 ISR(USART_UDRE_vect)
 {
 	uint8_t b = HWSerialIO::Tx_byte;

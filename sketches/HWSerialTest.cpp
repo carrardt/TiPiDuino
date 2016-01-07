@@ -31,9 +31,9 @@ void setup()
 
 void loop()
 {
-	int n = 0;
-	cin >> n;
-	cout << n << endl;
+	char c = 0;
+	cin >> c;
+	cout << "got '"<< c<<"'" << endl;
 	blink(led);
 	led = false;
 }

@@ -285,10 +285,10 @@ namespace avrtl
 	}
 	
 	template<typename PinT>
-	static uint16_t RecordSignal(PinT& p, uint32_t timeout, uint16_t nSamples, uint16_t* signal, bool& startLevel) 
+	static uint16_t RecordSignal(PinT& p, uint32_t timeout, uint16_t nSamples, uint16_t* signal) 
 	{
 		SCOPED_SIGNAL_PROCESSING;
-		uint16_t r = RecordSignalFast( p, timeout, nSamples, signal, startLevel );
+		uint16_t r = RecordSignalFast( p, timeout, nSamples, signal );
 		return r;
 	}
 

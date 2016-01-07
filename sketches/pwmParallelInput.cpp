@@ -3,8 +3,14 @@
 #include <HWSerialIO.h>
 #include <InputStream.h>
 #include <math.h>
+#include <HWSerialIO.h>
+#include <PrintStream.h>
 
 using namespace avrtl;
+
+
+HWSerialIO serialIO;
+PrintStream serialOut;
 
 #define PWM_PIN 13
 auto pwm = StaticPin<PWM_PIN>();
@@ -39,10 +45,19 @@ static uint16_t par10_read()
 	return ( ((uint16_t)(r1&0x0F))<<6 ) | ( r2>>2 );
 }
 
+static uint8_t old_SREG;
+
 void setup()
 {
 	par10_init();
 	pwm.SetOutput();
+
+	serialIO.begin(9600);
+	serialOut.begin( &serialIO );
+	serialOut<<"Parallel to PWM ready"<<endl;
+	
+	old_SREG = SREG;
+	cli();
 }
 
 static uint16_t getPWMTicks()
