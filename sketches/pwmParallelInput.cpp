@@ -34,15 +34,22 @@ static void par10_init()
 	DDRB &= 0XE0; // 4 lowest bits from port B, plus 5th bit as a lock bit (pin 12)
 }
 
+static int16_t par10_lastValue = 512;
+static int16_t par10_targetValue = 512;
+static int16_t par10_speed = 0;
+static uint16_t par10_counter = 0;
+
 static uint16_t par10_read()
 {
 	uint8_t r1=0,r2=0;
-	do
+	r1 = PINB;
+	r2 = PIND;
+	if( (r1&0x10) == 0 ) // input is valid only if lock bit is clear (0)
 	{
-		r1 = PINB;
-		r2 = PIND;
-	} while( r1&0x10 );// wait for lock bit t be clear
-	return ( ((uint16_t)(r1&0x0F))<<6 ) | ( r2>>2 );
+		par10_targetValue = ( ((uint16_t)(r1&0x0F))<<6 ) | ( r2>>2 );
+	}
+	par10_lastValue = (par10_lastValue*3+par10_targetValue)/4;
+	return par10_lastValue;
 }
 
 static uint8_t old_SREG;
