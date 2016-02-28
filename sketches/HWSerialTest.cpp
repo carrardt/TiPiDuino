@@ -22,7 +22,7 @@ void setup()
 	led = false;
 	
 	//softIO.begin();
-	hwserial.begin(9600);
+	hwserial.begin(1200);
 
 	cout.begin( &hwserial );
 	cin.begin( &hwserial );
@@ -32,8 +32,8 @@ void setup()
 void loop()
 {
 	char c = 0;
-	cin >> c;
-	cout << "got '"<< c<<"'" << endl;
-	blink(led);
+	//cin >> c;
+	hwserial.writeByte(2);
+	//blink(led);
 	led = false;
 }

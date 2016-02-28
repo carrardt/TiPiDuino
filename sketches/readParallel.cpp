@@ -1,14 +1,21 @@
 #include <AvrTLPin.h>
 #include <AvrTLSignal.h>
 #include <HWSerialIO.h>
+#include <InputStream.h>
+#include <math.h>
+#include <HWSerialIO.h>
 #include <PrintStream.h>
+
+//#define ONLY_5BITS 1
+
+#define PWM_PIN 13
 
 using namespace avrtl;
 
-#define LATENCY_BENCHMARK 1
-
 HWSerialIO serialIO;
 PrintStream serialOut;
+
+// Servo 1 : 90-960 ==> 500+90*2=680 TO 500+960*2=2420. safe = [700;2400] uSec, input value = [100;950];
 
 /*
  * Atmega 328:
@@ -26,60 +33,32 @@ static void par10_init()
 	DDRB &= 0XE0; // 4 lowest bits from port B, plus 5th bit as a lock bit (pin 12)
 }
 
-static uint16_t par10_read()
+static uint8_t par10_lockBit = 0;
+static uint16_t par10_value = 0;
+
+static void par10_read()
 {
 	uint8_t r1=0,r2=0;
-	do
-	{
-		r1 = PINB;
-		r2 = PIND;
-	} while( r1&0x10 );// wait for lock bit t be clear
-	return ( ((uint16_t)(r1&0x0F))<<6 ) | ( r2>>2 );
+	r1 = PINB;
+	r2 = PIND;
+	par10_lockBit = ( (r1&0x10) == 0 ) ? 0 : 1;
+	par10_value = ( ((uint16_t)(r1&0x0F))<<6 ) | ( r2>>2 );
+#ifdef ONLY_5BITS
+	par10_value &= 0x03E0;
+#endif
 }
-
 
 void setup()
 {
+	par10_init();
+
 	serialIO.begin(9600);
 	serialOut.begin( &serialIO );
-	par10_init();
-	serialOut<<"ready"<<endl;
 }
-
-#ifdef LATENCY_BENCHMARK
 
 void loop()
 {
-	uint8_t old_SREG = SREG;
-	cli();
-
-	uint16_t v = 0;
-	uint16_t missed = 0;
-	v = par10_read();
-	while( v != 1023 ) v = par10_read();
-
-	for(uint16_t i=0;i<32768;i++)
-	{
-		uint16_t v2 = par10_read();
-		while( v2 == v ) v2 = par10_read();
-		if( ((v+1)&1023) != v2 ) ++missed;
-		v=v2;
-	}
-	SREG = old_SREG;
-	serialOut<<"missed: "<<missed<<endl;
-	// serialOut.print(value,16,4);
+	par10_read();
+	serialOut << "value="<<par10_value<<", lock="<<par10_lockBit<<endl;
+	DelayMicroseconds(500000);
 }
-
-#else
-
-static uint16_t lastValue = 0;
-
-void loop()
-{
-	uint16_t value = par10_read();
-	if(value==lastValue) return;
-	lastValue = value;
-	serialOut<<value<<endl;
-}
-
-#endif	

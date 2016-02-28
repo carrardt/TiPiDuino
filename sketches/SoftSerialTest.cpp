@@ -9,7 +9,7 @@ static auto led = StaticPin<11>();
 static auto rx = StaticPin<12>();
 static auto tx = StaticPin<13>();
 
-static auto serialIO = make_softserial<9600>(rx,tx);
+static auto serialIO = make_softserial<1200>(rx,tx);
 PrintStream cout;
 
 void setup()
@@ -27,4 +27,5 @@ void loop()
 	DelayMicroseconds(1000000UL);
 	++COUNTER;
 	blink(led);
+	//serialIO.writeByte(2);
 }

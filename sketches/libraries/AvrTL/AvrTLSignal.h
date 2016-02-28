@@ -135,6 +135,67 @@ namespace avrtl
 		}
 	}
 
+	template<uint16_t CycleTicks>
+	static inline void loopDualPWM(auto dualPin, auto updateFunc1, auto updateFunc2)
+	{
+		SCOPED_SIGNAL_PROCESSING;		
+		uint16_t HighPeriodTicks1 = updateFunc1();
+		uint16_t HighPeriodTicks2 = updateFunc2();
+		bool pinOrder = ( HighPeriodTicks1 >= HighPeriodTicks2 );
+		uint16_t HighPeriodTicks = 0;
+		uint16_t LowPeriodTicks = 0;
+		uint16_t nextSwitchTime = 0;		
+		uint16_t wallClock = 0;
+		bool highState = (HighPeriodTicks1!=0) && (HighPeriodTicks2!=0) ;
+		
+		dualPin.SelectAllPins();
+		dualPin.Set(true);
+		INIT_CLOCK_COUNTER16();
+		while( highState )
+		{
+			// shift timer back so that 16bits wallclock is always enough
+			REWIND_CLOCK_COUNTER(LowPeriodTicks);
+			
+			HighPeriodTicks = pinOrder ? HighPeriodTicks2 : HighPeriodTicks1;
+			dualPin.SelectPin(pinOrder);
+			do {
+				UPDATE_CLOCK_COUNTER();
+				wallClock = CLOCK_ELAPSED();
+			} while( wallClock < HighPeriodTicks );
+			dualPin.Set( false );
+
+			HighPeriodTicks = pinOrder ? HighPeriodTicks1 : HighPeriodTicks2;
+			dualPin.SelectPin(!pinOrder);
+			do {
+				UPDATE_CLOCK_COUNTER();
+				wallClock = CLOCK_ELAPSED();
+			} while( wallClock < HighPeriodTicks );
+			dualPin.Set( false );
+			
+			// keep timer in sync
+			UPDATE_CLOCK_COUNTER();
+			
+			// shift timer back so that 16bits wallclock is always enough
+			REWIND_CLOCK_COUNTER(HighPeriodTicks);
+			
+			// update timings
+			LowPeriodTicks = CycleTicks - HighPeriodTicks;
+
+			HighPeriodTicks1 = updateFunc1();
+			UPDATE_CLOCK_COUNTER();
+			HighPeriodTicks2 = updateFunc2();
+			dualPin.SelectAllPins();
+			highState = (HighPeriodTicks1!=0) && (HighPeriodTicks2!=0) ;
+
+			do {
+				UPDATE_CLOCK_COUNTER();
+				wallClock = CLOCK_ELAPSED();
+			} while( wallClock<LowPeriodTicks );
+
+			// as soon as we detect low time is elapsed, set to high
+			dualPin.Set(highState);
+		}
+	}
 
 	// in ticks, not in microSeconds
 	template<uint16_t CycleTicks, uint16_t HighPeriodTicks>

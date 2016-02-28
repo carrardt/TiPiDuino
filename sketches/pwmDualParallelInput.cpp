@@ -16,8 +16,8 @@ using namespace avrtl;
 HWSerialIO serialIO;
 PrintStream serialOut;
 
-auto pwm = StaticPin<PWM_PIN>();
-constexpr uint16_t cycleTicks =  microsecondsToTicks(10050);
+auto dualpwm = DualPin<12,13>();
+constexpr uint16_t cycleTicks =  19809;// this is valid only for 16Mhz clock, otherwise use this => microsecondsToTicks(9904);
 
 // Servo 1 : 90-960 ==> 500+90*2=680 TO 500+960*2=2420. safe = [700;2400] uSec, input value = [100;950];
 
@@ -29,33 +29,24 @@ constexpr uint16_t cycleTicks =  microsecondsToTicks(10050);
  * pin 12 (bit 4 of port B) is used as a lock bit for data integrity
  * 
 */
-// uses pins 2-11 for 10 bits input, pin 12 for lock bit.
-// data can be read only when lock bit is 0
+// uses pins 2-11 for 10 bits input (2x 5bits)
 static void par10_init()
 {
 	DDRD &= 0x03; // 6 highest bits bits from port D 
-	DDRB &= 0XE0; // 4 lowest bits from port B, plus 5th bit as a lock bit (pin 12)
+	DDRB &= 0XF0; // 4 lowest bits from port B
 }
 
-static int16_t par10_lastValue = 512;
-static int16_t par10_targetValue = 512;
-static int16_t par10_speed = 0;
-static uint16_t par10_counter = 0;
+static int16_t Value1 = 1;
+static int16_t Value2 = 1;
 
-static uint16_t par10_read()
+static void par10_read()
 {
 	uint8_t r1=0,r2=0;
 	r1 = PINB;
 	r2 = PIND;
-	if( (r1&0x10) == 0 ) // input is valid only if lock bit is clear (0)
-	{
-		par10_targetValue = ( ((uint16_t)(r1&0x0F))<<6 ) | ( r2>>2 );
-#ifdef ONLY_5BITS
-		par10_targetValue &= 0x03E0;
-#endif
-	}
-	par10_lastValue = ( (par10_lastValue<<SMOOTHING) - par10_lastValue + par10_targetValue ) >> SMOOTHING;
-	return par10_lastValue;
+	int16_t X = ( ((uint16_t)(r1&0x0F))<<6 ) | ( r2>>2 );
+	Value1 = X >> 5;
+	Value2 = X & 0x1F;
 }
 
 static uint8_t old_SREG;
@@ -63,25 +54,30 @@ static uint8_t old_SREG;
 void setup()
 {
 	par10_init();
-	pwm.SetOutput();
+	dualpwm.SetOutput();
 
 	serialIO.begin(9600);
 	serialOut.begin( &serialIO );
-	serialOut<<"Parallel to PWM ready"<<endl;
+	serialOut<<"Parallel to Dual PWM ready"<<endl;
 	serialOut<<"Cycle Ticks = "<<cycleTicks<<endl;
-	serialOut<<"Smoothing factor = "<< ((1<<SMOOTHING)-1) << endl;
 	
 	old_SREG = SREG;
 	cli();
 }
 
-static uint16_t getPWMTicks()
+static uint16_t getPWMTicks1()
 {
-	uint16_t value = 500 + par10_read()*2;
+	par10_read();
+	uint16_t value = 512 + (Value1<<6);
+	return microsecondsToTicks(value);
+}
+static uint16_t getPWMTicks2()
+{
+	uint16_t value = 512 + (Value2<<6);
 	return microsecondsToTicks(value);
 }
 
 void loop()
 {
-	loopPWM<cycleTicks>( pwm, getPWMTicks );
+	loopDualPWM<cycleTicks>( dualpwm, getPWMTicks1, getPWMTicks2 );
 }
