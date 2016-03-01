@@ -11,7 +11,10 @@ $(WIRING_SRC_DIR):
 	git checkout HEAD framework
 
 # where to find personal sketches
-SKETCHES=$(HOME)/dev/TiPiDuino/sketches
+MAKEFILE_PATH=$(shell readlink $(firstword $(MAKEFILE_LIST)))
+SOURCE_DIR=$(shell dirname $(MAKEFILE_PATH))
+SKETCHES=$(SOURCE_DIR)/sketches
+#$(SOURCE_DIR)/sketches
 
 # default board model
 FAMILY=Arduino
@@ -97,7 +100,8 @@ user: $(USER_LIB)
 #exemples: $(WIRING_EXEMPLES)
 
 debug:
-	echo "Sketches : " $(SKETCHES)
+	@echo "Sketches : " $(SKETCHES)
+	@echo "Libraries : " $(USER_LIBRARIES_DIR)
 
 console:
 	cu -t -h -s $(SERIALSPEED) -l $(SERIALPORT)
