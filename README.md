@@ -5,4 +5,5 @@ Purpose is to be able to use Arduino IDE (aka Wiring) libraries or standalone co
 Contains :
   Signal generation and recording
   Lightweight hardware and software serial IO
-  some other stuff
+  LCD1602 interface
+
