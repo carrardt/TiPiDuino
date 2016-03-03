@@ -9,7 +9,7 @@
 //#define ONLY_5BITS 1
 
 #define PWM_PIN 13
-#define SMOOTHING 1 // 0,1,2 or 3 level of input value smoothing
+#define SMOOTHING 3 // 0,1,2 or 3 level of input value smoothing
 
 using namespace avrtl;
 
