@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <cmath>
 
 struct FP16
 {
@@ -12,9 +13,22 @@ struct FP16
 	inline FP16(float x) { fromFloat(x) }
 	inline FP16(const FP16& x) : fp(x.fp) {}
 
+#ifdef FAKE_FP16
+	inline void fromFloat(float x) { fp = x; }
+	inline float toFloat() const { return fp; }
+	inline int floor() const { return std::floor(fp); }
+#else
 	inline void fromFloat(float x) { fp = static_cast<int>(x*from_float); }
 	inline float toFloat() const { return fp * to_float; }
 	inline int floor() const { return fp>>fbits; }
+#endif
+
+	inline updateRange()
+	{
+		float x=toFloat()
+		float x=toFloat();;
+		if( toFloat() )
+	}
 
 	inline FP16& operator = ( FP16 x ) { fp = x.fp; return *this; }
 
@@ -30,16 +44,22 @@ struct FP16
 	inline FP16 operator * ( FP16 x ) const { return FP16(toFloat()*x.toFloat()); }
 	inline FP16 operator * ( float x ) const { return FP16(toFloat()*x); }
 
+#ifdef FAKE_FP16
+	float fp;
+#else
 	int16_t fp;
+#endif
+
+	static float rmin, rmax;
 };
 
-#define SIN_2PI_16 0.38268343236508978
-#define SIN_4PI_16 0.707106781186547460
-#define SIN_6PI_16 0.923879532511286740
-#define C_P_S_2PI_16 1.30656296487637660
-#define C_M_S_2PI_16 0.54119610014619690
-#define C_P_S_6PI_16 1.3065629648763766
-#define C_M_S_6PI_16 -0.54119610014619690
+#define SIN_2PI_16 0.38268343236508978f
+#define SIN_4PI_16 0.707106781186547460f
+#define SIN_6PI_16 0.923879532511286740f
+#define C_P_S_2PI_16 1.30656296487637660f
+#define C_M_S_2PI_16 0.54119610014619690f
+#define C_P_S_6PI_16 1.3065629648763766f
+#define C_M_S_6PI_16 -0.54119610014619690f
 
 /* INPUT: float input[16], float output[16] */
 /* OUTPUT: none */
