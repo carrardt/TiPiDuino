@@ -6,7 +6,7 @@
 
 using namespace avrtl;
 
-#define PWM_PIN 13
+#define PWM_PIN 3
 
 auto pwm = StaticPin<PWM_PIN>();
 constexpr uint16_t cycleTicks =  microsecondsToTicks(10000);
@@ -16,7 +16,7 @@ void setup()
 	pwm.SetOutput();
 }
 
-static uint16_t value = 1000;
+static uint16_t value = microsecondsToTicks(1000);
 static int8_t inc = 1;
 
 static uint16_t getPWMTicks()

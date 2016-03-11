@@ -1,14 +1,14 @@
-#include <stdio.h>
-#include <cmath>
-#include <cstdint>
+#include <AvrTL.h>
+#include <AvrTLPin.h>
+#include <HWSerialIO.h>
+#include <PrintStream.h>
+#include <InputStream.h>
 
-//#define FAKE_FP16 1
+using namespace avrtl;
 
-/*
- * FLOAT RANGE = approximately [-8;8] ( with input signal in [0;1] )
- * so 1 bit for sign, 5 bits for integer and 10 bits for fraction is enough.
- * could be 4 bits for integer and 11 bits for fraction
- */
+HWSerialIO hwserial;
+PrintStream cout;
+InputStream cin;
 
 struct FP16
 {
@@ -19,63 +19,39 @@ struct FP16
 	static constexpr float from_float = static_cast<float>( 1<<fbits );
 
 	inline FP16() {}
-	inline FP16(float x) { fromFloat(x); }
+	inline FP16(float f) { fp = static_cast<int16_t>(f*from_float); }
+	inline FP16(int16_t _fp) { setFP(_fp); }
 	inline FP16(const FP16& x) : fp(x.fp) {}
 
-	inline operator float () const { return toFloat(); }
-
-#ifdef FAKE_FP16
-	inline void _fromFloat(float x) { fp = x; }
-	inline float toFloat() const { return fp; }
-	inline int floor() const { return std::floor(fp); }
-#else
-	inline void _fromFloat(float x) { fp = static_cast<int>(x*from_float); }
-	inline float toFloat() const { return fp * to_float; }
 	inline int floor() const { return fp>>fbits; }
-	inline void setFP(int16_t v) {fp=v;}
-#endif
-
-	inline void fromFloat(float x)
-	{
-		_fromFloat(x);
-		updateRange();
-	}
-
-	inline void updateRange()
-	{
-		float x = toFloat();
-		if( x < rmin ) rmin = x;
-		if( x > rmax ) rmax = x;
-	}
+	inline void setFP(int16_t v) { fp=v; }
 
 	inline FP16& operator = ( FP16 x ) { fp = x.fp; return *this; }
-
 	inline FP16& operator += ( FP16 x ) { fp += x.fp; return *this; }
-	inline FP16& operator += ( float x ) { fromFloat( toFloat() + x ); return *this; }
-
 	inline FP16& operator *= ( FP16 x ) { int32_t t=fp; t*=x.fp; fp=t>>fbits; return *this; }
-	inline FP16& operator *= ( float x ) { fromFloat( toFloat() * x ); return *this; }
 
 	inline FP16 operator + ( FP16 x ) const { FP16 r; r.setFP(fp+x.fp); return r; }
-	inline FP16 operator + ( float x ) const { return FP16(toFloat()+x); }
-
 	inline FP16 operator - ( FP16 x ) const { FP16 r; r.setFP(fp-x.fp); return r; }
-	inline FP16 operator - ( float x ) const { return FP16(toFloat()-x); }
-
+	inline FP16 operator - () const { FP16 r; r.setFP(-fp); return r; }
 	inline FP16 operator * ( FP16 x ) const { int32_t t=fp; t*=x.fp; FP16 r; r.setFP(t>>fbits); return r; }
-	inline FP16 operator * ( float x ) const { return FP16(toFloat()*x); }
 
-#ifdef FAKE_FP16
-	float fp;
-#else
 	int16_t fp;
-#endif
-
-	static float rmin, rmax;
 };
 
-float FP16::rmin=0.0f;
-float FP16::rmax=0.0f;
+/* squared complex magnitude, divided by 4 */
+static FP16 mag(FP16 re, FP16 im)
+{
+	/*
+	int32_t re2 = re.fp;
+	int32_t im2 = im.fp;
+	re2 = (re2*re2)>>11;
+	im2 = (im2*im2)>>11;
+	FP16 r;
+	r.fp = re2+im2;
+	return r;
+	*/
+	return (re*re)+(im*im);
+}
 
 #define SIN_2PI_16 FP16(0.38268343236508978f)
 #define SIN_4PI_16 FP16(0.707106781186547460f)
@@ -121,35 +97,31 @@ float FP16::rmax=0.0f;
 /* for n from 0 to 7.  To find F[4k+1] we take the 4 point Complex FFT of */
 /* exp(-2*pi*j*n/16)*{x[n] - x[n+8] + j(x[n+12]-x[n+4])} for n from 0 to 3.*/
 
-static float mag(FP16 re, FP16 im)
+static inline void R16SRFFT( FP16 buffer[16], uint8_t cursor, FP16 spectrum[8] )
 {
-	return	re*re+im*im;
-}
+	FP16 temp, out0, out1, out2, out3, out4, out5, out6, out7, out8;
+	FP16 out9,out10,out11,out12,out13,out14,out15;
+	FP16 output0, output1, output2, output3, output4, output5, output6, output7, output8, output9, output10, output11, output12, output13, output14, output15;
 
-void R16SRFFT( const FP16 input[16], FP16 spectrum[8] ) {
-  FP16 temp, out0, out1, out2, out3, out4, out5, out6, out7, out8;
-  FP16 out9,out10,out11,out12,out13,out14,out15;
-  FP16 output0, output1, output2, output3, output4, output5, output6, output7, output8, output9, output10, output11, output12, output13, output14, output15;
+#define FFT_INPUT(I) buffer[(cursor+I)&15]
 
-  out0=input[0]+input[8]; /* output[0 through 7] is the data that we */
-  out1=input[1]+input[9]; /* take the 8 point real FFT of. */
-  out2=input[2]+input[10];
-  out3=input[3]+input[11];
-  out4=input[4]+input[12];
-  out5=input[5]+input[13];
-  out6=input[6]+input[14];
-  out7=input[7]+input[15];
+  out0=FFT_INPUT(0)+FFT_INPUT(8); /* output[0 through 7] is the data that we */
+  out1=FFT_INPUT(1)+FFT_INPUT(9); /* take the 8 point real FFT of. */
+  out2=FFT_INPUT(2)+FFT_INPUT(10);
+  out3=FFT_INPUT(3)+FFT_INPUT(11);
+  out4=FFT_INPUT(4)+FFT_INPUT(12);
+  out5=FFT_INPUT(5)+FFT_INPUT(13);
+  out6=FFT_INPUT(6)+FFT_INPUT(14);
+  out7=FFT_INPUT(7)+FFT_INPUT(15);
 
-
-
-  out8=input[0]-input[8];   /* inputs 8,9,10,11 are */
-  out9=input[1]-input[9];   /* the Real part of the */
-  out10=input[2]-input[10]; /* 4 point Complex FFT inputs.*/
-  out11=input[3]-input[11]; 
-  out12=input[12]-input[4]; /* outputs 12,13,14,15 are */
-  out13=input[13]-input[5]; /* the Imaginary pars of  */
-  out14=input[14]-input[6]; /* the 4 point Complex FFT inputs.*/
-  out15=input[15]-input[7];
+  out8=FFT_INPUT(0)-FFT_INPUT(8);   /* inputs 8,9,10,11 are */
+  out9=FFT_INPUT(1)-FFT_INPUT(9);   /* the Real part of the */
+  out10=FFT_INPUT(2)-FFT_INPUT(10); /* 4 point Complex FFT inputs.*/
+  out11=FFT_INPUT(3)-FFT_INPUT(11); 
+  out12=FFT_INPUT(12)-FFT_INPUT(4); /* outputs 12,13,14,15 are */
+  out13=FFT_INPUT(13)-FFT_INPUT(5); /* the Imaginary pars of  */
+  out14=FFT_INPUT(14)-FFT_INPUT(6); /* the 4 point Complex FFT inputs.*/
+  out15=FFT_INPUT(15)-FFT_INPUT(7);
 
   /*First we do the "twiddle factor" multiplies for the 4 point CFFT */
   /*Note that we use the following handy trick for doing a complex */
@@ -246,33 +218,116 @@ void R16SRFFT( const FP16 input[16], FP16 spectrum[8] ) {
   spectrum[4] = mag( output5 , output13 );
   spectrum[5] = mag( output6 , output14 );
   spectrum[6] = mag( output7 , output15 );
-  spectrum[7] = mag( output8 , 0.0f );	
+  spectrum[7] = mag( output8 , 0.0f );
+  
+#undef FFT_INPUT
 }
 
+static void adc_init()
+{
+    // AREF = AVcc
+    ADMUX = (1<<REFS0) ;
+	ADMUX &= ~(1<<ADLAR); // set ADLAR to 0 => rifght adjust
+ 
+    // ADC Enable and prescaler of 128
+    // 16000000/128 = 125000
+    ADCSRA = (1<<ADEN)|(1<<ADPS2)|(1<<ADPS1)|(1<<ADPS0);
+}
 
-int main() {
-  float data[16];
-  FP16 datafp[16];
-  FP16 spectrum[8];
-  float zero=0;
+static void adc_channel(uint8_t ch)
+{
+  // select the corresponding channel 0~7
+  // ANDing with ’7′ will always keep the value
+  // of ‘ch’ between 0 and 7
+  ch &= 0b00000111;  // AND operation with 7
+  ADMUX = (ADMUX & 0xF8)|ch; // clears the bottom 3 bits before ORing
+}
 
-  scanf("%f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f",&data[0],&data[1],&data[2],&data[3],&data[4],&data[5],&data[6],&data[7],&data[8],&data[9],&data[10],&data[11],&data[12],&data[13],&data[14],&data[15]);
-  printf("input: %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f\n",data[0],data[1],data[2],data[3],data[4],data[5],data[6],data[7],data[8],data[9],data[10],data[11],data[12],data[13],data[14],data[15]);
+static inline void adc_read_start()
+{
+  // start single convertion
+  // write ’1′ to ADSC
+	ADCSRA |= (1<<ADSC);
+}
 
-#ifdef FAKE_FP16
-  FP16::rmin = FP16::rmax = data[0];
-#endif
+static inline uint16_t adc_read_end()
+{ 
+  // wait for conversion to complete
+  // ADSC becomes ’0′ again
+  // till then, run loop continuously
+  while(ADCSRA & (1<<ADSC));
+  return (ADC);
+}
 
-  for(int i=0;i<16;i++) datafp[i].fromFloat( data[i] );
+static uint16_t adc_read10()
+{ 
+  adc_read_start();
+  return adc_read_end();
+}
 
-  R16SRFFT(datafp,spectrum);
-  for(int i=0;i<8;i++) printf("%.9f\n",spectrum[i].toFloat());
+void setup()
+{
+	DDRD |= 0xFC; // 6 highest bits bits from port D (pins 2,3,4,5,6,7)
+	DDRB |= 0X03; // 2 lowest bits from port B (pins 8,9)
+
+	hwserial.begin(57600);
+	cout.begin( &hwserial );
+	//cin.begin( &hwserial );
 	
-#ifdef FAKE_FP16
-  printf("float range = [%g;%g]\n",FP16::rmin,FP16::rmax);
-#endif
+	adc_init();
+	adc_channel(0);
+	
+	// cout<<"Ready"<<endl;
+		
+	cli();
+	adc_read_start();
+}
 
-	return 0;
+static inline void writeLeds( uint8_t x )
+{
+	uint8_t d = PIND;
+	uint8_t b = PINB;
+	uint8_t tb = (b&0xFC) | ((x>>6)&0x03);
+	uint8_t td = (d&0X03) | ((x<<2)&0xFC);
+	PIND = d^td;
+	PINB = b^tb;
+}
+
+static FP16 buffer[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+
+void loop()
+{
+	static uint8_t cursor = 0;
+	static uint8_t LOOP_CLK = 0;
+
+   FP16 spectrum[8];
+
+   /*int16_t sample = 0;
+   for(int j=0;j<4;j++) { sample += adc_read10(); }
+   buffer[cursor].fp = sample >> 2; // i.e. /4*/
+   buffer[cursor].fp = adc_read_end();
+   adc_read_start();
+   cursor = (cursor+1) & 15;
+   R16SRFFT( buffer, cursor, spectrum );
+   
+  /*for(int i=0;i<16;i++)
+  {
+	  cin >> input[i].fp ;
+  }*/
+
+  //cout << endl;
+  //for(int i=0;i<16;i++) cout << "INPUT["<<i<<"] = " << input[i].fp << endl;
+
+  uint8_t LEDS = (LOOP_CLK>>6)&1;
+  LOOP_CLK = (LOOP_CLK+1)&127;
+  for(int i=1;i<8;i++)
+  {
+	  LEDS = LEDS << 1;
+	  if( spectrum[i].fp > 1024 ) LEDS |= 1;
+	  //cout << spectrum[i].fp << ' ';
+  }
+  writeLeds( LEDS );
+  //cout<<endl;
 }
 
 
