@@ -1,14 +1,8 @@
 #include <AvrTL.h>
 #include <AvrTLPin.h>
 #include <HWSerialIO.h>
-#include <PrintStream.h>
-#include <InputStream.h>
 
-using namespace avrtl;
-
-HWSerialIO hwserial;
-PrintStream cout;
-InputStream cin;
+//using namespace avrtl;
 
 struct FP16
 {
@@ -38,18 +32,9 @@ struct FP16
 	int16_t fp;
 };
 
-/* squared complex magnitude, divided by 4 */
+/* squared complex magnitude */
 static FP16 mag(FP16 re, FP16 im)
 {
-	/*
-	int32_t re2 = re.fp;
-	int32_t im2 = im.fp;
-	re2 = (re2*re2)>>11;
-	im2 = (im2*im2)>>11;
-	FP16 r;
-	r.fp = re2+im2;
-	return r;
-	*/
 	return (re*re)+(im*im);
 }
 
@@ -97,13 +82,18 @@ static FP16 mag(FP16 re, FP16 im)
 /* for n from 0 to 7.  To find F[4k+1] we take the 4 point Complex FFT of */
 /* exp(-2*pi*j*n/16)*{x[n] - x[n+8] + j(x[n+12]-x[n+4])} for n from 0 to 3.*/
 
-static inline void R16SRFFT( FP16 buffer[16], uint8_t cursor, FP16 spectrum[8] )
-{
-	FP16 temp, out0, out1, out2, out3, out4, out5, out6, out7, out8;
-	FP16 out9,out10,out11,out12,out13,out14,out15;
-	FP16 output0, output1, output2, output3, output4, output5, output6, output7, output8, output9, output10, output11, output12, output13, output14, output15;
+#define BUFSIZE 32
+static FP16 buffer[BUFSIZE] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+static uint8_t cursor = 0;
+static FP16 spectrum[8];
 
-#define FFT_INPUT(I) buffer[(cursor+I)&15]
+static FP16 output0, output1, output2, output3, output4, output5, output6, output7, output8, output9, output10, output11, output12, output13, output14, output15;
+static FP16 temp, out0, out1, out2, out3, out4, out5, out6, out7, out8;
+static FP16 out9,out10,out11,out12,out13,out14,out15;
+
+static inline void R16SRFFT_part1()
+{
+#define FFT_INPUT(I) buffer[(cursor+I)%BUFSIZE]
 
   out0=FFT_INPUT(0)+FFT_INPUT(8); /* output[0 through 7] is the data that we */
   out1=FFT_INPUT(1)+FFT_INPUT(9); /* take the 8 point real FFT of. */
@@ -122,6 +112,8 @@ static inline void R16SRFFT( FP16 buffer[16], uint8_t cursor, FP16 spectrum[8] )
   out13=FFT_INPUT(13)-FFT_INPUT(5); /* the Imaginary pars of  */
   out14=FFT_INPUT(14)-FFT_INPUT(6); /* the 4 point Complex FFT inputs.*/
   out15=FFT_INPUT(15)-FFT_INPUT(7);
+
+#undef FFT_INPUT
 
   /*First we do the "twiddle factor" multiplies for the 4 point CFFT */
   /*Note that we use the following handy trick for doing a complex */
@@ -171,7 +163,6 @@ static inline void R16SRFFT( FP16 buffer[16], uint8_t cursor, FP16 spectrum[8] )
   output3=out10-out15;  /* implicit multiplies by */
   output11=-out14-out11;  /* a twiddle factor of -j */
 
-  
   /* What follows is the 8-point FFT of points output[0-7] */
   /* This 8-point FFT is basically a Decimation in Frequency FFT */
   /* where we take advantage of the fact that the initial data is real*/
@@ -211,16 +202,18 @@ static inline void R16SRFFT( FP16 buffer[16], uint8_t cursor, FP16 spectrum[8] )
   output6=out4-out5; /*Real Part of X[5] */
   output10=-out7-out6; /* Imag Part of X[7] */
 
+  spectrum[6] = mag( output7 , output15 );
+  spectrum[7] = mag( output8 , 0.0f );
+}
+
+static inline void R16SRFFT_part2()
+{
   spectrum[0] = mag( output1 , output9 );
   spectrum[1] = mag( output2 , output10 );
   spectrum[2] = mag( output3 , output11 );
   spectrum[3] = mag( output4 , output12 );
   spectrum[4] = mag( output5 , output13 );
   spectrum[5] = mag( output6 , output14 );
-  spectrum[6] = mag( output7 , output15 );
-  spectrum[7] = mag( output8 , 0.0f );
-  
-#undef FFT_INPUT
 }
 
 static void adc_init()
@@ -269,16 +262,8 @@ void setup()
 {
 	DDRD |= 0xFC; // 6 highest bits bits from port D (pins 2,3,4,5,6,7)
 	DDRB |= 0X03; // 2 lowest bits from port B (pins 8,9)
-
-	hwserial.begin(57600);
-	cout.begin( &hwserial );
-	//cin.begin( &hwserial );
-	
 	adc_init();
 	adc_channel(0);
-	
-	// cout<<"Ready"<<endl;
-		
 	cli();
 	adc_read_start();
 }
@@ -293,41 +278,35 @@ static inline void writeLeds( uint8_t x )
 	PINB = b^tb;
 }
 
-static FP16 buffer[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+// if defined sample rate is approx 6Khz (on an atmega328@16Mhz), otherwise rate is 3Khz
+#define DOUBLE_SAMPLE_RATE 1
 
 void loop()
 {
-	static uint8_t cursor = 0;
-	static uint8_t LOOP_CLK = 0;
+   static uint8_t LOOP_CLK = 0;
+   static uint8_t t0;
+   static uint8_t t1;
 
-   FP16 spectrum[8];
-
-   /*int16_t sample = 0;
-   for(int j=0;j<4;j++) { sample += adc_read10(); }
-   buffer[cursor].fp = sample >> 2; // i.e. /4*/
-   buffer[cursor].fp = adc_read_end();
-   adc_read_start();
-   cursor = (cursor+1) & 15;
-   R16SRFFT( buffer, cursor, spectrum );
+   buffer[ (cursor+16) % BUFSIZE ].fp = adc_read_end();
+   adc_read_start();   
+   R16SRFFT_part1();
    
-  /*for(int i=0;i<16;i++)
-  {
-	  cin >> input[i].fp ;
-  }*/
-
-  //cout << endl;
-  //for(int i=0;i<16;i++) cout << "INPUT["<<i<<"] = " << input[i].fp << endl;
-
-  uint8_t LEDS = (LOOP_CLK>>6)&1;
-  LOOP_CLK = (LOOP_CLK+1)&127;
-  for(int i=1;i<8;i++)
-  {
+#ifdef DOUBLE_SAMPLE_RATE
+   buffer[ (cursor+17) % BUFSIZE ].fp = adc_read_end();
+   adc_read_start();
+   R16SRFFT_part2();
+   cursor = (cursor+2) % BUFSIZE;
+#else
+   cursor = (cursor+1) % BUFSIZE;
+#endif
+   
+   uint8_t LEDS = 0; (LOOP_CLK>>6)&1;
+   for(int i=0;i<8;i++)
+   {
 	  LEDS = LEDS << 1;
-	  if( spectrum[i].fp > 1024 ) LEDS |= 1;
-	  //cout << spectrum[i].fp << ' ';
-  }
-  writeLeds( LEDS );
-  //cout<<endl;
+	  if( (spectrum[i].fp >> 10) != 0 ) LEDS |= 1;
+   }
+   writeLeds( LEDS );
 }
 
 
