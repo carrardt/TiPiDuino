@@ -279,7 +279,7 @@ static inline void writeLeds( uint8_t x )
 }
 
 // if defined sample rate is approx 6Khz (on an atmega328@16Mhz), otherwise rate is 3Khz
-#define DOUBLE_SAMPLE_RATE 1
+//#define DOUBLE_SAMPLE_RATE 1
 
 void loop()
 {
@@ -297,14 +297,15 @@ void loop()
    R16SRFFT_part2();
    cursor = (cursor+2) % BUFSIZE;
 #else
+   R16SRFFT_part2();
    cursor = (cursor+1) % BUFSIZE;
 #endif
-   
+
    uint8_t LEDS = 0; (LOOP_CLK>>6)&1;
    for(int i=0;i<8;i++)
    {
 	  LEDS = LEDS << 1;
-	  if( (spectrum[i].fp >> 10) != 0 ) LEDS |= 1;
+	  if( (spectrum[i].fp >> 11) != 0 ) LEDS |= 1;
    }
    writeLeds( LEDS );
 }
