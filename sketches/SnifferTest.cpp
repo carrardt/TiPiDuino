@@ -12,7 +12,7 @@
 using namespace avrtl;
 
 // what to use as a console to prin message
-#define LCD_CONSOLE 1
+//#define LCD_CONSOLE 1
 //#define SOFT_SERIAL_CONSOLE 1
 
 // Sequence for learning a new protocol
@@ -71,8 +71,11 @@ void setup()
 	cout.begin(&hwserial);
 #endif
 
+	cout<<"* Mega Sniffer *"<<endl;
+
 	// try to read a previously analysed protocol from EEPROM
 	RFSnifferEEPROM::initEEPROM();
+	cout<<"EEPROM OK"<<endl;
 
 	// permet de selectionner la bonne entree
 	{
@@ -80,7 +83,6 @@ void setup()
 		rx.SelectPin( sp.mediumRF() );
 	}
 
-	// cout<<"* Mega Sniffer *"<<endl;
 	cout<<"Mesg:"<<RFSnifferEEPROM::getMessageCount()<<" Prot:"<<RFSnifferEEPROM::getProtocolCount()<<endl;
 }
 

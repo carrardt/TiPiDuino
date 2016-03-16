@@ -26,7 +26,7 @@ struct HWSerialIO : public ByteStream
 	static constexpr uint8_t BufferSize = 16;
 
 	static volatile uint8_t Tx_byte;
-	static volatile uint8_t Rx_byte;
+	static volatile uint8_t Rx_buf[];
 };
 
 #endif

@@ -1,7 +1,11 @@
 #include "HWSerialIO.h"
 
+#define RX_BUF_SIZE 8;
+
 volatile uint8_t HWSerialIO::Tx_byte = 0;
-volatile uint8_t HWSerialIO::Rx_byte = 0;
+volatile uint8_t HWSerialIO::Rx_buf[RX_BUF_SIZE];
+volatile uint8_t HWSerialIO::Rx_in = 0;
+volatile uint8_t HWSerialIO::Rx_read = 0;
 
 const char* HWSerialIO::endline() const { return "\n\r"; }
 
@@ -50,11 +54,9 @@ bool HWSerialIO::writeByte( uint8_t x )
 
 uint8_t HWSerialIO::readByte()
 {
-	HWSerialIO::Rx_byte = 0;
-	while( Tx_byte!=0 ) {}
-	char c;
-	while( ( c = HWSerialIO::Rx_byte ) == 0 ) {}
-	HWSerialIO::Rx_byte = 0;
+	while( Rx_read == Rx_in ) ;
+	uint8_t c = Rw_buf[Rx_read];
+	Rx_read = (Rx_read+1)%RX_BUF_SIZE;
 	return c;
 }
 
@@ -71,5 +73,8 @@ ISR(USART_UDRE_vect)
 
 ISR(USART_RX_vect)
 {
-	HWSerialIO::Rx_byte = UDR0;
+	uint8_t nextIn = (Rx_in+1)%RX_BUF_SIZE;
+	if(nextIn==Rx_read) return;
+	Rx_buf[Rx_in] = UDR0;
+	Rx_in = nextIn;
 }

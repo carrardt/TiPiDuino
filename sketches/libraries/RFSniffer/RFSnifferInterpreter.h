@@ -132,7 +132,7 @@ struct RFSnifferInterpreter
 				}
 				break;
 
-				// add
+				// mul
 				case 'x':
 				{
 					int16_t x = pop();
