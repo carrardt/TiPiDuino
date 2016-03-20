@@ -43,19 +43,28 @@ generate_avr_firmware(
 	)
 
 #====================================================================#
-# Read RF commands from DIO/Chacon remotes
-#====================================================================#
-generate_avr_firmware(
-	RFToSerial
-	SRCS RFToSerial.cpp
-	LIBS RFSniffer BasicIO AvrTL AvrApp
-	)
-
-#====================================================================#
 # RF remote controlled car (from a DI-O/Chacon remote)
 #====================================================================#
 generate_avr_firmware(
 	RFCar
 	SRCS RFCar.cpp
 	LIBS RFSniffer BasicIO AvrTL AvrApp
+	)
+
+#====================================================================#
+# HC-SR04 / US-015 ultrasonic distance estimation
+#====================================================================#
+generate_avr_firmware(
+	UltraSoundDistance
+	SRCS UltraSoundDistance.cpp
+	LIBS BasicIO AvrTL AvrApp
+	)
+
+#====================================================================#
+# HC-SR04 / US-015 ultrasonic distance output as a pwm signal
+#====================================================================#
+generate_avr_firmware(
+	UltraSoundDistancePWM
+	SRCS UltraSoundDistancePWM.cpp
+	LIBS BasicIO AvrTL AvrApp
 	)

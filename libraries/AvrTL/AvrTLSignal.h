@@ -355,9 +355,9 @@ namespace avrtl
 		return r;
 	}
 
-#undef UPDATE_CLOCK_COUNTER
-#undef CLOCK_ELAPSED
-#undef INIT_CLOCK_COUNTER
+//#undef UPDATE_CLOCK_COUNTER
+//#undef CLOCK_ELAPSED
+//#undef INIT_CLOCK_COUNTER
 }
 
 #endif
