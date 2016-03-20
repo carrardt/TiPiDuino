@@ -1,11 +1,10 @@
 #include "HWSerialIO.h"
 
-#define RX_BUF_SIZE 8;
-
 volatile uint8_t HWSerialIO::Tx_byte = 0;
-volatile uint8_t HWSerialIO::Rx_buf[RX_BUF_SIZE];
-volatile uint8_t HWSerialIO::Rx_in = 0;
+volatile bool HWSerialIO::Tx_ready = true;
+volatile uint8_t HWSerialIO::Rx_buf[HWSerialIO::BufferSize];
 volatile uint8_t HWSerialIO::Rx_read = 0;
+volatile uint8_t HWSerialIO::Rx_avail = 0;
 
 const char* HWSerialIO::endline() const { return "\n\r"; }
 
@@ -42,39 +41,45 @@ void HWSerialIO::begin(uint32_t baud)
 
 bool HWSerialIO::writeByte( uint8_t x )
 {
-	while( Tx_byte!=0 ) {}
+	while( ! Tx_ready );
+	Tx_ready = false;
+	HWSerialIO::Tx_byte = x;
 	uint8_t oldSREG = SREG;
 	cli();
-	HWSerialIO::Tx_byte = x;
 	UCSR0B |= (1 << UDRIE);
-	HWSerialIO::Rx_byte = 0;
 	SREG = oldSREG;
 	return true;
 }
 
+int16_t HWSerialIO::available()
+{
+	return HWSerialIO::Rx_avail;
+}
+
 uint8_t HWSerialIO::readByte()
 {
-	while( Rx_read == Rx_in ) ;
-	uint8_t c = Rw_buf[Rx_read];
-	Rx_read = (Rx_read+1)%RX_BUF_SIZE;
+	while( HWSerialIO::Rx_avail == 0 ) ;
+	uint8_t c = Rx_buf[Rx_read];
+	Rx_read = (Rx_read+1) % BufferSize;
+	-- HWSerialIO::Rx_avail;
 	return c;
 }
 
 ISR(USART_UDRE_vect)
 {
-	uint8_t b = HWSerialIO::Tx_byte;
-	if( b != 0 )
-	{
-		UDR0 = b;
-		HWSerialIO::Tx_byte = 0;
-	}
+	UDR0 = HWSerialIO::Tx_byte;
 	UCSR0B = HWSerialIO::FLAGS_EN;
+	HWSerialIO::Tx_ready = true;
 }
 
 ISR(USART_RX_vect)
 {
-	uint8_t nextIn = (Rx_in+1)%RX_BUF_SIZE;
-	if(nextIn==Rx_read) return;
-	Rx_buf[Rx_in] = UDR0;
-	Rx_in = nextIn;
+	// on buffer overflow, throw away incoming bytes
+	uint8_t data = UDR0;
+	if(HWSerialIO::Rx_avail<HWSerialIO::BufferSize)
+	{
+		uint8_t toWrite = ( HWSerialIO::Rx_read + HWSerialIO::Rx_avail ) % HWSerialIO::BufferSize;
+		HWSerialIO::Rx_buf[toWrite] = data;
+		++ HWSerialIO::Rx_avail;
+	}
 }

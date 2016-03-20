@@ -4,7 +4,7 @@
 #include "RFSnifferConstants.h"
 #include "RFSnifferProtocol.h"
 #include "AvrTLSignal.h"
-#include "PrintStream.h"
+#include "BasicIO/PrintStream.h"
 
 /*
  * TODO: improve pulse length encoding, using TIMER0PRESCALER value

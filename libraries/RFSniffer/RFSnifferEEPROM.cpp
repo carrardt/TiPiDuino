@@ -2,7 +2,7 @@
 #include "RFSnifferProtocol.h"
 #include <avr/eeprom.h>
 #include "AvrTL.h"
-#include "PrintStream.h" // for dbgout
+#include "BasicIO/PrintStream.h" // for dbgout
 
 //TODO: doit aussi initialiser le flag par defaut pour le prochain apprentissage
 // detecter s'il faut nettoyer l'EEPROM et dans quel mode on démarre

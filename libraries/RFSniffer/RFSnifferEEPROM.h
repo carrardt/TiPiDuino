@@ -2,7 +2,7 @@
 #define __RFSnifferEEPROM_h
 
 #include "RFSnifferProtocol.h"
-#include "ByteStream.h"
+#include "BasicIO/ByteStream.h"
 #include <avr/eeprom.h>
 #include "AvrTLEEPROM.h"
 

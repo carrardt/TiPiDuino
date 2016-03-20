@@ -1,7 +1,6 @@
-#include "AvrTL.h"
+#include "AvrApp.h"
 #include <avr/io.h>
 #include <avr/interrupt.h>
-#include <stdlib.h>
 
 int main(void)
 {
@@ -16,4 +15,6 @@ int main(void)
 
 	setup();
 	for(;;) loop();
+	
+	// return 0;
 }

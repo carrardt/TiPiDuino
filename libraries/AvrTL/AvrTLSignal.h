@@ -89,8 +89,8 @@ namespace avrtl
 		}
 	}
 
-	template<uint16_t CycleTicks>
-	static inline void loopPWM(auto tx, auto updateFunc)
+	template<uint16_t CycleTicks, typename PinT, typename FuncT>
+	static inline void loopPWM(PinT tx, FuncT updateFunc)
 	{
 		SCOPED_SIGNAL_PROCESSING;
 		
@@ -135,8 +135,8 @@ namespace avrtl
 		}
 	}
 
-	template<uint16_t CycleTicks>
-	static inline void loopDualPWM(auto dualPin, auto updateFunc1, auto updateFunc2)
+	template<uint16_t CycleTicks, typename PinT, typename Func1T, typename Func2T>
+	static inline void loopDualPWM(PinT dualPin, Func1T updateFunc1, Func2T updateFunc2)
 	{
 		SCOPED_SIGNAL_PROCESSING;		
 		uint16_t HighPeriodTicks1 = updateFunc1();
@@ -198,8 +198,8 @@ namespace avrtl
 	}
 
 	// in ticks, not in microSeconds
-	template<uint16_t CycleTicks, uint16_t HighPeriodTicks>
-	static inline void pulsePWMFastTicks(auto tx, uint16_t nCycles)
+	template<uint16_t CycleTicks, uint16_t HighPeriodTicks, typename PinT>
+	static inline void pulsePWMFastTicks(PinT tx, uint16_t nCycles)
 	{
 		INIT_CLOCK_COUNTER16();
 		tx.Set(true); // start signal ASAP, do initial computation during high state
@@ -225,27 +225,28 @@ namespace avrtl
 		//tx.Set(false);
 	}
 
-	template<uint16_t CycleUSec, uint16_t HighPeriodUSec>
-	static inline void pulsePWMFast(auto tx, uint16_t durationUSec)
+	template<uint16_t CycleUSec, uint16_t HighPeriodUSec, typename PinT>
+	static inline void pulsePWMFast(PinT tx, uint16_t durationUSec)
 	{
 		pulsePWMFastTicks<microsecondsToTicks(CycleUSec),microsecondsToTicks(HighPeriodUSec)>( tx, durationUSec / CycleUSec );
 	}
 	
-	template<uint16_t CycleUSec,  uint16_t HighPeriodUSec>
-	static inline void pulsePWM(auto tx,uint16_t duration)
+	template<uint16_t CycleUSec,  uint16_t HighPeriodUSec, typename PinT>
+	static inline void pulsePWM(PinT tx,uint16_t duration)
 	{
 		SCOPED_SIGNAL_PROCESSING;
 		pulsePWMFast<CycleUSec,HighPeriodUSec>( tx, duration );
 	}
 
-	template<uint16_t CycleUSec,  uint16_t HighPeriodUSec>
-	static inline void longPulsePWM(auto tx,uint32_t durationUSec)
+	template<uint16_t CycleUSec,  uint16_t HighPeriodUSec, typename PinT>
+	static inline void longPulsePWM(PinT tx,uint32_t durationUSec)
 	{
 		SCOPED_SIGNAL_PROCESSING;
 		pulsePWMFastTicks<microsecondsToTicks(CycleUSec),microsecondsToTicks(HighPeriodUSec)>( tx, durationUSec/CycleUSec );
 	}
 
-	static inline void pulseFast(auto tx, bool value, uint32_t duration)
+	template<typename PinT>
+	static inline void pulseFast(PinT tx, bool value, uint32_t duration)
 	{
 		INIT_CLOCK_COUNTER();
 		tx.Set(value); // start signal ASAP, do initial computation during high state
@@ -258,14 +259,15 @@ namespace avrtl
 		tx.Set(!value);
 	}
 
-	static inline void pulse(auto tx, bool value, uint32_t duration)
+	template<typename PinT>
+	static inline void pulse(PinT tx, bool value, uint32_t duration)
 	{
 		SCOPED_SIGNAL_PROCESSING;
 		pulseFast( tx, value, duration );
 	}
 
 	template<typename PinT>
-	static inline void setLineFlatFast(PinT& tx, bool state, uint32_t duration)
+	static inline void setLineFlatFast(PinT tx, bool state, uint32_t duration)
 	{
 		INIT_CLOCK_COUNTER();
 		tx.Set(state); // start signal ASAP, do initial computation during high state
@@ -278,7 +280,7 @@ namespace avrtl
 	}
 
 	template<uint16_t freq, uint16_t pwmValue, typename PinT>
-	static inline void setLinePWMFast(PinT& tx, bool state, uint32_t duration)
+	static inline void setLinePWMFast(PinT tx, bool state, uint32_t duration)
 	{
 		static constexpr uint16_t periodus = 1000000UL/38000UL;
 		static constexpr uint16_t cycleTicks = F_CPU/(avrtl::timerPrescaler*freq);
@@ -294,7 +296,7 @@ namespace avrtl
 	}
 
 	template<typename PinT>
-	static uint32_t PulseInFast(PinT& p, bool lvl, uint32_t timeout, uint16_t* gap=0) 
+	static uint32_t PulseInFast(PinT p, bool lvl, uint32_t timeout, uint16_t* gap=0) 
 	{
 		INIT_CLOCK_COUNTER();
 		timeout = microsecondsToTicks(timeout);
@@ -314,14 +316,14 @@ namespace avrtl
 	}
 
 	template<typename PinT>
-	static uint32_t PulseIn(PinT& p, bool lvl, uint32_t timeout, uint16_t* gap=0) 
+	static uint32_t PulseIn(PinT p, bool lvl, uint32_t timeout, uint16_t* gap=0) 
 	{
 		SCOPED_SIGNAL_PROCESSING;
 		return PulseInFast( p, lvl, timeout, gap );
 	}
 
 	template<typename PinT>
-	static uint16_t RecordSignalFast(PinT& p, uint32_t timeout, uint16_t nSamples, uint16_t* signal) 
+	static uint16_t RecordSignalFast(PinT p, uint32_t timeout, uint16_t nSamples, uint16_t* signal) 
 	{
 		timeout = microsecondsToTicks(timeout);
 		uint32_t te = 0;
@@ -346,7 +348,7 @@ namespace avrtl
 	}
 	
 	template<typename PinT>
-	static uint16_t RecordSignal(PinT& p, uint32_t timeout, uint16_t nSamples, uint16_t* signal) 
+	static uint16_t RecordSignal(PinT p, uint32_t timeout, uint16_t nSamples, uint16_t* signal) 
 	{
 		SCOPED_SIGNAL_PROCESSING;
 		uint16_t r = RecordSignalFast( p, timeout, nSamples, signal );

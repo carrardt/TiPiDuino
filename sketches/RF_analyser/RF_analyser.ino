@@ -10,7 +10,7 @@
 void setup()
 {
   pinMode(RECEIVE_PIN, INPUT);
-  Serial.begin(57600);
+  Serial.begin(9600);
   Serial.println("READY");
 }
 

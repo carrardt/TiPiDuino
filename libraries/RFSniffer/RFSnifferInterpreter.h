@@ -1,9 +1,9 @@
 #ifndef __RFSNIFFER_CommandLine_h
 #define __RFSNIFFER_CommandLine_h
 
-#include "ByteStream.h"
-#include "InputStream.h"
-#include "PrintStream.h"
+#include "BasicIO/ByteStream.h"
+#include "BasicIO/InputStream.h"
+#include "BasicIO/PrintStream.h"
 #include "RFSnifferEEPROM.h"
 #include "RFSnifferProtocol.h"
 #include "AvrTL.h"

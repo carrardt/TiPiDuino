@@ -14,6 +14,10 @@
 #define BUILD_TIMESTAMP 0
 #endif
 
+#ifdef abs
+#undef abs // if defined in Arduino.h
+#endif
+
 namespace avrtl
 {	
 	template<typename T>
@@ -72,10 +76,5 @@ namespace avrtl
 
 	template<uint32_t speed> struct BaudRate { };
 }
-
-// some wiring compatibility tricks
-extern void loop();
-extern void setup();
-int main(void) __attribute__ ((noreturn,OS_main,weak));
 
 #endif

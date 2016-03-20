@@ -1,9 +1,9 @@
 #ifndef _Template_LiquidCrystal_h
 #define _Template_LiquidCrystal_h
 
-#include "AvrTLPin.h"
-#include "AvrTLSignal.h"
-#include <ByteStream.h>
+#include <AvrTL/AvrTLPin.h>
+#include <AvrTL/AvrTLSignal.h>
+#include <BasicIO/ByteStream.h>
 #include <inttypes.h>
 
 // commands
@@ -67,7 +67,7 @@
 // if no pin is connected (pin = -1) nothing happens
 
 template<int _rs, int _en, int _d0, int _d1, int _d2, int _d3,int _cols=16, int _lines=2, int _dotSize=LCD_5x8DOTS>
-struct LCD : public ByteStream
+struct LCD1602 : public ByteStream
 {
 	static constexpr int cols = _cols;
 	static constexpr int lines = _lines;
@@ -136,7 +136,7 @@ struct LCD : public ByteStream
 		write(value);
 	}	
 	
-	LCD()
+	LCD1602()
 		: m_writeMode(true)
 		, m_lineFeed(false)
 		, m_displayControlFlags(0)

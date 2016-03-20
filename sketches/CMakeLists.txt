@@ -1,16 +1,61 @@
-
 #====================================================================#
 # ASK signal pulse length histogram
 #====================================================================#
 generate_arduino_firmware(
 	RF_analyser
     SKETCH RF_analyser
-    PROGRAMMER usbtinyisp
     NO_AUTOLIBS)
 
-# Alternative: by variables
-#set(blink_bundled_SKETCH Blink)
-#set(blink_bundled_PROGRAMMER usbtinyisp)
-#set(blink_bundled_NO_AUTOLIBS true)
-#
-#generate_arduino_firmware(blink_bundled)
+#====================================================================#
+# Print serial input to a LCD1602 screen
+#====================================================================#
+generate_arduino_firmware(
+	LCDConsole
+    SKETCH LCDConsole
+    LIBS LCD1602 BasicIO AvrTL
+    NO_AUTOLIBS)
+
+#====================================================================#
+# Print an incresaing counter on a LCD1602 screen
+#====================================================================#
+generate_avr_firmware(
+	LCDTest
+    SRCS LCDTest.cpp
+    LIBS LCD1602 BasicIO AvrTL AvrApp
+    )
+
+#====================================================================#
+# Simple input/output test for HW Serial port
+#====================================================================#
+generate_avr_firmware(
+	HWSerialTest
+    SRCS HWSerialTest.cpp
+    LIBS BasicIO AvrApp
+    )
+
+#====================================================================#
+# Detect and decode *any* IR/RF remote signals
+#====================================================================#
+generate_avr_firmware(
+	Sniffer
+	SRCS SnifferTest.cpp
+	LIBS RFSniffer LCD1602 BasicIO AvrTL AvrApp
+	)
+
+#====================================================================#
+# Read RF commands from DIO/Chacon remotes
+#====================================================================#
+generate_avr_firmware(
+	RFToSerial
+	SRCS RFToSerial.cpp
+	LIBS RFSniffer BasicIO AvrTL AvrApp
+	)
+
+#====================================================================#
+# RF remote controlled car (from a DI-O/Chacon remote)
+#====================================================================#
+generate_avr_firmware(
+	RFCar
+	SRCS RFCar.cpp
+	LIBS RFSniffer BasicIO AvrTL AvrApp
+	)

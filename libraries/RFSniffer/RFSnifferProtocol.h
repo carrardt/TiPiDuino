@@ -4,7 +4,24 @@
 #include "RFSnifferConstants.h"
 #include "AvrTLSignal.h"
 #include <stdint.h>
-#include "PrintStream.h"
+#include "BasicIO/PrintStream.h"
+
+/*
+ 	*** DI-O/Chacon RF433 protocol ***
+ 	RFSnifferProtocol remote;
+	remote.coding = 77;
+	remote.flags = 194;
+	remote.latchSeqLen = 2;
+	remote.latchSeq[0] = 10762;
+	remote.latchSeq[1] = 2834;
+	remote.latchGap = 221;
+	remote.bitGap = 221;
+	remote.bitSymbols[0] = 332;
+	remote.bitSymbols[1] = 1397;
+	remote.messageBits = 32;
+	remote.nMessageRepeats = 4;
+ */
+
 
 struct RFSnifferProtocol
 {
@@ -95,7 +112,22 @@ struct RFSnifferProtocol
 		return (flags&VALID_FLAG)!=0 && bitSymbols[0]>0 && bitSymbols[1]>0;
 	}	
 
-	inline void toStream(PrintStream& out)
+	inline void toStream(PrintStream& out) { toStreamFull(out); }
+
+	inline void toStreamFull(PrintStream& out)
+	{
+		out<<"latchGap="<<(int)latchGap<<endl;
+		out<<"latchSeq="; for(int i=0;i<MAX_LATCH_SEQ_LEN;i++){ out<<(int)(latchSeq[i])<<' '; } out<<endl;
+		out<<"bitGap="<<(int)bitGap<<endl;
+		out<<"bitSymbols=["<<(int)(bitSymbols[0])<<';'<<(int)(bitSymbols[1])<<']'<<endl;
+		out<<"messageBits="<<(int)messageBits<<endl;
+		out<<"latchSeqLen="<<(int)latchSeqLen<<endl;
+		out<<"nMessageRepeats="<<(int)nMessageRepeats<<endl;
+		out<<"coding="<<(int)coding<<endl;
+		out<<"flags="<<(int)flags<<endl;
+	}
+	
+	inline void toStreamShort(PrintStream& out)
 	{
 		if(latchSeqLen>0)
 		{
@@ -298,7 +330,8 @@ struct RFSnifferProtocol
 		else { return bitsToRead; }
 	}
 
-	void writeMessageFast(const uint8_t* buf, uint8_t len, auto lineState)
+	template<typename LineSetFuncT>
+	void writeMessageFast(const uint8_t* buf, uint8_t len, LineSetFuncT lineState)
 	{
 		const bool manchester = (coding == CODING_MANCHESTER);
 
@@ -331,7 +364,8 @@ struct RFSnifferProtocol
 		lineState( ! pulseLevel() , 10000UL );
 	}
 	
-	void writeMessage(const uint8_t* buf, uint8_t len, auto lineState )
+	template<typename LineSetFuncT>
+	void writeMessage(const uint8_t* buf, uint8_t len, LineSetFuncT lineState )
 	{
 		SCOPED_SIGNAL_PROCESSING;
 		writeMessageFast(buf,len,lineState);

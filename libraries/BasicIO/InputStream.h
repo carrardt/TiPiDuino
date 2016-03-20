@@ -1,7 +1,7 @@
 #ifndef __TIPIDUINO_InputStream_h
 #define __TIPIDUINO_InputStream_h
 
-#include <ByteStream.h>
+#include <BasicIO/ByteStream.h>
 
 struct InputStream
 {

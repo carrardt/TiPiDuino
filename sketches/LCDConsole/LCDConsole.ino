@@ -1,10 +1,11 @@
+#include <Arduino.h>
+
 #include <AvrTL.h>
-#include <LCD.h>
-#include <PrintStream.h>
+#include <LCD1602.h>
+#include <BasicIO/PrintStream.h>
 
 static auto led = avrtl::StaticPin<13>();
-#define LCD_PINS 7,6,5,4,3,2 // respectively RS, EN, D7, D6, D5, D4
-LCD<LCD_PINS> lcd;
+LCD1602<7,6,5,4,3,2> lcd; // respectively RS, EN, D7, D6, D5, D4
 PrintStream cout;
 
 void setup()

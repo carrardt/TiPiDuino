@@ -1,15 +1,14 @@
 #include <AvrTLPin.h>
 #include <AvrTLSignal.h>
 #include <AvrTL.h>
-#include <PrintStream.h>
-#include <InputStream.h>
-#include <HWSerialIO.h>
+#include <BasicIO/PrintStream.h>
+#include <BasicIO/InputStream.h>
+#include <BasicIO/HWSerialIO.h>
 
 using namespace avrtl;
 
 // auto soft_rx = pin(10);
 // auto soft_tx = pin(11);
-auto led = StaticPin<13>();
 
 HWSerialIO hwserial;
 // auto softIO = make_softserial<19200>(soft_rx,soft_tx);
@@ -19,10 +18,8 @@ InputStream cin;
 
 void setup()
 {
-	led = false;
-	
 	//softIO.begin();
-	hwserial.begin(1200);
+	hwserial.begin(9600);
 
 	cout.begin( &hwserial );
 	cin.begin( &hwserial );
@@ -32,8 +29,6 @@ void setup()
 void loop()
 {
 	char c = 0;
-	//cin >> c;
-	hwserial.writeByte(2);
-	//blink(led);
-	led = false;
+	cin >> c;
+	cout<<"'"<<c<<"' TXr="<<HWSerialIO::Tx_ready<<" RXr="<<HWSerialIO::Rx_read<<" RXa="<<HWSerialIO::Rx_avail<<endl;
 }

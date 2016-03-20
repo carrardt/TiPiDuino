@@ -1,9 +1,8 @@
 #ifndef __TIPIDUINO_PrintStream_h
 #define __TIPIDUINO_PrintStream_h
 
-#include <ByteStream.h>
-#include <AvrTL.h>
-
+#include <BasicIO/ByteStream.h>
+#include <AvrTL/AvrTL.h>
 
 struct EndLineT {};
 #define endl EndLineT()
