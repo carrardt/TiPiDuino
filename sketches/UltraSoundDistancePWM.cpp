@@ -14,6 +14,107 @@ auto trigger = StaticPin<TRIGGER_PIN>();
 auto echo = StaticPin<ECHO_PIN>();
 auto pwm = StaticPin<PWM_PIN>();
 
+/*
+#define INIT_CLOCK_COUNTER() 	uint8_t _t=TCNT0,_t0=_t; int32_t _m=-_t0
+#define INIT_CLOCK_COUNTER16() 	uint8_t _t=TCNT0,_t0=_t; int16_t _m=-_t0
+#define REWIND_CLOCK_COUNTER(x) do{ _m -= (x); }while(0)
+#define RESET_CLOCK_COUNTER() do{ _m=0; _t=TCNT0; }while(0)
+#define UPDATE_CLOCK_COUNTER() 	do{ uint8_t _t2=TCNT0; if(_t2<_t)_m+=256; _t=_t2; }while(0)
+#define CLOCK_ELAPSED() 		(_m+_t)
+*/
+
+struct TimeScheduler
+{
+	uint8_t m_t;
+	int16_t m_wallclock;
+	
+	inline void start()
+	{
+		m_t = TCNT0;
+		m_wallclock = -((int16_t)m_t);
+	}
+	
+	inline void update()
+	{
+		uint8_t t2 = TCNT0;
+		if(t2<m_t) m_wallclock += 256;
+		m_t = t2;
+	}
+	
+	inline int16_t wallclock()
+	{
+		update();
+		return m_wallclock + m_t;
+	}
+
+	inline void shift(int16_t s)
+	{
+		m_wallclock -= s;
+	}
+};
+
+template<typename FuncT>
+struct TSConstantTimeAction
+{
+	inline TSConstantTimeAction(FuncT _f,int16_t _t) : f(_f) , t(_t) {}
+	inline int16_t run(TimeScheduler& ts)
+	{
+		f();
+		while( ts.wallclock() < t );
+		return t;
+	}
+	FuncT f;
+	int16_t t;
+};
+
+template<typename FuncT>
+struct TSConstantTimeLoop
+{
+	inline TSConstantTimeLoop(FuncT _f,int16_t _t) : f(_f) , t(_t) {}
+	inline int16_t run(TimeScheduler& ts)
+	{
+		while( ts.wallclock() < t ) { f(); }
+		return t;
+	}
+	FuncT f;
+	int16_t t;
+};
+
+template<typename FuncT>
+struct TSMaxTimeCondLoop
+{
+	inline TSMaxTimeCondLoop(FuncT _f,int16_t _t) : f(_f) , t(_t) {}
+	inline int16_t run(TimeScheduler& ts)
+	{
+		bool cond = true;
+		while( (ts.wallclock() < t) && cond )
+		{ 
+			cond = f();
+		}
+		return 0;
+	}
+	FuncT f;
+	int16_t t;
+};
+
+template<typename Func1T, typename Func2T>
+struct TSConstantTimeSequence
+{
+	inline TSConstantTimeSequence(Func1T _f1, Func2T _f2, int16_t _t) : f1(_f1), f2(_f2) , t(_t) {}
+	inline int16_t run(TimeScheduler& ts)
+	{
+		f1();
+		ts.update();
+		f2();
+		while( ts.wallclock() < t );
+		return t;
+	}
+	Func1T f1;
+	Func2T f2;
+	int16_t t;
+};
+
+
 void setup()
 {
 	pwm.SetOutput();

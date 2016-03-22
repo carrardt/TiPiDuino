@@ -1,4 +1,4 @@
-set(ARDUINO_CMAKE_PATH "/home/pi/arduino-cmake" CACHE STRING "arduino-cmake root path")
+set(ARDUINO_CMAKE_PATH "/usr/share/arduino-cmake" CACHE STRING "arduino-cmake root path")
 set(CMAKE_TOOLCHAIN_FILE ${ARDUINO_CMAKE_PATH}/cmake/ArduinoToolchain.cmake) # Arduino Toolchain
 
 set(ARDUINO_CXX_FLAGS "${ARDUINO_CXX_FLAGS} -std=c++11")
