@@ -8,6 +8,42 @@
 
 namespace avrtl
 {
+	template<uint8_t _PORT> struct StaticPinGroup { };
+	template<> struct StaticPinGroup<0>
+	{
+		static void SetOutput(uint8_t mask) { DDRD |= mask; }
+		static void SetInput(uint8_t mask) { DDRD &= ~mask; }
+		static uint8_t Get() { return PIND; }
+		static void Set(uint8_t x , uint8_t mask=0xFF)
+		{
+			PORTD |= mask&x;
+			PORTD &= (~mask)|x;
+		}
+	};
+	template<> struct StaticPinGroup<1>
+	{
+		static void SetOutput(uint8_t mask) { DDRB |= mask; }
+		static void SetInput(uint8_t mask) { DDRB &= ~mask; }
+		static uint8_t Get() { return PINB; }
+		static void Set(uint8_t x , uint8_t mask=0xFF)
+		{
+			PORTB |= mask&x;
+			PORTB &= (~mask)|x;
+		}
+	};
+	template<> struct StaticPinGroup<2>
+	{
+		static void SetOutput(uint8_t mask) { DDRC |= mask; }
+		static void SetInput(uint8_t mask) { DDRC &= ~mask; }
+		static uint8_t Get() { return PINC; }
+		static void Set(uint8_t x , uint8_t mask=0xFF)
+		{
+			PORTC |= mask&x;
+			PORTC &= (~mask)|x;
+		}
+	};
+
+
 	template<int _p1, int _p2, bool SamePort = (WdigitalPinToPort(_p1)==WdigitalPinToPort(_p2)) >
 	struct DualPin {};
 
@@ -93,12 +129,49 @@ namespace avrtl
 		}
 		operator bool() const { return Get(); }
 		bool operator = (bool b) const { Set(b); return b; }
-		
+
 		#undef pin_addr
 		#undef port_addr
 		#undef ddr_addr
 		#undef pin_bit
 	};
+
+	struct DynamicPin
+	{
+		#define pin_addr (WportInputRegister(WdigitalPinToPort(_pinId)))
+		#define port_addr (WdigitalPinToPortReg(_pinId))
+		#define ddr_addr (WportModeRegister(WdigitalPinToPort(_pinId)))
+		#define pin_bit (WdigitalPinToBit(_pinId))
+		
+		inline DynamicPin() : _pinId(13) {}
+		inline DynamicPin(uint8_t p) : _pinId(p) {}
+		inline void setPinId(uint8_t p) { _pinId = p; }
+		
+		inline uint8_t SetMask() const { return 1<<pin_bit; }
+		inline uint8_t ClearMask() const { return ~SetMask(); }
+		inline void SetOutput() const { *ddr_addr |= SetMask(); }
+		inline void SetInput() const { *ddr_addr &= ClearMask(); }
+		inline void SetInputPullup() const { SetInput(); Set(HIGH); }
+		inline void Set(bool b) const
+		{
+			if(b) { *port_addr |= SetMask(); }
+			else { *port_addr &= ClearMask(); }
+		}
+		inline bool Get() const
+		{ 
+			return ( (*pin_addr) >> pin_bit ) & 1;
+		}
+		inline operator bool() const { return Get(); }
+		inline bool operator = (bool b) const { Set(b); return b; }
+
+		uint8_t _pinId;
+
+		#undef pin_addr
+		#undef port_addr
+		#undef ddr_addr
+		#undef pin_bit
+	};
+
 
 }
 

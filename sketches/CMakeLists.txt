@@ -68,3 +68,12 @@ generate_avr_firmware(
 	SRCS UltraSoundDistancePWM.cpp
 	LIBS BasicIO AvrTL AvrApp
 	)
+
+#====================================================================#
+# Keypad test
+#====================================================================#
+generate_avr_firmware(
+	keypad
+	SRCS keypad.cpp
+	LIBS BasicIO AvrTL AvrApp
+	)

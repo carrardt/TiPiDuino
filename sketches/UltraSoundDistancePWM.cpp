@@ -45,6 +45,7 @@ struct TimeScheduler
 	template<typename FuncT>
 	inline void exec( int16_t t, FuncT f )
 	{
+		t = avrtl::microsecondsToTicks(t);
 		f();
 		while( wallclock() < t );
 		m_wallclock -= t;				
@@ -88,7 +89,7 @@ void loop()
 				{ 
 					pwm=HIGH;
 					echo_gap = 0;
-					echo_length = 0;
+					echo_length = 255;
 				} );
 				
 		ts.exec( 40 ,
@@ -110,19 +111,23 @@ void loop()
 				} );
 		
 		ts.loop( 5000,
-				[&echo_gap,&echo_length](int16_t t) {
+				[&echo_gap,&echo_length](int16_t t)
+				{
 					bool e = echo.Get();
 					if( echo_gap==0 && e ) { echo_gap = t; }
 					if( echo_gap!=0 && !e ) { echo_length = t - echo_gap; }
 				} );
 
 		ts.exec( 10000-(value+5100),
-				[&value,&targetValue,&counter,echo_gap,echo_length](){
-					if( echo_gap>1024 && echo_length>320 )
+				[&value,&targetValue,&counter,echo_gap,echo_length]()
+				{
+					/*if( echo_gap>512 && echo_length>256 )
 					{
-						targetValue = microsecondsToTicks( echo_length/2 + 350 );
+						targetValue = microsecondsToTicks( (echo_length-256) );
 					}
 					value = ( (value<<SMOOTHING)-value+targetValue ) >> SMOOTHING ;
+					*/
+					value = echo_length;
 					++ counter;
 					if( counter == 6 ) counter = 0;
 				} );

@@ -74,5 +74,15 @@
         ( ((PORT) == 1 ) ? &DDRB : \
         ( ((PORT) == 2 ) ? &DDRC : NOT_A_REG)))
 
+#define A0 14
+#define A1 15
+#define A2 16
+#define A3 17
+#define A4 18
+#define A5 19
+#define A6 20
+#define A7 21
+
+
 #endif
 // BOARDDEFS_H
