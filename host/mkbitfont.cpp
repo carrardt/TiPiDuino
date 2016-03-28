@@ -1,10 +1,7 @@
+#include <stdio.h>
+
 /* XPM */
 static char *font[] = {
-/* columns rows colors chars-per-pixel */
-"128 128 2 1 ",
-"  c black",
-". c gray100",
-/* pixels */
 "         ......  ......  .. ..     .      ...      .            ........  ....    ....      ....  ....    ...... ........  ..  .",
 "        .      ................   ...    .....     .            ........ .    .  .    .      ... ..  ..   ..  .. ..   .. . .. . ",
 "        . .  . ... .. .........  .....    ...     ...      ..   ...  ....      ..  ..  .    .... ..  ..   ...... .......  ....  ",
@@ -134,3 +131,24 @@ static char *font[] = {
 "        ......          .  .....   .. ...   ..    ..      ..                                                                    ",
 "                              ..        .....            ..                                                                     "
 };
+
+int main()
+{
+	printf("const uint8_t font8x8[64*16] PROGMEM = { \n");
+	for(int l=0;l<(8*8);l++)
+	{
+		printf("\t%s", l==0 ? " " : ",");
+		for(int c=0;c<16;c++)
+		{
+			printf("0b");
+			for(int b=0;b<8;b++)
+			{
+				printf("%c", (font[l][c*8+b]==' ') ? '0' : '1');
+			}
+			if(c<15) printf(", ");
+		}
+		printf("\n");
+	}
+	printf("};\n");
+	return 0;
+}
