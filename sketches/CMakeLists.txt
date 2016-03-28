@@ -25,6 +25,16 @@ generate_avr_firmware(
     )
 
 #====================================================================#
+# Print an incresaing counter on a LCD1602 screen
+#====================================================================#
+generate_avr_firmware(
+	LCD12864Test
+    SRCS LCD12864Test.cpp
+    LIBS LCD12864 AvrTL AvrApp
+    )
+
+
+#====================================================================#
 # Simple input/output test for HW Serial port
 #====================================================================#
 generate_avr_firmware(

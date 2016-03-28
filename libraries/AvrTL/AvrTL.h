@@ -77,4 +77,9 @@ namespace avrtl
 	template<uint32_t speed> struct BaudRate { };
 }
 
+// Arduino compatibility layer
+#if !defined(ARDUINO_MAIN) && !defined(Arduino_h)
+using avrtl::abs;
+#endif
+
 #endif

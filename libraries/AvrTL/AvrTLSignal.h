@@ -360,4 +360,9 @@ namespace avrtl
 //#undef INIT_CLOCK_COUNTER
 }
 
+static inline void delayMicroseconds(uint32_t us)
+{
+	avrtl::DelayMicroseconds(us);
+}
+
 #endif

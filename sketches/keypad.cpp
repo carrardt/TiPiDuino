@@ -13,8 +13,8 @@ PrintStream cout;
 
 #define NCOLS 4
 #define NROWS 4
-static DynamicPin colwires[NCOLS];
-static DynamicPin rowwires[NROWS];
+#define COL_PIN(i) (2+i)
+#define ROW_PIN(i) (2+4+i)
 static auto led = StaticPin<13>();
 
 void setup()
@@ -23,16 +23,8 @@ void setup()
 	cout.begin( &serialIO );
 	led.SetOutput();
 	led.Set(LOW);
-	for(int i=0;i<NCOLS;i++)
-	{
-		colwires[i].setPinId(2+i);
-		colwires[i].SetInputPullup();
-	}
-	for(int i=0;i<NROWS;i++)
-	{
-		rowwires[i].setPinId(2+4+i);
-		rowwires[i].SetInputPullup();
-	}
+	for(int i=0;i<NCOLS;i++) { pinMode( COL_PIN(i) , INPUT_PULLUP ); }
+	for(int i=0;i<NROWS;i++) { pinMode( ROW_PIN(i) , INPUT_PULLUP ); }
 }
 
 const char pgm_KeyTable[16] PROGMEM = {'D','C','B','A','#','9','6','3','0','8','5','2','*','7','4','1'};
@@ -42,20 +34,20 @@ char scanKeyPad()
 	int k = -1;
 	for(int i=0;i<NCOLS;i++)
 	{
-		colwires[i].SetOutput();
-		colwires[i].Set(LOW);
+		pinMode( COL_PIN(i) , OUTPUT );
+		digitalWrite( COL_PIN(i) , LOW );
 		for(int j=0;j<NROWS;j++)
 		{
-			if( !rowwires[j].Get() )
+			if( ! digitalRead(ROW_PIN(j)) )
 			{
-				colwires[i].Set(HIGH);
-				colwires[i].SetInput();
+				digitalWrite( COL_PIN(i) , HIGH );
+				pinMode( COL_PIN(i) , INPUT );
 				char c = pgm_read_byte_near(pgm_KeyTable + i*NROWS+j);
 				return c;
 			}
 		}
-		colwires[i].Set(HIGH);
-		colwires[i].SetInput();
+		digitalWrite( COL_PIN(i) , HIGH );
+		pinMode( COL_PIN(i) , INPUT );
 	}
 	return '\0';
 }

@@ -38,6 +38,18 @@
 #define HIGH true
 #endif
 
+#ifndef INPUT
+#define INPUT 0
+#endif
+
+#ifndef OUTPUT
+#define OUTPUT 1
+#endif
+
+#ifndef INPUT_PULLUP
+#define INPUT_PULLUP 2
+#endif
+
 /*************************************************************
  * Pin to register mapping macros
  *************************************************************/
@@ -80,9 +92,6 @@
 #define A3 17
 #define A4 18
 #define A5 19
-#define A6 20
-#define A7 21
-
 
 #endif
 // BOARDDEFS_H

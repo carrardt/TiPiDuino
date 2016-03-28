@@ -7,13 +7,14 @@
 #include "WiringUnoBoardDefs.h" // for standard pin mapping. From Wiring lib
 
 namespace avrtl
-{
+{	
 	template<uint8_t _PORT> struct StaticPinGroup { };
 	template<> struct StaticPinGroup<0>
 	{
 		static void SetOutput(uint8_t mask) { DDRD |= mask; }
 		static void SetInput(uint8_t mask) { DDRD &= ~mask; }
 		static uint8_t Get() { return PIND; }
+		// not optimal but it has a constant execution time
 		static void Set(uint8_t x , uint8_t mask=0xFF)
 		{
 			PORTD |= mask&x;
@@ -43,58 +44,139 @@ namespace avrtl
 		}
 	};
 
-
-	template<int _p1, int _p2, bool SamePort = (WdigitalPinToPort(_p1)==WdigitalPinToPort(_p2)) >
-	struct DualPin {};
-
-	template<int _p1, int _p2>
-	struct DualPin<_p1,_p2,true>
+	template<typename PinGroupT, uint8_t _pinBit>
+	struct StaticPinT
 	{
-		#define pin_addr (WportInputRegister(WdigitalPinToPort(_p1)))
-		#define port_addr (WdigitalPinToPortReg(_p1))
-		#define ddr_addr (WportModeRegister(WdigitalPinToPort(_p1)))
-		#define pin1_bit (WdigitalPinToBit(_p1))
-		#define pin2_bit (WdigitalPinToBit(_p2))
+		static constexpr uint8_t pinbit = _pinBit;
+		static constexpr uint8_t setmask = 1<<pinbit;
+		static constexpr uint8_t clearmask = ~setmask;
 
-		uint8_t mask;
+		inline StaticPinT() : m_pg() {}
+		inline StaticPinT( PinGroupT _pg ) : m_pg(_pg) {}
 
-		void SelectPin(bool pselect)
+		inline void SetOutput() const { m_pg.SetOutput(setmask); }
+		inline void SetInput() const { m_pg.SetInput(setmask); }
+		inline void Set(bool b) const
 		{
-			mask = 1 << ( pselect ? pin2_bit : pin1_bit ) ;
+			uint8_t x = b; // guaranteed to be 0 or 1 only
+			m_pg.Set( x<<pinbit, setmask );
 		}
-		
-		// equivalent to a or of input pins, and duplicate write to all pins
-		void SelectAllPins()
-		{
-			mask = SetAllMask();
-		}
-		
-		uint8_t SetMask() const { return mask; }
-		uint8_t ClearMask() const { return ~mask; }
-		
-		uint8_t SetAllMask() const { return (1<<pin1_bit) | (1<<pin2_bit); }
-		uint8_t ClearAllMask() const { return ~SetAllMask(); }
-		
-		void SetOutput() const { *ddr_addr |= SetAllMask(); }
-		void SetInput() const { *ddr_addr &= ClearAllMask(); }
-		
-		void Set(bool b) const
-		{
-			if(b) { *port_addr |= SetMask(); }
-			else { *port_addr &= ClearMask(); }
-		}
-		bool Get() const
+		inline bool Get() const
 		{ 
-			return ( (*pin_addr) & mask ) != 0;
+			return m_pg.Get() & setmask;
 		}
+		inline operator bool() const { return Get(); }
+		inline bool operator = (bool b) const { Set(b); return b; }
+
+		const PinGroupT m_pg;
+	};
+
+	// standard definition for most Arduino alike boards
+	template<uint8_t pinId> struct PinMapping {};
+	template<> struct PinMapping<0> { using PinGroup = StaticPinGroup<0>; static constexpr uint8_t PinBit = 0; };
+	template<> struct PinMapping<1> { using PinGroup = StaticPinGroup<0>; static constexpr uint8_t PinBit = 1; };
+	template<> struct PinMapping<2> { using PinGroup = StaticPinGroup<0>; static constexpr uint8_t PinBit = 2; };
+	template<> struct PinMapping<3> { using PinGroup = StaticPinGroup<0>; static constexpr uint8_t PinBit = 3; };
+	template<> struct PinMapping<4> { using PinGroup = StaticPinGroup<0>; static constexpr uint8_t PinBit = 4; };
+	template<> struct PinMapping<5> { using PinGroup = StaticPinGroup<0>; static constexpr uint8_t PinBit = 5; };
+	template<> struct PinMapping<6> { using PinGroup = StaticPinGroup<0>; static constexpr uint8_t PinBit = 6; };
+	template<> struct PinMapping<7> { using PinGroup = StaticPinGroup<0>; static constexpr uint8_t PinBit = 7; };
+
+	template<> struct PinMapping<8> { using PinGroup = StaticPinGroup<1>; static constexpr uint8_t PinBit = 0; };
+	template<> struct PinMapping<9> { using PinGroup = StaticPinGroup<1>; static constexpr uint8_t PinBit = 1; };
+	template<> struct PinMapping<10> { using PinGroup = StaticPinGroup<1>; static constexpr uint8_t PinBit = 2; };
+	template<> struct PinMapping<11> { using PinGroup = StaticPinGroup<1>; static constexpr uint8_t PinBit = 3; };
+	template<> struct PinMapping<12> { using PinGroup = StaticPinGroup<1>; static constexpr uint8_t PinBit = 4; };
+	template<> struct PinMapping<13> { using PinGroup = StaticPinGroup<1>; static constexpr uint8_t PinBit = 5; };
+
+	template<> struct PinMapping<14> { using PinGroup = StaticPinGroup<2>; static constexpr uint8_t PinBit = 0; };
+	template<> struct PinMapping<15> { using PinGroup = StaticPinGroup<2>; static constexpr uint8_t PinBit = 1; };
+	template<> struct PinMapping<16> { using PinGroup = StaticPinGroup<2>; static constexpr uint8_t PinBit = 2; };
+	template<> struct PinMapping<17> { using PinGroup = StaticPinGroup<2>; static constexpr uint8_t PinBit = 3; };
+	template<> struct PinMapping<18> { using PinGroup = StaticPinGroup<2>; static constexpr uint8_t PinBit = 4; };
+	template<> struct PinMapping<19> { using PinGroup = StaticPinGroup<2>; static constexpr uint8_t PinBit = 5; };
+	
+	// TODO: change StaticPin name to something like 'ArduinoStaticPin'
+	template<uint8_t p>
+	using StaticPin = StaticPinT< typename PinMapping<p>::PinGroup, PinMapping<p>::PinBit >;
+
+	template<typename PinGroupT, uint8_t _b1, uint8_t _b2>
+	struct StaticDualPinT
+	{
+		static constexpr uint8_t Pin1Bit = _b1;
+		static constexpr uint8_t Pin2Bit = _b2;
+		static constexpr uint8_t Pin1Mask = 1 << Pin1Bit;
+		static constexpr uint8_t Pin2Mask = 1 << Pin2Bit;
+		static constexpr uint8_t AllPinMask = Pin1Mask | Pin2Mask;
+		
+		inline StaticDualPinT() : m_mask(AllPinMask) {}
+		inline StaticDualPinT(PinGroupT pg) : m_pg(pg) , m_mask(AllPinMask) {}
+		void SelectPin(bool pselect) { m_mask = pselect ? Pin2Mask : Pin1Mask ; }
+		void SelectAllPins() { m_mask = AllPinMask; }
+		void SetOutput() const { m_pg.SetOutput(AllPinMask); }
+		void SetInput() const { m_pg.SetInput(AllPinMask); }
+		void Set(bool b) const { m_pg.Set( b ? AllPinMask : 0 , m_mask ); }
+		bool Get() const { return m_pg.Get() & m_mask ; }
 		operator bool() const { return Get(); }
 		bool operator = (bool b) const { Set(b); return b; }
-		
-		#undef pin_addr
-		#undef port_addr
-		#undef ddr_addr
-		#undef pin_bit
+
+		uint8_t m_mask;
+		PinGroupT m_pg;
 	};
+
+	// TODO: change the type name
+	// TODO: check if pin group of p1 and p2 are the same
+	template<uint8_t p1,uint8_t p2>
+	using DualPin = StaticDualPinT< typename PinMapping<p1>::PinGroup
+								  , PinMapping<p1>::PinBit
+								  , PinMapping<p2>::PinBit > ;
+
+	// not const pointers to volatile, just pointers to volatile.
+	// make the entire object const if needed
+	struct DynamicPinGroup
+	{
+		inline DynamicPinGroup(volatile uint8_t * ddr, volatile uint8_t * pin, volatile uint8_t * port)
+			: m_ddr(ddr)
+			, m_pin(pin)
+			, m_port(port)
+			{}
+
+		void SetOutput(uint8_t mask) const { *m_ddr |= mask; }
+		void SetInput(uint8_t mask) const { *m_ddr &= ~mask; }
+		uint8_t Get() const { return *m_pin; }
+		void Set(uint8_t x , uint8_t mask=0xFF) const
+		{
+			*m_port |= mask&x;
+			*m_port &= (~mask)|x;
+		}
+
+		volatile uint8_t * m_ddr;
+		volatile uint8_t * m_pin;
+		volatile uint8_t * m_port;
+	};
+
+	template<typename PinGroupT>
+	struct DynamicPinT
+	{
+		inline DynamicPinT() : m_mask(0) {}
+		inline DynamicPinT( PinGroupT pg ) : m_pg(pg), m_mask(0) {}
+		inline DynamicPinT( PinGroupT pg, uint8_t pinBit ) : m_pg(pg), m_mask(1<<pinBit) {}
+		inline void SetOutput() const { m_pg.SetOutput(m_mask); }
+		inline void SetInput() const { m_pg.SetInput(m_mask); }
+		inline void Set(bool b) const { m_pg.Set( b ? m_mask : 0 , m_mask ); }
+		inline bool Get() const	{ return m_pg.Get() & m_mask; }
+		inline operator bool() const { return Get(); }
+		inline bool operator = (bool b) const { Set(b); return b; }
+		PinGroupT m_pg;
+		uint8_t m_mask;
+	};
+
+	inline DynamicPinT<DynamicPinGroup> make_pin(uint8_t p)
+	{
+		uint8_t g = WdigitalPinToPort(p);
+		DynamicPinGroup pg( WportModeRegister(g), WportInputRegister(g), WportOutputRegister(g) );
+		return DynamicPinT<DynamicPinGroup>( pg, WdigitalPinToBit(p) );
+	}
 
 	struct NullPin
 	{
@@ -105,74 +187,28 @@ namespace avrtl
 		operator bool() const { return Get(); }
 		bool operator = (bool b) const { Set(b); return b; }
 	};
-
-	template< int _pinId >
-	struct StaticPin
-	{
-		#define pin_addr (WportInputRegister(WdigitalPinToPort(_pinId)))
-		#define port_addr (WdigitalPinToPortReg(_pinId))
-		#define ddr_addr (WportModeRegister(WdigitalPinToPort(_pinId)))
-		#define pin_bit (WdigitalPinToBit(_pinId))
-		
-		static uint8_t SetMask()  { return 1<<pin_bit; }
-		static uint8_t ClearMask()  { return ~SetMask(); }
-		static void SetOutput()  { *ddr_addr |= SetMask(); }
-		static void SetInput()  { *ddr_addr &= ClearMask(); }
-		static void Set(bool b) 
-		{
-			if(b) { *port_addr |= SetMask(); }
-			else { *port_addr &= ClearMask(); }
-		}
-		static bool Get() 
-		{ 
-			return ( (*pin_addr) >> pin_bit ) & 1;
-		}
-		operator bool() const { return Get(); }
-		bool operator = (bool b) const { Set(b); return b; }
-
-		#undef pin_addr
-		#undef port_addr
-		#undef ddr_addr
-		#undef pin_bit
-	};
-
-	struct DynamicPin
-	{
-		#define pin_addr (WportInputRegister(WdigitalPinToPort(_pinId)))
-		#define port_addr (WdigitalPinToPortReg(_pinId))
-		#define ddr_addr (WportModeRegister(WdigitalPinToPort(_pinId)))
-		#define pin_bit (WdigitalPinToBit(_pinId))
-		
-		inline DynamicPin() : _pinId(13) {}
-		inline DynamicPin(uint8_t p) : _pinId(p) {}
-		inline void setPinId(uint8_t p) { _pinId = p; }
-		
-		inline uint8_t SetMask() const { return 1<<pin_bit; }
-		inline uint8_t ClearMask() const { return ~SetMask(); }
-		inline void SetOutput() const { *ddr_addr |= SetMask(); }
-		inline void SetInput() const { *ddr_addr &= ClearMask(); }
-		inline void SetInputPullup() const { SetInput(); Set(HIGH); }
-		inline void Set(bool b) const
-		{
-			if(b) { *port_addr |= SetMask(); }
-			else { *port_addr &= ClearMask(); }
-		}
-		inline bool Get() const
-		{ 
-			return ( (*pin_addr) >> pin_bit ) & 1;
-		}
-		inline operator bool() const { return Get(); }
-		inline bool operator = (bool b) const { Set(b); return b; }
-
-		uint8_t _pinId;
-
-		#undef pin_addr
-		#undef port_addr
-		#undef ddr_addr
-		#undef pin_bit
-	};
-
-
+	
 }
+
+// compatibility layer
+#if !defined(ARDUINO_MAIN) && !defined(Arduino_h)
+inline void pinMode(uint8_t pId, uint8_t mode)
+{
+	auto p = avrtl::make_pin(pId);
+	if( mode == INPUT ) p.SetInput();
+	else if( mode == OUTPUT ) p.SetOutput();
+	else if( mode == INPUT_PULLUP ) { p.SetInput(); p.Set(HIGH); }
+}
+
+inline void digitalWrite(uint8_t pId, bool level)
+{
+	avrtl::make_pin(pId).Set( level );
+}
+
+inline bool digitalRead(uint8_t pId)
+{
+	return avrtl::make_pin(pId).Get();
+}
+#endif
 
 #endif
