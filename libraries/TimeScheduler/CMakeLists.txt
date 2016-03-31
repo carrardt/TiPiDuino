@@ -3,9 +3,9 @@
 # with a PrintStream
 #====================================================================#
 generate_arduino_library(
-	BasicIO
-	SRCS PrintStream.cpp HWSerialIO.cpp
-    HDRS ByteStream.h InputStream.h PrintStream.h HWSerialIO.h
+	TimeScheduler
+	SRCS TimeScheduler.cpp
+    HDRS TimeScheduler.h
     LIBS AvrTL
     NO_AUTOLIBS MANUAL
 	)

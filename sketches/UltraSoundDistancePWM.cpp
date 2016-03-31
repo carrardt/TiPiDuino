@@ -1,6 +1,7 @@
 #include <AvrTL.h>
 #include <AvrTLPin.h>
 #include <AvrTLSignal.h>
+#include <TimeScheduler.h>
 
 using namespace avrtl;
 
@@ -13,45 +14,6 @@ using namespace avrtl;
 static auto trigger = StaticPin<TRIGGER_PIN>();
 static auto echo = StaticPin<ECHO_PIN>();
 static auto pwm = StaticPin<PWM_PIN>();
-
-struct TimeScheduler
-{
-	int16_t m_wallclock;
-	uint8_t m_t;
-	
-	inline void start()
-	{
-		m_wallclock = 0;
-		m_t = TCNT0;
-	}
-		
-	inline int16_t wallclock()
-	{
-		uint8_t t2 = TCNT0;
-		m_wallclock += (uint8_t)( t2 - m_t );
-		m_t = t2;
-		return m_wallclock;
-	}
-	
-	template<typename FuncT>
-	inline void exec( int16_t t, FuncT f )
-	{
-		t = avrtl::microsecondsToTicks(t);
-		f();
-		while( wallclock() < t );
-		m_wallclock -= t;				
-	}
-
-	template<typename FuncT>
-	inline void loop( int16_t t, FuncT f )
-	{
-		t = avrtl::microsecondsToTicks(t);
-		int16_t w;
-		while( (w=wallclock()) < t ) { f( avrtl::ticksToMicroseconds(w) ); }
-		m_wallclock -= t;				
-	}
-	
-};
 
 static TimeScheduler ts;
 
@@ -70,7 +32,6 @@ void loop()
 	uint16_t targetValue = 1024;
 	uint8_t counter = 0;
 	
-	SCOPED_SIGNAL_PROCESSING;
 	ts.start();
 
 	while( true )
@@ -78,7 +39,7 @@ void loop()
 		ts.exec( 400,
 				[&echo_gap, &echo_length]()
 				{ 
-					pwm=HIGH;
+					pwm = HIGH;
 					echo_gap = 0;
 					echo_length = 0;
 				} );
@@ -121,7 +82,8 @@ void loop()
 					++ counter;
 					if( counter == 6 ) counter = 0;
 				} );
-		
 	}
+
+	ts.stop();
 }
 

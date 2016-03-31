@@ -11,6 +11,7 @@ namespace avrtl
 	static constexpr uint32_t clockMhz = F_CPU / 1000000UL;
 	extern uint8_t saved_SREG;
 	extern uint8_t saved_TCCR0B;
+	extern bool signalProcessingModeActive;
 	
 #define INIT_CLOCK_COUNTER() 	uint8_t _t=TCNT0,_t0=_t; int32_t _m=-_t0
 #define INIT_CLOCK_COUNTER16() 	uint8_t _t=TCNT0,_t0=_t; int16_t _m=-_t0
@@ -36,21 +37,22 @@ namespace avrtl
 
 	struct SignalProcessingMode
 	{
-		bool active;
-		inline SignalProcessingMode() : active(saved_TCCR0B==0)
+		bool m_owner;
+		inline void start()
 		{
-			if(active)
+			m_owner = (saved_TCCR0B == 0);
+			if( m_owner )
 			{
 				saved_SREG = SREG;
 				cli();
 				saved_TCCR0B = TCCR0B;
-				// Sets the timer prescale factor to 8;
+				// Sets the timer prescale factor to 8; 1/2 microsecond per tick @16Mhz
 				TCCR0B = (TCCR0B & 0b11111000) | 0b010;
 			}
 		}
-		inline ~SignalProcessingMode()
+		inline void stop()
 		{
-			if(active)
+			if( m_owner )
 			{
 				TCCR0B = saved_TCCR0B;
 				SREG = saved_SREG;
@@ -58,7 +60,14 @@ namespace avrtl
 			}
 		}
 	};
-#define SCOPED_SIGNAL_PROCESSING avrtl::SignalProcessingMode __scopedSignalProcessingMode
+
+	struct ScopedSignalProcessingMode : public SignalProcessingMode
+	{
+		inline ScopedSignalProcessingMode() { start(); }
+		inline ~ScopedSignalProcessingMode() { stop(); }
+	};
+	
+#define SCOPED_SIGNAL_PROCESSING avrtl::ScopedSignalProcessingMode __scopedSignalProcessingMode
 
 	static void DelayTimerTicksFast(uint32_t tickCount)
 	{

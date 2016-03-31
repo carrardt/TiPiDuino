@@ -1,0 +1,1 @@
+char __TimeScheduler_dummy_var;

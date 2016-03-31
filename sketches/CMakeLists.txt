@@ -76,7 +76,7 @@ generate_avr_firmware(
 generate_avr_firmware(
 	UltraSoundDistancePWM
 	SRCS UltraSoundDistancePWM.cpp
-	LIBS BasicIO AvrTL AvrApp
+	LIBS TimeScheduler AvrTL AvrApp
 	)
 
 #====================================================================#
@@ -86,4 +86,13 @@ generate_avr_firmware(
 	keypad
 	SRCS keypad.cpp
 	LIBS BasicIO AvrTL AvrApp
+	)
+
+#====================================================================#
+# SoftSerial test
+#====================================================================#
+generate_avr_firmware(
+	SoftSerialTest
+	SRCS SoftSerialTest.cpp
+	LIBS SoftSerial BasicIO TimeScheduler AvrTL AvrApp
 	)

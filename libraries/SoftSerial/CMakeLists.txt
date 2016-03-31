@@ -3,9 +3,9 @@
 # with a PrintStream
 #====================================================================#
 generate_arduino_library(
-	BasicIO
-	SRCS PrintStream.cpp HWSerialIO.cpp
-    HDRS ByteStream.h InputStream.h PrintStream.h HWSerialIO.h
-    LIBS AvrTL
+	SoftSerial
+	SRCS SoftSerial.cpp
+    HDRS SoftSerial.h
+    LIBS BasicIO TimeScheduler AvrTL
     NO_AUTOLIBS MANUAL
 	)
