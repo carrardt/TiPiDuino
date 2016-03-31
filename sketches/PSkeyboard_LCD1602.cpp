@@ -23,6 +23,7 @@ using namespace avrtl;
 
 #define PS1_CLOCK 8
 #define PS1_DATA 9
+
 #define LCD_PINS 7,6,5,4,3,2
 
 auto ps1Clock = StaticPin<PS1_CLOCK>();

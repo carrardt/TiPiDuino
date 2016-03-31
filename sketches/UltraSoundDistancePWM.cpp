@@ -8,20 +8,11 @@ using namespace avrtl;
 #define ECHO_PIN 2
 #define PWM_PIN 13
 
-#define SMOOTHING 1 // 0,1,2 or 3 level of input value smoothing
+#define SMOOTHING 2 // 0,1,2 or 3 level of input value smoothing
 
 static auto trigger = StaticPin<TRIGGER_PIN>();
 static auto echo = StaticPin<ECHO_PIN>();
 static auto pwm = StaticPin<PWM_PIN>();
-
-/*
-#define INIT_CLOCK_COUNTER() 	uint8_t _t=TCNT0,_t0=_t; int32_t _m=-_t0
-#define INIT_CLOCK_COUNTER16() 	uint8_t _t=TCNT0,_t0=_t; int16_t _m=-_t0
-#define REWIND_CLOCK_COUNTER(x) do{ _m -= (x); }while(0)
-#define RESET_CLOCK_COUNTER() do{ _m=0; _t=TCNT0; }while(0)
-#define UPDATE_CLOCK_COUNTER() 	do{ uint8_t _t2=TCNT0; if(_t2<_t)_m+=256; _t=_t2; }while(0)
-#define CLOCK_ELAPSED() 		(_m+_t)
-*/
 
 struct TimeScheduler
 {
@@ -84,50 +75,49 @@ void loop()
 
 	while( true )
 	{
-		ts.exec( value,
+		ts.exec( 400,
 				[&echo_gap, &echo_length]()
 				{ 
 					pwm=HIGH;
 					echo_gap = 0;
-					echo_length = 255;
-				} );
-				
-		ts.exec( 40 ,
-				[counter]()
-				{
-					pwm=LOW;
+					echo_length = 0;
 				} );
 
-		ts.exec( 10 ,
-				[counter]()
-				{
-					trigger = (counter==0);
-				} );
-				
-		ts.exec( 50,
-				[]()
-				{
-					trigger=LOW;
-				} );
-		
-		ts.loop( 5000,
+		ts.loop( 2000, [value](int16_t t){ pwm = (t<value); } );
+
+		ts.exec( 40, [counter]() { pwm = LOW; } ); // just in case
+
+		ts.exec( 10, [counter]() { trigger = (counter==0); } );
+
+		ts.exec( 50, []() {	trigger = LOW; } );
+
+		ts.loop( 5000, // we have 5 milliseconds to listen for an echo
 				[&echo_gap,&echo_length](int16_t t)
 				{
-					bool e = echo.Get();
-					if( echo_gap==0 && e ) { echo_gap = t; }
-					if( echo_gap!=0 && !e ) { echo_length = t - echo_gap; }
+					if( echo.Get() )
+					{
+						if( echo_gap==0 ) echo_gap = t;
+					}
+					else
+					{
+						if( echo_gap!=0 && echo_length==0 )
+						{
+							echo_length = t - echo_gap;
+						}
+					}
 				} );
 
-		ts.exec( 10000-(value+5100),
+		ts.exec( 2500,
 				[&value,&targetValue,&counter,echo_gap,echo_length]()
 				{
-					/*if( echo_gap>512 && echo_length>256 )
+					if( counter==0 && echo_gap>512 && echo_length>256)
 					{
-						targetValue = microsecondsToTicks( (echo_length-256) );
+						targetValue = 256 + echo_length;
+						if( targetValue < 500 ) targetValue = 500;
+						if( targetValue > 2400 ) targetValue = 2400;
+						targetValue -= 400;
 					}
 					value = ( (value<<SMOOTHING)-value+targetValue ) >> SMOOTHING ;
-					*/
-					value = echo_length;
 					++ counter;
 					if( counter == 6 ) counter = 0;
 				} );
