@@ -16,6 +16,12 @@ struct TimeScheduler
 		m_t = TCNT0;
 	}
 
+	inline void reset()
+	{
+		m_wallclock = 0;
+		m_t = TCNT0;
+	}
+
 	inline void stop()
 	{
 		m_signalMode.stop();

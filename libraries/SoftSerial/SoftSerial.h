@@ -14,6 +14,8 @@ struct SoftSerialIO : public ByteStream
 	using TxPin = _TxPinT;
 	static constexpr uint32_t BaudRate = _BaudRate;
 	static constexpr uint32_t bitPeriod = 1000000UL / BaudRate;
+	static constexpr uint32_t timeShift = bitPeriod + bitPeriod/4;
+	static constexpr uint32_t byteGap = bitPeriod/4;
 
 	TimeScheduler ts;
 	RxPin rx;
@@ -23,14 +25,34 @@ struct SoftSerialIO : public ByteStream
 
 	void begin()
 	{
-		rx.SetOutput();
+		rx.SetInput();
 		tx.SetOutput();
 		tx = HIGH;
 	}
 
+	virtual const char* endline() const { return "\n\r"; }
+
+	virtual uint8_t readByte()
+	{
+	  uint8_t C = 0;
+	  ts.start();
+	  while( rx.Get() ) ts.reset();
+	  ts.exec( timeShift, [](){} );
+	  ts.exec( bitPeriod, [this,&C](){ uint8_t bit=rx.Get(); C=(C>>1)|(bit<<7); } );	  
+	  ts.exec( bitPeriod, [this,&C](){ uint8_t bit=rx.Get(); C=(C>>1)|(bit<<7); } );	  
+	  ts.exec( bitPeriod, [this,&C](){ uint8_t bit=rx.Get(); C=(C>>1)|(bit<<7); } );	  
+	  ts.exec( bitPeriod, [this,&C](){ uint8_t bit=rx.Get(); C=(C>>1)|(bit<<7); } );	  
+	  ts.exec( bitPeriod, [this,&C](){ uint8_t bit=rx.Get(); C=(C>>1)|(bit<<7); } );	  
+	  ts.exec( bitPeriod, [this,&C](){ uint8_t bit=rx.Get(); C=(C>>1)|(bit<<7); } );	  
+	  ts.exec( bitPeriod, [this,&C](){ uint8_t bit=rx.Get(); C=(C>>1)|(bit<<7); } );	  
+	  ts.exec( bitPeriod, [this,&C](){ uint8_t bit=rx.Get(); C=(C>>1)|(bit<<7); } );
+	  ts.exec( byteGap, [](){} );
+	  ts.stop();
+	  return C;
+	}
+	
 	virtual bool writeByte(uint8_t b)
 	{
-	  rx = HIGH; // debug
 	  ts.start();
 	  ts.exec( 64, [](){} ); // just to absorb startup time
 	  ts.exec( bitPeriod, [this](){ tx = LOW; } );
@@ -44,7 +66,6 @@ struct SoftSerialIO : public ByteStream
 	  ts.exec( bitPeriod, [this,&b](){ tx = b&0x01; b>>=1; } );
 	  ts.exec( bitPeriod, [this](){ tx = HIGH; } );
 	  ts.stop();
-	  rx = LOW;
 	  return true;
 	}
 

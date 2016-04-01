@@ -7,28 +7,36 @@
 
 using namespace avrtl;
 
-// auto soft_rx = pin(10);
-// auto soft_tx = pin(11);
-
-HWSerialIO hwserial;
-// auto softIO = make_softserial<19200>(soft_rx,soft_tx);
+HWSerialIO serialIO;
 
 PrintStream cout;
-InputStream cin;
+//InputStream cin;
 
 void setup()
 {
-	//softIO.begin();
-	hwserial.begin(9600);
+	serialIO.begin(57600);
 
-	cout.begin( &hwserial );
-	cin.begin( &hwserial );
+	cout.begin( &serialIO );
+	//cin.begin( &serialIO );
 	cout<<"Ready"<<endl;
 }
 
+static uint32_t counter = 0;
 void loop()
 {
+	cout<< "Counter = "<<counter<<endl;
+	avrtl::DelayMicroseconds( 1000000UL );
+	++ counter;
+
+	
+	/*
+	serialIO.writeByte(129);
+	avrtl::DelayMicroseconds( 1000000UL );
+	*/
+	
+	/*
 	char c = 0;
 	cin >> c;
 	cout<<"'"<<c<<"' TXr="<<HWSerialIO::Tx_ready<<" RXr="<<HWSerialIO::Rx_read<<" RXa="<<HWSerialIO::Rx_avail<<endl;
+	*/
 }
