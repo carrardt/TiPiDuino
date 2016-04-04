@@ -1,0 +1,1 @@
+char __HWSerialNoInt_dummy_var;

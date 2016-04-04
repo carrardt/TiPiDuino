@@ -62,4 +62,13 @@ protected:
 	uint16_t m_size;
 };
 
+template<typename RawIOType>
+struct ByteStreamAdapter : public ByteStream
+{
+	RawIOType m_rawIO;
+	virtual const char* endline() const { return "\n\r"; }
+	virtual bool writeByte( uint8_t x ) { return m_rawIO.writeByte(x); }
+	virtual uint8_t readByte() { return m_rawIO.readByte(); }
+};
+
 #endif

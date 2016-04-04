@@ -2,7 +2,7 @@
 #include <AvrTLPin.h>
 #include <AvrTLSignal.h>
 #include <BasicIO/PrintStream.h>
-#include <BasicIO/HWSerialIO.h>
+#include <HWSerial/HWSerialIO.h>
 
 using namespace avrtl;
 

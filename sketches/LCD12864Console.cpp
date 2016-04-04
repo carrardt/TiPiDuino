@@ -24,9 +24,15 @@
 #include "AvrTL/AvrTLSignal.h"
 #include "LCD12864/LCD12864.h"
 #include "BasicIO/PrintStream.h"
+#include "BasicIO/InputStream.h"
+#include "SoftSerial/SoftSerial.h"
 
+static auto rx = avrtl::StaticPin<3>();
+static auto tx = avrtl::StaticPin<2>();
+static auto serialIO = make_softserial<57600>(rx,tx);
 static LCD12864 LCDA;
 static PrintStream cout;
+//static InputStream cin;
 
 void setup()
 {
@@ -35,13 +41,15 @@ void setup()
   avrtl::DelayMicroseconds(100000);
   LCDA.Clear();
   avrtl::DelayMicroseconds(100000);
+  serialIO.begin();
 }
 
-static int count = 0;
 void loop()
 {
-  cout<<"Counter="<<count<<endl;
-  ++ count;
-  avrtl::DelayMicroseconds(1000000);
+  char tmp[16];
+  int i=0;
+  while(i<15 && (tmp[i]=serialIO.readByte()) != '\n') ++i;
+  tmp[i] = '\0';
+  cout<<"> "<<tmp<<endl;
 }
 

@@ -3,7 +3,7 @@
 #include <AvrTL.h>
 #include <BasicIO/PrintStream.h>
 #include <BasicIO/InputStream.h>
-#include <BasicIO/HWSerialIO.h>
+#include <HWSerial/HWSerialIO.h>
 
 using namespace avrtl;
 
@@ -28,7 +28,6 @@ void loop()
 	avrtl::DelayMicroseconds( 1000000UL );
 	++ counter;
 
-	
 	/*
 	serialIO.writeByte(129);
 	avrtl::DelayMicroseconds( 1000000UL );

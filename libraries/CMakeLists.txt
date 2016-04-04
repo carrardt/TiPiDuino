@@ -4,6 +4,8 @@
 add_subdirectory(AvrTL)
 add_subdirectory(TimeScheduler)
 add_subdirectory(SoftSerial)
+add_subdirectory(HWSerial)
+add_subdirectory(HWSerialNoInt)
 add_subdirectory(AvrApp)
 add_subdirectory(BasicIO)
 add_subdirectory(LCD1602)

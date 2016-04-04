@@ -4,6 +4,12 @@
 
 using namespace avrtl;
 
+/*
+ * linux example usage :
+ * stty -F /dev/ttyUSB0 57600 raw cs8
+ * echo "Hello world" > /dev/ttyUSB0
+ */
+
 //static auto led = StaticPin<11>();
 static auto rx = StaticPin<12>();
 static auto tx = StaticPin<13>();

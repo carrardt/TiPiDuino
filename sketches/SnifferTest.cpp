@@ -6,7 +6,7 @@
 #include "RFSnifferEEPROM.h"
 #include "RFSnifferInterpreter.h"
 #include "BasicIO/PrintStream.h"
-#include "BasicIO/HWSerialIO.h"
+#include "HWSerial/HWSerialIO.h"
 #include "BasicIO/InputStream.h"
 
 using namespace avrtl;

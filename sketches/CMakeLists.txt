@@ -30,7 +30,7 @@ generate_avr_firmware(
 generate_avr_firmware(
 	LCD12864Test
     SRCS LCD12864Test.cpp
-    LIBS LCD12864 AvrTL AvrApp
+    LIBS LCD12864 BasicIO AvrTL AvrApp
     )
 
 
@@ -40,7 +40,16 @@ generate_avr_firmware(
 generate_avr_firmware(
 	HWSerialTest
     SRCS HWSerialTest.cpp
-    LIBS BasicIO AvrApp
+    LIBS HWSerial BasicIO AvrApp
+    )
+
+#====================================================================#
+# Simple input/output test for HW Serial port not using interrupts
+#====================================================================#
+generate_avr_firmware(
+	HWSerialTest2
+    SRCS HWSerialTest2.cpp
+    LIBS HWSerialNoInt BasicIO AvrApp
     )
 
 #====================================================================#
@@ -49,7 +58,7 @@ generate_avr_firmware(
 generate_avr_firmware(
 	Sniffer
 	SRCS SnifferTest.cpp
-	LIBS RFSniffer LCD1602 BasicIO AvrTL AvrApp
+	LIBS RFSniffer LCD1602 HWSerial BasicIO AvrTL AvrApp
 	)
 
 #====================================================================#
@@ -67,7 +76,7 @@ generate_avr_firmware(
 generate_avr_firmware(
 	UltraSoundDistance
 	SRCS UltraSoundDistance.cpp
-	LIBS BasicIO AvrTL AvrApp
+	LIBS HWSerial BasicIO AvrTL AvrApp
 	)
 
 #====================================================================#
@@ -85,7 +94,7 @@ generate_avr_firmware(
 generate_avr_firmware(
 	keypad
 	SRCS keypad.cpp
-	LIBS BasicIO AvrTL AvrApp
+	LIBS HWSerial BasicIO AvrTL AvrApp
 	)
 
 #====================================================================#
@@ -96,3 +105,12 @@ generate_avr_firmware(
 	SRCS SoftSerialTest.cpp
 	LIBS SoftSerial BasicIO TimeScheduler AvrTL AvrApp
 	)
+
+#====================================================================#
+# Print an incresaing counter on a LCD1602 screen
+#====================================================================#
+generate_avr_firmware(
+	LCD12864Console
+    SRCS LCD12864Console.cpp
+    LIBS LCD12864 SoftSerial BasicIO AvrTL AvrApp
+    )

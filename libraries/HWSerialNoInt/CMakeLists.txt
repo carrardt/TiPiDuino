@@ -1,11 +1,9 @@
 #====================================================================#
-# LCD1602 interface. compatible with ByteStream interface, may be used
-# with a PrintStream
+# ATmega328 USART0 low level interface. no interrupts.
 #====================================================================#
 generate_arduino_library(
-	BasicIO
-	SRCS PrintStream.cpp
-    HDRS ByteStream.h InputStream.h PrintStream.h
-    LIBS AvrTL
+	HWSerialNoInt
+	SRCS HWSerialNoInt.cpp
+    HDRS HWSerialNoInt.h
     NO_AUTOLIBS MANUAL
 	)

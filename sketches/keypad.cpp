@@ -1,7 +1,7 @@
 #include <AvrTL.h>
 #include <AvrTLPin.h>
 #include <AvrTLSignal.h>
-#include <BasicIO/HWSerialIO.h>
+#include <HWSerial/HWSerialIO.h>
 #include <BasicIO/PrintStream.h>
 
 #include <avr/pgmspace.h>

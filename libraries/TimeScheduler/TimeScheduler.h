@@ -1,7 +1,7 @@
 #ifndef __TiDuino_TimeScheduler_h
 #define __TiDuino_TimeScheduler_h
 
-#include <AvrTLSignal.h>
+#include <AvrTL/AvrTLSignal.h>
 
 struct TimeScheduler
 {
