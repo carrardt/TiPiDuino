@@ -40,7 +40,7 @@ struct HWSerialNoInt
 	  UCSR0C |= (1<<UCSZ01)|(1<<UCSZ00);
 	  UBRR0H = ubrrValue >> 8;
 	  UBRR0L = ubrrValue;
-	  UCSR0B |= (1<<RXEN0)|(1<<TXEN0);
+	  UCSR0B = (1<<RXEN0)|(1<<TXEN0);
 	}
 
 	static bool writeByte( uint8_t u8Data )
@@ -50,6 +50,17 @@ struct HWSerialNoInt
 		// Transmit data
 		UDR0 = u8Data;
 		return true;
+	}
+
+	static uint16_t readByteAsync()
+	{
+		uint16_t x = 0;
+		if( UCSR0A&(1<<RXC0) )
+		{
+			x = 256;
+			x |= UDR0;
+		}
+		return x;
 	}
 
 	static uint8_t readByte()

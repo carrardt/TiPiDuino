@@ -114,3 +114,12 @@ generate_avr_firmware(
     SRCS LCD12864Console.cpp
     LIBS LCD12864 SoftSerial BasicIO AvrTL AvrApp
     )
+    
+#====================================================================#
+# read values from serial and generate several pwm signals
+#====================================================================#
+generate_avr_firmware(
+	SerialPWM
+	SRCS SerialPWM.cpp
+	LIBS HWSerialNoInt TimeScheduler AvrTL AvrApp
+	)

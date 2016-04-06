@@ -2,6 +2,7 @@
 #define __TIPIDUINO_ByteStream_h
 
 #include <stdint.h>
+#include <AvrTL/AvrTLSignal.h>
 
 struct ByteStream
 {
@@ -62,12 +63,18 @@ protected:
 	uint16_t m_size;
 };
 
-template<typename RawIOType>
+template<typename RawIOType,uint32_t _EndLineDelay=1000>
 struct ByteStreamAdapter : public ByteStream
 {
+	static constexpr uint32_t EndLineDelay = _EndLineDelay;
 	RawIOType m_rawIO;
 	virtual const char* endline() const { return "\n\r"; }
-	virtual bool writeByte( uint8_t x ) { return m_rawIO.writeByte(x); }
+	virtual bool writeByte( uint8_t x )
+	{
+		bool r = m_rawIO.writeByte(x);
+		if( r && x=='\n' ) { avrtl::DelayMicroseconds(EndLineDelay); }
+		return r;
+	}
 	virtual uint8_t readByte() { return m_rawIO.readByte(); }
 };
 

@@ -3,9 +3,16 @@
 #include <BasicIO/InputStream.h>
 #include <HWSerialNoInt/HWSerialNoInt.h>
 
+/*
+ * linux example usage :
+ * stty -F /dev/ttyUSB0 57600 raw cs8
+ * echo "Hello world" > /dev/ttyUSB0
+ */
+
+
 using namespace avrtl;
 
-ByteStreamAdapter<HWSerialNoInt> serialIO;
+ByteStreamAdapter<HWSerialNoInt,100000UL> serialIO;
 PrintStream cout;
 InputStream cin;
 
