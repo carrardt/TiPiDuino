@@ -23,7 +23,9 @@ void setup()
 	serialIO.m_rawIO.begin(57600);
 	cout.begin(&serialIO);
 	pwm.SetOutput();
-	cout<<"SerialPWM Ready"<<endl;
+	cout<<"SerialPWM"<<endl;
+	cout<<"Ft="<<ts.maxFuncTime()<<"uS"<<endl;;
+	cout<<"Tt="<<ts.tickTime()<<"nS"<<endl;;
 	cli();
 }
 
