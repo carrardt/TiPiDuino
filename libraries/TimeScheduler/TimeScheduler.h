@@ -17,7 +17,6 @@ struct AvrTimer0
 	static constexpr uint32_t TicksPerMilliSec = ( F_CPU / TimerPrescaler ) / 1000UL;
 	static constexpr uint32_t MaxExecMicroSec = ( TimerCounterMax * NanoSecPerTick ) / 1000UL;
 
-	inline AvrTimer0() : saved_TCCR0B(0) {}
 	inline TimerCounterType start()
 	{
 		saved_TCCR0A = TCCR0A;
@@ -36,64 +35,68 @@ struct AvrTimer0
 		TIMSK0 = saved_TIMSK0;
 	}
 	
-	inline TimerCounterType counter() { return TCNT0; }
+	static inline TimerCounterType counter() { return TCNT0; }
 	
 	uint8_t saved_TCCR0A, saved_TCCR0B, saved_TIMSK0;
 };
 
-/*
-struct AvrTimer1_MedRes
+template<bool _Prescaler8 = true>
+struct AvrTimer1
 {
-	static constexpr uint32_t TimerCounterResolution = 256;
+	using TimerCounterType = uint16_t;
+	static constexpr uint32_t TimerCounterResolution = 65536;
 	static constexpr uint32_t TimerCounterMax = TimerCounterResolution - 1;
-	using TimerCounterType = uint8_t;
-	
-	// the only usable value
-	static constexpr uint32_t TimerPrescaler = 8;
+	static constexpr uint32_t TimerPrescaler = _Prescaler8 ? 8 : 1;
 	
 	static constexpr uint32_t ClockMhz = F_CPU / 1000000UL;
 	static constexpr uint32_t NanoSecPerTick = ( 1000UL * TimerPrescaler ) / ClockMhz;
 	static constexpr uint32_t TicksPerMilliSec = ( F_CPU / TimerPrescaler ) / 1000UL;
 	static constexpr uint32_t MaxExecMicroSec = ( TimerCounterMax * NanoSecPerTick ) / 1000UL;
 
-	inline AvrTimer0() : saved_TCCR0B(0) {}
 	inline TimerCounterType start()
 	{
-		saved_TCCR0A = TCCR0A;
-		saved_TCCR0B = TCCR0B;
-		saved_TIMSK0 = TIMSK0;
-		TIMSK0 = 0;
-		TCCR0A = 0;
-		TCCR0B = 0b00000010 ; // this set prescaler to 8
-		return TCNT0;
+		saved_TCCR1A = TCCR1A;
+		saved_TCCR1B = TCCR1B;
+		saved_TCCR1C = TCCR1C;
+		saved_TIMSK1 = TIMSK1;
+		TIMSK1 = 0;
+		TCCR1A = 0;
+		TCCR1C = 0;
+		// this set prescaler to 8 or 1
+		TCCR1B = (TimerPrescaler==8) ? 0b00000010 : 0b00000001;
+		return TCNT1;
 	}
 	
 	inline void stop()
 	{
-		TCCR0A = saved_TCCR0A;
-		TCCR0B = saved_TCCR0B;
-		TIMSK0 = saved_TIMSK0;
+		TCCR1A = saved_TCCR1A;
+		TCCR1B = saved_TCCR1B;
+		TCCR1C = saved_TCCR1C;
+		TIMSK1 = saved_TIMSK1;
 	}
 	
-	inline TimerCounterType counter() { return TCNT0; }
-	
-	uint8_t saved_TCCR0A, saved_TCCR0B, saved_TIMSK0;
+	static inline TimerCounterType counter() { return TCNT1; }
+
+	uint8_t saved_TCCR1A, saved_TCCR1B, saved_TCCR1C, saved_TIMSK1;
 };
-*/
 
-
-template<typename _BaseTimer = AvrTimer0, typename _WallClockT = int16_t>
+template<typename _BaseTimer = AvrTimer0, typename _WallClockT = int16_t, bool _DEBUG=false>
 struct TimeSchedulerT
 {
 	using BaseTimerT = _BaseTimer;
 	using CounterT = typename BaseTimerT::TimerCounterType;
 	using WallClockT = _WallClockT;
+	static constexpr WallClockT MaxWallClock = ( 1ULL << (sizeof(WallClockT)*8-1) ) - 1;
+	static constexpr WallClockT MaxLoopMilliSec = MaxWallClock / BaseTimerT::TicksPerMilliSec ;
 	
 	// in microseconds
-	static WallClockT maxFuncTime() { return BaseTimerT::MaxExecMicroSec; }
+	static uint32_t maxFuncTime() { return BaseTimerT::MaxExecMicroSec; }
 	
 	// in nanoseconds
-	static WallClockT tickTime() { return BaseTimerT::NanoSecPerTick; }
+	static uint32_t tickTime() { return BaseTimerT::NanoSecPerTick; }
+	
+	// in milliseconds
+	static uint32_t maxCycleTime() { return MaxLoopMilliSec; }
 	
 	inline TimeSchedulerT()
 		: m_wallclock(0)
