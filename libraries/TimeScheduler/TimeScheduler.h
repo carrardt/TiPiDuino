@@ -80,9 +80,11 @@ struct AvrTimer1
 	uint8_t saved_TCCR1A, saved_TCCR1B, saved_TCCR1C, saved_TIMSK1;
 };
 
-template<typename _BaseTimer = AvrTimer0, typename _WallClockT = int16_t, bool _DEBUG=false>
+template<typename _BaseTimer = AvrTimer0, typename _WallClockT = int16_t, bool _DebugMode=false>
 struct TimeSchedulerT
 {
+	static constexpr bool DebugMode = _DebugMode;
+	
 	using BaseTimerT = _BaseTimer;
 	using CounterT = typename BaseTimerT::TimerCounterType;
 	using WallClockT = _WallClockT;
@@ -132,6 +134,7 @@ struct TimeSchedulerT
 	{
 		t = ( t * BaseTimerT::ClockMhz ) / BaseTimerT::TimerPrescaler;
 		f();
+		if(DebugMode) { m_dbg[0].setTiming(wallclock()); m_dbg[0].next(); }
 		while( wallclock() < t );
 		m_wallclock -= t;				
 	}
@@ -145,15 +148,40 @@ struct TimeSchedulerT
 		{ 
 			WallClockT usec = ( w * BaseTimerT::TimerPrescaler ) / BaseTimerT::ClockMhz ;
 			f( usec );
+			if(DebugMode)
+			{
+				WallClockT w2 = wallclock();
+				m_dbg[0].updateTiming(w2-w);
+			}
 		}
 		m_wallclock -= t;				
+		if(DebugMode) { m_dbg[0].next(); }
 	}
 	
 	BaseTimerT timer;
 	WallClockT m_wallclock;
 	CounterT m_t;
+
+	// --- Debugging features ---
+	struct DebugInfo
+	{
+		WallClockT m_timings[16];
+		uint8_t m_i;
+		inline DebugInfo() { reset(); }
+		inline void reset()
+		{
+			m_i=0;
+			for(int j=0;j<16;j++) { m_timings[j]=0; }
+		}
+		inline void setTiming(WallClockT t) { m_timings[m_i]=t; }
+		inline void updateTiming(WallClockT t) { if(t>m_timings[m_i]) m_timings[m_i]=t; }
+		inline void next() { ++m_i; }
+	};
+	inline void restartDebug() { m_dbg[0].reset(); }
+	DebugInfo m_dbg[DebugMode?1:0];
 };
 
+// backward compatibilty
 using TimeScheduler = TimeSchedulerT<>;
 
 #endif
