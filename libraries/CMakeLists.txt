@@ -11,4 +11,5 @@ add_subdirectory(BasicIO)
 add_subdirectory(LCD1602)
 add_subdirectory(LCD12864)
 add_subdirectory(RFSniffer)
+add_subdirectory(Linkuino)
 

@@ -6,15 +6,16 @@
 #include <BasicIO/ByteStream.h>
 #include <BasicIO/PrintStream.h>
 
+#include <Linkuino/Linkuino.h>
+
 using namespace avrtl;
+
+ByteStreamAdapter<HWSerialNoInt,100000UL> serialIO;
+PrintStream cout;
 
 //#define DEBUG_TIMINGS 1
 #define PWM_PIN 13
-#define SMOOTHING 2 // 0,1,2 or 3 level of input value smoothing
-
-static auto pwm = StaticPin<PWM_PIN>();
-ByteStreamAdapter<HWSerialNoInt,100000UL> serialIO;
-PrintStream cout;
+#define SMOOTHING 0 // 0,1,2 or 3 level of input value smoothing
 
 #ifdef DEBUG_TIMINGS
 //using Scheduler = TimeSchedulerT<AvrTimer1<>,int16_t,true>;
@@ -26,25 +27,19 @@ using Scheduler = TimeSchedulerT<AvrTimer1<> > ; // SlotMax=32767uS, resolution=
 #endif
 
 using WallClock = typename Scheduler::WallClockT;
+using Linkuino = LinkuinoT< StaticPinGroup<1> >;
 
-Scheduler ts;
+static StaticPin<PWM_PIN> pwm;
+static uint16_t pwmValue = 1250;
 
-
-static uint8_t addr = 0;
-static uint8_t clk = 255;
-static uint8_t cmd[64];
-static uint16_t pwmValue = 1024;
-static uint16_t pwmTargetValue = 1024;
-
-#ifdef DEBUG_TIMINGS
-static uint32_t counter = 0;
-#endif
+static Scheduler ts;
+static Linkuino li;
 
 void setup()
 {
 	serialIO.m_rawIO.begin(57600);
 	cout.begin(&serialIO);
-	pwm.SetOutput();
+	//pwm.SetOutput();
 	cout<<"SerialPWM"<<endl;
 	cout<<"Tt="<<ts.tickTime()<<"nS"<<endl;
 	cout<<"Tf="<<ts.maxFuncTime()<<"uS"<<endl;
@@ -53,77 +48,74 @@ void setup()
 	ts.start();
 }
 
+static uint32_t counter = 0;
+
 void loop()
 {
 	// for phase correctness, absorb loop latency here
-	ts.exec( 50, [](){} );
+	ts.exec( 50, [](){} );			// 9950 uS -> 10000 uS (begining of next cycle)
 
-	ts.exec( 400, []()
+	ts.exec( 500, []()				// 0 -> 500 uS
 		{
-			pwm = HIGH;
-			addr = 0;
-			clk = 255;
+			//pwm = HIGH;
+			li.allPwmHigh();
+			// send reply bytes (x2), it takes approx 180 uS @57600 bauds
 		} );
 
-	ts.loop( 2000, [](WallClock t)
+	ts.loop( 1500, [](WallClock t) 	// 500 uS -> 2000 uS
 		{
-			pwm = (t<pwmValue);
+			//pwm = (t<pwmValue);
+			li.shutDownPWM( 500+t );
 		} );
 
-	ts.exec( 600, []()
+	ts.exec( 50, []()				// 2000 uS -> 2050 uS
 		{
-			pwm = LOW;
-			cmd[0]=255;
-			cmd[1]=255;
-			cmd[2]=255;
-			cmd[3]=255;
+			//pwm = LOW;
+			li.allPwmLow();
+			li.prepareToReceive();
 		} );
-			
+
 	// we have 5 milliseconds to listen for serial commands
-	ts.loop( 5000, [](WallClock t) 
+	ts.loop( 5000, [](WallClock t)	// 2050 uS -> 7050 uS
 		{
-			uint16_t x = HWSerialNoInt::readByteAsync();
-			if( x )
-			{
-				uint8_t r = x;
-				uint8_t data = r & 0x3F;
-				r >>= 6;
-				uint8_t nRS = r & 0x01;
-				uint8_t nCLK = r >> 1;
-				if(nRS) { addr = data; }
-				else if(nCLK==clk) { cmd[addr] = data; }
-				clk = nCLK;
-			}
+			li.receive( serialIO.m_rawIO );
 		} );
 
 	// keep 50 uS to be transfered at the beginning to absorb loop latency
-	ts.exec( 1950, []()
+	ts.exec( 2900, []()				// 7050 uS -> 9950 uS
 		{
-			if( cmd[1]!=255 && cmd[2]!=255 )
-			{
-				pwmTargetValue = cmd[1];
-				pwmTargetValue <<= 6;
-				pwmTargetValue |= cmd[2];
-			}
-			uint16_t target = pwmTargetValue;
-			if( target <= 400 ) target=0;
-			else if( target >= 2000 ) target=1600;
-			else target -= 400;
-			pwmValue = ( (pwmValue<<SMOOTHING)-pwmValue+target ) >> SMOOTHING ;
+			li.process();
+			/*pwmValue = li.m_pwm[0]>>3;
+			if(pwmValue<500) pwmValue = 0;
+			else if(pwmValue>2000) pwmValue = 1500;
+			else pwmValue -= 500;*/
 		} );
 
 #ifdef DEBUG_TIMINGS
 	if( ( counter & 0xFF ) == 0 )
 	{
-		cout<<"-\n";
+		cout<<">"<<ts.m_dbg[0].m_i<<"\n";
 		for(int i=0;i<ts.m_dbg[0].m_i;i++)
 		{
-			cout<<ts.m_dbg[0].m_timings[i]<< ( (i%3)==3 ? '\n' : ' ' );
+			cout<<ts.m_dbg[0].m_timings[i]<< ( (i%3)==2 ? '\n' : ' ' );
 		}
 		ts.reset();
 	}
 	ts.m_dbg[0].reset();
+/*
+	if( ( counter & 0xFF ) == 0 )
+	{
+		cout<<'*'<<li.m_pwmSeqLen<<'\n';
+		for(int p=0;p<li.m_pwmSeqLen;p++)
+		{
+			cout<< (int)li.m_pwm[p] << '/' << (int)li.m_pwmShutDown[p] << ((p%2)? '\n' : ' ');
+		}
+		ts.reset();
+	}
+	*/
 	++ counter;
+
 #endif
+
 }
 

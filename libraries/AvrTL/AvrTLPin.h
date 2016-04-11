@@ -7,7 +7,7 @@
 #include "WiringUnoBoardDefs.h" // for standard pin mapping. From Wiring lib
 
 namespace avrtl
-{	
+{		
 	template<uint8_t _PORT> struct StaticPinGroup { };
 	template<> struct StaticPinGroup<0>
 	{

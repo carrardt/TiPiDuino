@@ -121,5 +121,5 @@ generate_avr_firmware(
 generate_avr_firmware(
 	SerialPWM
 	SRCS SerialPWM.cpp
-	LIBS HWSerialNoInt TimeScheduler AvrTL AvrApp
+	LIBS HWSerialNoInt TimeScheduler Linkuino AvrTL AvrApp
 	)

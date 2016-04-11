@@ -38,10 +38,10 @@ void setup()
 {
   LCDA.Initialise(); // INIT SCREEN
   cout.begin( & LCDA );
-  cout<<"LCD12864Console"<<endl;
   avrtl::DelayMicroseconds(100000);
   LCDA.Clear();
   avrtl::DelayMicroseconds(100000);
+  cout<<"LCD12864Console"<<endl;
   serialIO.begin();
 }
 
