@@ -14,8 +14,6 @@ ByteStreamAdapter<HWSerialNoInt,100000UL> serialIO;
 PrintStream cout;
 
 //#define DEBUG_TIMINGS 1
-#define PWM_PIN 13
-#define SMOOTHING 0 // 0,1,2 or 3 level of input value smoothing
 
 #ifdef DEBUG_TIMINGS
 //using Scheduler = TimeSchedulerT<AvrTimer1<>,int16_t,true>;
@@ -28,9 +26,6 @@ using Scheduler = TimeSchedulerT<AvrTimer1<> > ; // SlotMax=32767uS, resolution=
 
 using WallClock = typename Scheduler::WallClockT;
 using Linkuino = LinkuinoT< StaticPinGroup<1> >;
-
-static StaticPin<PWM_PIN> pwm;
-static uint16_t pwmValue = 1250;
 
 static Scheduler ts;
 static Linkuino li;
@@ -85,10 +80,6 @@ void loop()
 	ts.exec( 2900, []()				// 7050 uS -> 9950 uS
 		{
 			li.process();
-			/*pwmValue = li.m_pwm[0]>>3;
-			if(pwmValue<500) pwmValue = 0;
-			else if(pwmValue>2000) pwmValue = 1500;
-			else pwmValue -= 500;*/
 		} );
 
 #ifdef DEBUG_TIMINGS
@@ -97,11 +88,13 @@ void loop()
 		cout<<">"<<ts.m_dbg[0].m_i<<"\n";
 		for(int i=0;i<ts.m_dbg[0].m_i;i++)
 		{
-			cout<<ts.m_dbg[0].m_timings[i]<< ( (i%3)==2 ? '\n' : ' ' );
+			uint32_t T = ts.m_dbg[0].m_timings[i];
+			T = ( T * ts.tickTime() ) / 1000;
+			cout<<T<< ( (i%3)==2 ? '\n' : ' ' );
 		}
 		ts.reset();
 	}
-	ts.m_dbg[0].reset();
+	else { ts.m_dbg[0].reset(); }
 /*
 	if( ( counter & 0xFF ) == 0 )
 	{

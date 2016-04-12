@@ -114,6 +114,7 @@ struct TimeSchedulerT
 	{
 		m_wallclock = 0;
 		m_t = timer.counter();
+		if(DebugMode) { m_dbg[0].reset(); }
 	}
 
 	inline void stop()
@@ -148,11 +149,7 @@ struct TimeSchedulerT
 		{ 
 			WallClockT usec = ( w * BaseTimerT::TimerPrescaler ) / BaseTimerT::ClockMhz ;
 			f( usec );
-			if(DebugMode)
-			{
-				WallClockT w2 = wallclock();
-				m_dbg[0].updateTiming(w2-w);
-			}
+			if(DebugMode) {	WallClockT w2 = wallclock(); m_dbg[0].updateTiming(w2-w); }
 		}
 		m_wallclock -= t;				
 		if(DebugMode) { m_dbg[0].next(); }

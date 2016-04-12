@@ -140,7 +140,7 @@ int main(int argc, char* argv[])
 	{
 		for(int i=0;i<6;i++)
 		{
-			uint32_t x = sin(t+0.13*i) * 700.0 + 1250.0;
+			uint32_t x = sin(t+0.5*i) * 700.0 + 1250.0;
 			link.pushPWMCommand( i , x );
 		}
 		//uint32_t x = sin(t) * 700.0 + 1250.0;
@@ -150,7 +150,7 @@ int main(int argc, char* argv[])
 		printf("R=%d\n",n);
 		link.printBuffer();
 		link.send();
-		t += 0.01;
+		t += 0.3;
 	}
 
 	return 0;

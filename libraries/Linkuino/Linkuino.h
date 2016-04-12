@@ -139,7 +139,9 @@ struct LinkuinoT /* Server */
 		m_pwmMask = 0x3F; // we use only 6 bits
 		m_pwmOutput.SetOutput( m_pwmMask );
 		m_pwmSeqIndex = 0;
-		m_pwmSeqLen = 0;
+		m_pwmSeqLen = 1;
+		m_pwm[0] = 1250;
+		m_pwmShutDown[0] = ~m_pwmMask;
 		
 		m_cmd[DOUT_ADDR] = 0;
 		for(uint8_t i=0; i<PWM_COUNT; i++)
@@ -204,7 +206,7 @@ struct LinkuinoT /* Server */
 			m_pwmShutDown[m_pwmSeqLen] |= mask;
 		}
 		++ m_pwmSeqLen;
-		m_pwmSeqIndex = 0;
+		for(int i=0;i<m_pwmSeqLen;i++) { m_pwmShutDown[i] = ~m_pwmShutDown[i]; }
 
 		if( m_cmd[REQ_ADDR]!=255 )
 		{
@@ -219,6 +221,7 @@ struct LinkuinoT /* Server */
 	inline void allPwmHigh()
 	{
 		m_pwmOutput.Set( m_pwmMask, m_pwmMask );
+		m_pwmSeqIndex = 0;
 	}
 
 	// t is time in uS since pulse start
@@ -226,8 +229,9 @@ struct LinkuinoT /* Server */
 	{
 		if( t >= m_pwm[m_pwmSeqIndex] )
 		{
-			m_pwmOutput.Set( 0, m_pwmShutDown[m_pwmSeqIndex] );
-			++ m_pwmSeqIndex;
+			m_pwmOutput.Set( m_pwmShutDown[m_pwmSeqIndex], m_pwmMask );
+			//m_pwmOutput.Set( 0, m_pwmShutDown[m_pwmSeqIndex] );
+			if( (m_pwmSeqIndex+1) < m_pwmSeqLen ) { ++ m_pwmSeqIndex; }
 		}
 	}
 
