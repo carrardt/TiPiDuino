@@ -63,10 +63,9 @@ struct LinkuinoT /* Server */
 	static constexpr uint8_t PWM_COUNT   			= 6;
 	static constexpr uint8_t ANALOG_COUNT 			= 6;
 	static constexpr uint8_t CMD_COUNT 	 			= 16;
-	static constexpr uint8_t REPLY_BUFFER_SIZE 		= 16;
+	static constexpr uint8_t REPLY_BUFFER_SIZE 		= 2;
 	static constexpr uint16_t SERIAL_SPEED 			= 57600;
-	static constexpr uint16_t PACKET_BYTES      	= SERIAL_SPEED/1000; // 8+2 bits / byte, @ 57600 Bauds, to cover 10ms => 57.6 bytes
-	static constexpr uint16_t MAX_COMMAND_BYTES 	= (PACKET_BYTES-4)/2; // has to be repeated at least twice and we add timestamp
+	static constexpr uint16_t PACKET_BYTES      	= 64; //SERIAL_SPEED/1000; // 8+2 bits / byte, @ 57600 Bauds, to cover 10ms => 57.6 bytes
 
 	// Per byte flags
 	static constexpr uint8_t CLOCK_LOW 	= 0x00;
@@ -90,7 +89,7 @@ struct LinkuinoT /* Server */
 	static constexpr uint8_t PWM5L_ADDR 	= 0x0C;
 	static constexpr uint8_t DOUT_ADDR 	 	= 0x0D;
 	static constexpr uint8_t REQ_ADDR	 	= 0x0E;
-	static constexpr uint8_t TSTMP1_ADDR 	= 0x0F;
+	static constexpr uint8_t REQDATA_ADDR 	= 0x0F;
 	// ... maybe additional request slots to process several requests per cycle ...
 	// pwm value input smoothing/filtering parameter
 
@@ -129,6 +128,7 @@ struct LinkuinoT /* Server */
 	static constexpr uint8_t REQ_DBG4_READ 		= 0x25;
 	static constexpr uint8_t REQ_DBG5_READ 		= 0x26;
 	
+	static constexpr uint8_t REQ_NOOP		  	= 0x30;
 	static constexpr uint8_t REQ_RESET		  	= 0x3F;
 
 	inline LinkuinoT()
@@ -136,28 +136,31 @@ struct LinkuinoT /* Server */
 		, m_digitalOutput()
 		, m_analogInput()
 	{
-		m_pwmMask = 0x3F; // we use only 6 bits
-		m_pwmOutput.SetOutput( m_pwmMask );
+		m_pwmPortMask = 0x3F; // we use only 6 bits
+		m_pwmOutput.SetOutput( m_pwmPortMask );
 		m_pwmSeqIndex = 0;
 		m_pwmSeqLen = 1;
 		m_pwm[0] = 1250;
-		m_pwmShutDown[0] = ~m_pwmMask;
+		m_pwmShutDown[0] = ~m_pwmPortMask;
+		m_bufferIndex = 0;
+		m_readCycles = 0;
 		
-		m_cmd[DOUT_ADDR] = 0;
+		m_buffer[TSTMP0_ADDR] = 255;
 		for(uint8_t i=0; i<PWM_COUNT; i++)
 		{
-			m_cmd[2*i+1] = 0x08;
-			m_cmd[2*i+2] = 0x00;
+			m_buffer[2*i+1] = 0x08;
+			m_buffer[2*i+2] = 0x00;
 		}
+		m_buffer[DOUT_ADDR] = 0;
+		m_buffer[REQ_ADDR] = 255;
+		m_buffer[REQDATA_ADDR] = 0;
 	}
 
 	inline void prepareToReceive()
 	{
-		m_addr = 0;
-		m_clk = 255;
-		m_cmd[TSTMP0_ADDR] = 255;
-		m_cmd[REQ_ADDR] = 255;
-		m_cmd[TSTMP1_ADDR] = 255;
+		m_buffer[TSTMP0_ADDR] = 255;
+		m_buffer[REQ_ADDR] = 255;
+		m_readCycles = 0;
 	}
 
 	template<typename IODeviceT>
@@ -168,18 +171,37 @@ struct LinkuinoT /* Server */
 		{
 			uint8_t r = x;
 			uint8_t data = r & 0x3F;
-			r >>= 6;
-			uint8_t nRS = r & 0x01;
-			uint8_t nCLK = r >> 1;
-			if(nRS) { m_addr = data; }
-			else if(nCLK==m_clk) { m_cmd[m_addr] = data; }
-			m_clk = nCLK;
+			uint8_t clk = r >> 6;
+			if( clk == 0 )
+			{
+				if( m_buffer[TSTMP0_ADDR] == data ) ++ m_readCycles;
+				else m_readCycles = 0;
+				m_buffer[TSTMP0_ADDR] = data;
+				m_bufferIndex = 1;
+			}
+			else
+			{
+				m_buffer[m_bufferIndex] = r;
+				m_bufferIndex = (m_bufferIndex+1) % CMD_COUNT;
+			}
 		}
 	}
 
 	inline bool receiveComplete()
 	{
-		return (m_cmd[TSTMP0_ADDR] != 255) && (m_cmd[TSTMP0_ADDR] == m_cmd[TSTMP1_ADDR]);
+		if( m_readCycles == 0 ) return false;
+		uint8_t check = 0;
+		for(int i=0;i<5;i++)
+		{
+			m_buffer[i*3+1] = m_buffer[i*3+1]^0x40;
+			m_buffer[i*3+2] = m_buffer[i*3+2]^0x80;
+			m_buffer[i*3+3] = m_buffer[i*3+3]^0xC0;
+		}
+		for(int i=1;i<16;i++)
+		{
+			if( m_buffer[i] >= 64 ) return false;
+		}
+		return true;
 	}
 
 	inline void process()
@@ -208,11 +230,11 @@ struct LinkuinoT /* Server */
 		++ m_pwmSeqLen;
 		for(int i=0;i<m_pwmSeqLen;i++) { m_pwmShutDown[i] = ~m_pwmShutDown[i]; }
 
-		if( m_cmd[REQ_ADDR]!=255 )
+		if( m_buffer[REQ_ADDR]!=255 )
 		{
-			if( m_cmd[REQ_ADDR]>=REQ_DBG0_READ && m_cmd[REQ_ADDR]<=REQ_DBG5_READ )
+			if( m_buffer[REQ_ADDR]>=REQ_DBG0_READ && m_buffer[REQ_ADDR]<=REQ_DBG5_READ )
 			{
-				//uint8_t p = m_cmd[REQ_ADDR]-REQ_DBG0_READ;
+				//uint8_t p = m_buffer[REQ_ADDR]-REQ_DBG0_READ;
 				//cout<<"PWM"<<p<<'='<< (m_pwm[p]>>3) << '/' << (m_pwm[p]&0x07) << endl;
 			}
 		}
@@ -220,7 +242,7 @@ struct LinkuinoT /* Server */
 
 	inline void allPwmHigh()
 	{
-		m_pwmOutput.Set( m_pwmMask, m_pwmMask );
+		m_pwmOutput.Set( m_pwmPortMask, m_pwmPortMask );
 		m_pwmSeqIndex = 0;
 	}
 
@@ -229,7 +251,7 @@ struct LinkuinoT /* Server */
 	{
 		if( t >= m_pwm[m_pwmSeqIndex] )
 		{
-			m_pwmOutput.Set( m_pwmShutDown[m_pwmSeqIndex], m_pwmMask );
+			m_pwmOutput.Set( m_pwmShutDown[m_pwmSeqIndex], m_pwmPortMask );
 			//m_pwmOutput.Set( 0, m_pwmShutDown[m_pwmSeqIndex] );
 			if( (m_pwmSeqIndex+1) < m_pwmSeqLen ) { ++ m_pwmSeqIndex; }
 		}
@@ -237,30 +259,27 @@ struct LinkuinoT /* Server */
 
 	inline void allPwmLow()
 	{
-		m_pwmOutput.Set( 0, m_pwmMask );
+		m_pwmOutput.Set( 0, m_pwmPortMask );
 	}
 
 	// return 12 bits value + 3 bits pin number (port bit position)
 	inline uint16_t makePwmDesc(uint8_t i)
 	{
-		uint16_t v = m_cmd[PWM0H_ADDR+i*2];
+		uint16_t v = m_buffer[PWM0H_ADDR+i*2];
 		v <<= 6;
-		v |= m_cmd[PWM0L_ADDR+i*2];
+		v |= m_buffer[PWM0L_ADDR+i*2];
 		v <<= 3;
 		v |= i & 0x07;
 		return v;
 	}
 
-	uint8_t m_addr;
-	uint8_t m_clk;
-	uint8_t m_cmd[CMD_COUNT];
-	uint8_t m_reply[REPLY_BUFFER_SIZE];
-	uint8_t m_replyStart;
-	uint8_t m_replyEnd;
+	uint8_t m_buffer[CMD_COUNT];
+	uint8_t m_bufferIndex;
+	uint8_t m_readCycles;
 	uint8_t m_dmask;
 	uint8_t m_dout;
 	uint8_t m_din;
-	uint8_t m_pwmMask; // change name to PortMask or something
+	uint8_t m_pwmPortMask;
 	uint8_t m_pwmSeqLen;
 	uint8_t m_pwmSeqIndex;
 	uint8_t m_pwmShutDown[PWM_COUNT];

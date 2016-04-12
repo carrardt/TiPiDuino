@@ -14,109 +14,63 @@ struct LinkuinoClient
 {
 	inline LinkuinoClient(int fd)
 		: m_fd(fd)
-		, m_bufSize(0)
-		, m_clock(false)
 		, m_timeStamp(0)
-		, m_timeStampSwitch(false)
 	{
-		clear();
+		setRegisterValue(Linkuino::TSTMP0_ADDR, 0);
+		for(int i=0;i<Linkuino::PWM_COUNT;i++) { setPWMValue(i, 1250); }
+		setRegisterValue(Linkuino::DOUT_ADDR, 0);
+		setRegisterValue(Linkuino::REQ_ADDR, Linkuino::REQ_NOOP);
+		setRegisterValue(Linkuino::REQDATA_ADDR, 0);
 	}
 
-	bool pushPWMCommand( int p, uint16_t value )
+	void setRegisterValue(uint8_t i, uint8_t value)
 	{
-		if( p<0 || p>5 ) return false;
+		if(i>Linkuino::CMD_COUNT) return;
+
+		if(i==0) { m_buffer[i] = value & 0x3F; }
+		else
+		{
+			uint8_t clk = ( (i-1)%3 ) + 1; // 1, 2 or 3
+			m_buffer[i] = (clk<<6) | ( value & 0x3F );
+		}
+	}
+
+	void setPWMValue( int p, uint16_t value )
+	{
+		if( p<0 || p>5 ) return ;
 		if(value<500) value = 500;
 		else if(value>2000) value=2000;
-		bool r;
-		r = pushCommand( Linkuino::PWM0H_ADDR+2*p , value>>6 );
-		r = r && pushCommand( Linkuino::PWM0L_ADDR+2*p , value & 0x3F );
-		return r;
-	}
-
-	bool pushCommand(uint8_t cmd, uint8_t value)
-	{
-		if( m_cmdCount >= (Linkuino::MAX_COMMAND_BYTES-1) ) return false;
-		m_cmd[ m_cmdCount++ ] = cmd;
-		m_cmd[ m_cmdCount++ ] = value;
-		return true;
+		setRegisterValue( Linkuino::PWM0H_ADDR+2*p , value >> 6 );
+		setRegisterValue( Linkuino::PWM0L_ADDR+2*p , value & 0x3F );
 	}
 	
-	int compileCommands()
+	inline void updateTimeStamp()
 	{
-		int nRepeats=0;
-		while( ! full() )
-		{
-			for(int i=0;i<m_cmdCount/2;i++)
-			{
-				addCommand( m_cmd[i*2+0] , m_cmd[i*2+1] );
-			}
-			addTimeStamp();
-			++ nRepeats;
-		}
-		m_cmdCount = 0;
-		return nRepeats;
+		m_timeStamp = (m_timeStamp+1) & 0x3F;
+		setRegisterValue( Linkuino::TSTMP0_ADDR, m_timeStamp );
 	}
-
-	inline void send()
-	{
-		//printBuffer();
-		write(m_fd,m_buffer,m_bufSize);
-		clear();
-	}
-
-  
+	
 	inline void printBuffer()
 	{
-		for(int i=0;i<m_bufSize/2;i++)
+		for(int i=0;i<16;i++)
 		{
-			uint8_t x= m_buffer[i];
-			printf("%c%c|%02X%c",(x&Linkuino::CLOCK_HIGH)?'+':'-', (x&Linkuino::RS_ADDR)?'A':'D',x&0x3F, (i%16)==15 ? '\n' : ' ' );
+			printf("%d|%d ",m_buffer[i]>>6,m_buffer[i]&0x3F);
 		}
-		printf("\nsize=%d\n",m_bufSize);		
+		printf("\n");
+	}
+	
+	inline void send()
+	{
+		int n = (Linkuino::PACKET_BYTES+Linkuino::CMD_COUNT-1) / Linkuino::CMD_COUNT ;
+		for(int i=0;i<n;i++) { write(m_fd,m_buffer,Linkuino::CMD_COUNT); }
+		updateTimeStamp();
 	}
 
   private:
 
-	inline void clear()
-	{
-		m_timeStamp = (m_timeStamp+1) & 0x3F;
-		m_bufSize = 0;
-		m_cmdCount = 0;
-		addTimeStamp();
-	}
-
-	bool full() const
-	{ 
-		return m_bufSize >= Linkuino::PACKET_BYTES;
-	}
-
-	inline void addTimeStamp()
-	{
-		addCommand( m_timeStampSwitch ? Linkuino::TSTMP1_ADDR : Linkuino::TSTMP0_ADDR, m_timeStamp);
-		m_timeStampSwitch = ! m_timeStampSwitch;
-	}
-
-	inline void addCommand(uint8_t cmd, uint8_t value)
-	{
-		m_buffer[m_bufSize] = m_clock ? Linkuino::CLOCK_HIGH : Linkuino::CLOCK_LOW;
-		m_buffer[m_bufSize] |= Linkuino::RS_ADDR;
-		m_buffer[m_bufSize] |= cmd & 0x3F;
-		++ m_bufSize;
-		m_buffer[m_bufSize] = m_clock ? Linkuino::CLOCK_HIGH : Linkuino::CLOCK_LOW;
-		m_buffer[m_bufSize] |= Linkuino::RS_DATA;
-		m_buffer[m_bufSize] |= value & 0x3F;
-		++ m_bufSize;
-		m_clock = ! m_clock;
-	}
-
 	int m_fd;
-	int m_bufSize;
-	int m_cmdCount;
-	uint8_t m_buffer[Linkuino::PACKET_BYTES+Linkuino::MAX_COMMAND_BYTES+2];
-	uint8_t m_cmd[Linkuino::MAX_COMMAND_BYTES];
+	uint8_t m_buffer[Linkuino::CMD_COUNT];
 	uint8_t m_timeStamp;
-	bool m_timeStampSwitch;
-	bool m_clock;
 };
 
 int main(int argc, char* argv[])
@@ -141,16 +95,11 @@ int main(int argc, char* argv[])
 		for(int i=0;i<6;i++)
 		{
 			uint32_t x = sin(t+0.5*i) * 700.0 + 1250.0;
-			link.pushPWMCommand( i , x );
+			link.setPWMValue( i , x );
 		}
-		//uint32_t x = sin(t) * 700.0 + 1250.0;
-		//pbuf.pushPWMCommand( 0 , x );
-		//pbuf.pushCommand( REQ_ADDR , REQ_DBG0_READ+p );
-		int n = link.compileCommands();
-		printf("R=%d\n",n);
 		link.printBuffer();
 		link.send();
-		t += 0.3;
+		t += 0.01;
 	}
 
 	return 0;
