@@ -24,8 +24,35 @@ using Scheduler = TimeSchedulerT<AvrTimer1<false>,int32_t,true>;
 using Scheduler = TimeSchedulerT<AvrTimer1<> > ; // SlotMax=32767uS, resolution=500nS, 16Bits wallclock
 #endif
 
+/*
+ * Restrictions :
+ * 8-bits pin ports
+ * contiguous bits in the same port for PWM pins
+ * contiguous bits in the same port for Digital out pins
+ * contiguous bits in the same port for Digital in pins
+ */
+struct LinkuinoUnoTraits
+{
+	using PWMPinGroupT = avrtl::StaticPinGroup<1>;
+	using DOutPinGroupT = NullPinGroup;
+	using DInPinGroupT = NullPinGroup;
+	
+	static constexpr uint8_t PWMPortFirstBit = 0;
+	static constexpr uint8_t PWMPortMask = 0x3F;
+
+	static constexpr uint8_t DOutPortFirstBit = 0;
+	static constexpr uint8_t DOutPortMask = 0x3F;
+
+	static constexpr uint8_t DInPortFirstBit = 0;
+	static constexpr uint8_t DInPortMask = 0x3F;
+
+	static inline void selectAnalogChannel(uint8_t ch) {}
+	static inline void analogAcquire() {}
+	static inline uint16_t analogRead() { return 0; }
+};
+
 using WallClock = typename Scheduler::WallClockT;
-using Linkuino = LinkuinoT< StaticPinGroup<1> >;
+using Linkuino = LinkuinoT< LinkuinoUnoTraits >;
 
 static Scheduler ts;
 static Linkuino li;
@@ -76,10 +103,15 @@ void loop()
 			li.receive( serialIO.m_rawIO );
 		} );
 
-	// keep 50 uS to be transfered at the beginning to absorb loop latency
-	ts.exec( 2900, []()				// 7050 uS -> 9950 uS
+	ts.exec( 2000, []()				// 7050 uS -> 9050 uS
 		{
 			li.process();
+		} );
+
+	// keep 50 uS to be transfered at the beginning to absorb loop latency
+	ts.exec( 900, []()				// 9050 uS -> 9950 uS
+		{
+			li.reply( serialIO.m_rawIO );
 		} );
 
 #ifdef DEBUG_TIMINGS

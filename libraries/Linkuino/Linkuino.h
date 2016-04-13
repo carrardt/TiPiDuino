@@ -57,9 +57,51 @@ struct NullPinGroup
 	static void Set(uint8_t x , uint8_t mask=0xFF) { }
 };
 
-template<typename PWMPinGroupT=NullPinGroup, typename DPinGroupT=NullPinGroup, typename APinGroupT=NullPinGroup>
+
+/*
+ * Restrictions :
+ * 8-bits pin ports
+ * contiguous bits in the same port for PWM pins
+ * contiguous bits in the same port for Digital out pins
+ * contiguous bits in the same port for Digital in pins
+ */
+struct LinkuinoNullTraits
+{
+	using PWMPinGroupT = NullPinGroup;
+	using DOutPinGroupT = NullPinGroup;
+	using DInPinGroupT = NullPinGroup;
+	
+	static constexpr uint8_t PWMPortFirstBit = 0;
+	static constexpr uint8_t PWMPortMask = 0x3F;
+
+	static constexpr uint8_t DOutPortFirstBit = 0;
+	static constexpr uint8_t DOutPortMask = 0x3F;
+
+	static constexpr uint8_t DInPortFirstBit = 0;
+	static constexpr uint8_t DInPortMask = 0x3F;
+
+	static inline void selectAnalogChannel(uint8_t ch) {}
+	static inline void analogAcquire() {}
+	static inline uint16_t analogRead() { return 0; }
+};
+
+template<typename _LinkuinoTraits=LinkuinoNullTraits>
 struct LinkuinoT /* Server */
 {
+	using LinkuinoTraits = _LinkuinoTraits;
+	using PWMPinGroupT = typename LinkuinoTraits::PWMPinGroupT;
+	using DOutPinGroupT = typename LinkuinoTraits::DOutPinGroupT;
+	using DInPinGroupT = typename LinkuinoTraits::DInPinGroupT;
+	
+	static constexpr uint8_t PWMPortMask = LinkuinoTraits::PWMPortMask;
+	static constexpr uint8_t PWMPortFirstBit = LinkuinoTraits::PWMPortFirstBit;
+
+	static constexpr uint8_t DOutPortMask = LinkuinoTraits::DOutPortMask;
+	static constexpr uint8_t DOutPortFirstBit = LinkuinoTraits::DOutPortFirstBit;
+
+	static constexpr uint8_t DInPortMask = LinkuinoTraits::DInPortMask;
+	static constexpr uint8_t DInPortFirstBit = LinkuinoTraits::DInPortFirstBit;
+
 	static constexpr uint8_t PWM_COUNT   			= 6;
 	static constexpr uint8_t ANALOG_COUNT 			= 6;
 	static constexpr uint8_t CMD_COUNT 	 			= 16;
@@ -89,9 +131,7 @@ struct LinkuinoT /* Server */
 	static constexpr uint8_t PWM5L_ADDR 	= 0x0C;
 	static constexpr uint8_t DOUT_ADDR 	 	= 0x0D;
 	static constexpr uint8_t REQ_ADDR	 	= 0x0E;
-	static constexpr uint8_t REQDATA_ADDR 	= 0x0F;
-	// ... maybe additional request slots to process several requests per cycle ...
-	// pwm value input smoothing/filtering parameter
+	static constexpr uint8_t PWMSMTH_ADDR 	= 0x0F; // smoothing factor : [0;3] 0 means no smoothing
 
 	/************** Request messages ****************/
 	static constexpr uint8_t REQ_PWM0_DISABLE 	= 0x00;
@@ -134,17 +174,24 @@ struct LinkuinoT /* Server */
 	inline LinkuinoT()
 		: m_pwmOutput()
 		, m_digitalOutput()
-		, m_analogInput()
+		, m_digitalInput()
 	{
-		m_pwmPortMask = 0x3F; // we use only 6 bits
+		m_pwmPortMask = PWMPortMask;
 		m_pwmOutput.SetOutput( m_pwmPortMask );
 		m_pwmSeqIndex = 0;
 		m_pwmSeqLen = 1;
 		m_pwm[0] = 1250;
 		m_pwmShutDown[0] = ~m_pwmPortMask;
+		
+		m_digitalOutput.SetOutput( DOutPortMask );
+		m_doutMask = DOutPortMask;
+		
+		m_digitalInput.SetInput( DInPortMask );
+		m_dinMask = DInPortMask;
+		m_din = 0;
+		
 		m_bufferIndex = 0;
 		m_readCycles = 0;
-		
 		m_buffer[TSTMP0_ADDR] = 255;
 		for(uint8_t i=0; i<PWM_COUNT; i++)
 		{
@@ -153,7 +200,11 @@ struct LinkuinoT /* Server */
 		}
 		m_buffer[DOUT_ADDR] = 0;
 		m_buffer[REQ_ADDR] = 255;
-		m_buffer[REQDATA_ADDR] = 0;
+		m_buffer[PWMSMTH_ADDR] = 0;
+		
+		m_reply[0] = 'O';
+		m_reply[1] = 'k';
+		m_reply[2] = '\n';
 	}
 
 	inline void prepareToReceive()
@@ -187,6 +238,15 @@ struct LinkuinoT /* Server */
 		}
 	}
 
+	template<typename IODeviceT>
+	inline void reply(IODeviceT& io)
+	{
+		// @ 57600 bauds, each byte takes about 180-200 uS to send
+		io.writeByte(m_reply[0]);
+		io.writeByte(m_reply[1]);
+		io.writeByte(m_reply[2]);
+	}
+
 	inline bool receiveComplete()
 	{
 		if( m_readCycles == 0 ) return false;
@@ -199,7 +259,7 @@ struct LinkuinoT /* Server */
 		}
 		for(int i=1;i<16;i++)
 		{
-			if( m_buffer[i] >= 64 ) return false;
+			if( ( m_buffer[i] & 0xC0 ) != 0 ) return false;
 		}
 		return true;
 	}
@@ -209,7 +269,7 @@ struct LinkuinoT /* Server */
 		// check received data is complete
 		if( ! receiveComplete() ) return;
 
-		// process PWM commands
+		// process PWM commands, sort values, prepare next cycle pulses sequence
 		for(uint8_t i=0;i<PWM_COUNT;i++) { m_pwm[i] = makePwmDesc(i); }
 		heapSort<uint16_t,PWM_COUNT>( m_pwm );
 		m_pwmSeqLen = 0;
@@ -230,13 +290,20 @@ struct LinkuinoT /* Server */
 		++ m_pwmSeqLen;
 		for(int i=0;i<m_pwmSeqLen;i++) { m_pwmShutDown[i] = ~m_pwmShutDown[i]; }
 
+		// write Digital output updated values
+		m_digitalOutput.Set( ( m_buffer[DOUT_ADDR] & m_doutMask ) << DOutPortFirstBit , DOutPortMask << DOutPortFirstBit );
+
+		// read digital input state
+		m_din = ( m_digitalInput.Get() >> DInPortFirstBit ) & m_dinMask;
+
 		if( m_buffer[REQ_ADDR]!=255 )
 		{
-			if( m_buffer[REQ_ADDR]>=REQ_DBG0_READ && m_buffer[REQ_ADDR]<=REQ_DBG5_READ )
+			if( m_buffer[REQ_ADDR] == REQ_DIGITAL_READ )
 			{
-				//uint8_t p = m_buffer[REQ_ADDR]-REQ_DBG0_READ;
-				//cout<<"PWM"<<p<<'='<< (m_pwm[p]>>3) << '/' << (m_pwm[p]&0x07) << endl;
+				m_reply[0] = m_buffer[REQ_ADDR];
+				m_reply[1] = m_din;
 			}
+			
 		}
 	}
 
@@ -273,21 +340,32 @@ struct LinkuinoT /* Server */
 		return v;
 	}
 
-	uint8_t m_buffer[CMD_COUNT];
-	uint8_t m_bufferIndex;
-	uint8_t m_readCycles;
-	uint8_t m_dmask;
-	uint8_t m_dout;
-	uint8_t m_din;
+	// PWM state
+	uint16_t m_pwm[PWM_COUNT];
+	uint8_t m_pwmShutDown[PWM_COUNT];
 	uint8_t m_pwmPortMask;
 	uint8_t m_pwmSeqLen;
 	uint8_t m_pwmSeqIndex;
-	uint8_t m_pwmShutDown[PWM_COUNT];
-	uint16_t m_pwm[PWM_COUNT];
+
+	// Digital output state
+	uint8_t m_doutMask;
+
+	// Digital input state
+	uint8_t m_dinMask;
+	uint8_t m_din;
+
+	// receive buffer
+	uint8_t m_buffer[CMD_COUNT];
+	uint8_t m_bufferIndex;
+	uint8_t m_readCycles;
 	
+	// reply buffer
+	uint8_t m_reply[3];
+
+	// hardware pins accessors
 	PWMPinGroupT m_pwmOutput;
-	DPinGroupT m_digitalOutput;
-	APinGroupT m_analogInput;
+	DOutPinGroupT m_digitalOutput;
+	DInPinGroupT m_digitalInput;
 };
 
 #endif
