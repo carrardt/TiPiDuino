@@ -119,7 +119,7 @@ generate_avr_firmware(
 # read values from serial and generate several pwm signals
 #====================================================================#
 generate_avr_firmware(
-	SerialPWM
-	SRCS SerialPWM.cpp
+	LinkuinoServer
+	SRCS LinkuinoServer.cpp
 	LIBS HWSerialNoInt TimeScheduler Linkuino AvrTL AvrApp
 	)

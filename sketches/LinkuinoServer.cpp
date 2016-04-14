@@ -33,14 +33,14 @@ using Scheduler = TimeSchedulerT<AvrTimer1<> > ; // SlotMax=32767uS, resolution=
  */
 struct LinkuinoUnoTraits
 {
-	using PWMPinGroupT = avrtl::StaticPinGroup<1>;
-	using DOutPinGroupT = NullPinGroup;
-	using DInPinGroupT = NullPinGroup;
+	using PWMPinGroupT = avrtl::StaticPinGroup<0>; // Pins 0-7 (first bit set to 2 to let pins 0 & 1 free for hardware serial)
+	using DOutPinGroupT = avrtl::StaticPinGroup<1>; // Pins 8-13
+	using DInPinGroupT = StaticPinGroup<2>; // Pins 14-19 (a.k.a. A0-A5)
 	
-	static constexpr uint8_t PWMPortFirstBit = 0;
+	static constexpr uint8_t PWMPortFirstBit = 2;
 	static constexpr uint8_t PWMPortMask = 0x3F;
 
-	static constexpr uint8_t DOutPortFirstBit = 0;
+	static constexpr uint8_t DOutPortFirstBit = 0; 
 	static constexpr uint8_t DOutPortMask = 0x3F;
 
 	static constexpr uint8_t DInPortFirstBit = 0;
@@ -62,7 +62,7 @@ void setup()
 	serialIO.m_rawIO.begin(57600);
 	cout.begin(&serialIO);
 	//pwm.SetOutput();
-	cout<<"SerialPWM"<<endl;
+	cout<<"Linkuino"<<endl;
 	cout<<"Tt="<<ts.tickTime()<<"nS"<<endl;
 	cout<<"Tf="<<ts.maxFuncTime()<<"uS"<<endl;
 	cout<<"Tc="<<ts.maxCycleTime()<<"mS"<<endl;

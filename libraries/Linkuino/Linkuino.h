@@ -88,6 +88,7 @@ struct LinkuinoNullTraits
 template<typename _LinkuinoTraits=LinkuinoNullTraits>
 struct LinkuinoT /* Server */
 {
+	/******** Hardware ports configuration **********/
 	using LinkuinoTraits = _LinkuinoTraits;
 	using PWMPinGroupT = typename LinkuinoTraits::PWMPinGroupT;
 	using DOutPinGroupT = typename LinkuinoTraits::DOutPinGroupT;
@@ -102,18 +103,13 @@ struct LinkuinoT /* Server */
 	static constexpr uint8_t DInPortMask = LinkuinoTraits::DInPortMask;
 	static constexpr uint8_t DInPortFirstBit = LinkuinoTraits::DInPortFirstBit;
 
+	/**************** Communication settings ***********/
 	static constexpr uint8_t PWM_COUNT   			= 6;
 	static constexpr uint8_t ANALOG_COUNT 			= 6;
 	static constexpr uint8_t CMD_COUNT 	 			= 16;
 	static constexpr uint8_t REPLY_BUFFER_SIZE 		= 2;
 	static constexpr uint16_t SERIAL_SPEED 			= 57600;
 	static constexpr uint16_t PACKET_BYTES      	= 64; //SERIAL_SPEED/1000; // 8+2 bits / byte, @ 57600 Bauds, to cover 10ms => 57.6 bytes
-
-	// Per byte flags
-	static constexpr uint8_t CLOCK_LOW 	= 0x00;
-	static constexpr uint8_t CLOCK_HIGH	= 0x80;
-	static constexpr uint8_t RS_ADDR	= 0x40;
-	static constexpr uint8_t RS_DATA	= 0x00;
 
 	/******** Input register addresses **********/
 	static constexpr uint8_t TSTMP0_ADDR 	= 0x00;
@@ -177,16 +173,16 @@ struct LinkuinoT /* Server */
 		, m_digitalInput()
 	{
 		m_pwmPortMask = PWMPortMask;
-		m_pwmOutput.SetOutput( m_pwmPortMask );
+		m_pwmOutput.SetOutput( m_pwmPortMask << PWMPortFirstBit );
 		m_pwmSeqIndex = 0;
 		m_pwmSeqLen = 1;
 		m_pwm[0] = 1250;
 		m_pwmShutDown[0] = ~m_pwmPortMask;
 		
-		m_digitalOutput.SetOutput( DOutPortMask );
+		m_digitalOutput.SetOutput( DOutPortMask << DOutPortFirstBit );
 		m_doutMask = DOutPortMask;
 		
-		m_digitalInput.SetInput( DInPortMask );
+		m_digitalInput.SetInput( DInPortMask << DInPortFirstBit );
 		m_dinMask = DInPortMask;
 		m_din = 0;
 		
@@ -300,16 +296,16 @@ struct LinkuinoT /* Server */
 		{
 			if( m_buffer[REQ_ADDR] == REQ_DIGITAL_READ )
 			{
-				m_reply[0] = m_buffer[REQ_ADDR];
+				m_reply[0] = REQ_DIGITAL_READ;
 				m_reply[1] = m_din;
+				m_reply[2] = 0;
 			}
-			
 		}
 	}
 
 	inline void allPwmHigh()
 	{
-		m_pwmOutput.Set( m_pwmPortMask, m_pwmPortMask );
+		m_pwmOutput.Set( m_pwmPortMask << PWMPortFirstBit , m_pwmPortMask  << PWMPortFirstBit );
 		m_pwmSeqIndex = 0;
 	}
 
@@ -318,15 +314,14 @@ struct LinkuinoT /* Server */
 	{
 		if( t >= m_pwm[m_pwmSeqIndex] )
 		{
-			m_pwmOutput.Set( m_pwmShutDown[m_pwmSeqIndex], m_pwmPortMask );
-			//m_pwmOutput.Set( 0, m_pwmShutDown[m_pwmSeqIndex] );
+			m_pwmOutput.Set( m_pwmShutDown[m_pwmSeqIndex] << PWMPortFirstBit , m_pwmPortMask << PWMPortFirstBit );
 			if( (m_pwmSeqIndex+1) < m_pwmSeqLen ) { ++ m_pwmSeqIndex; }
 		}
 	}
 
 	inline void allPwmLow()
 	{
-		m_pwmOutput.Set( 0, m_pwmPortMask );
+		m_pwmOutput.Set( 0, m_pwmPortMask << PWMPortFirstBit );
 	}
 
 	// return 12 bits value + 3 bits pin number (port bit position)
