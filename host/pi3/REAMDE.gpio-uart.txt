@@ -1,0 +1,5 @@
+1. put the following line in /boot/config.txt to fixup UART (works like on pi2 but disables bluetooth)
+dtoverlay=pi3-disable-bt
+
+2. copy pi3-disable-bt-overlay.dtb to /boot/overlays 
+

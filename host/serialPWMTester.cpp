@@ -21,7 +21,7 @@ int main(int argc, char* argv[])
 	{
 		for(int i=0;i<6;i++)
 		{
-			uint32_t x = sin(t+0.5*i) * 350.0 + 1250.0;
+			uint32_t x = sin(t+0.5*i) * 700.0 + 1250.0;
 			link.setPWMValue( i , x );
 		}
 		//link.printBuffer();
