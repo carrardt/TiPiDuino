@@ -1,44 +1,32 @@
 #include <AvrTL.h>
 #include <AvrTLPin.h>
-#include <AvrTLSignal.h>
 #include "RFSniffer/RFSnifferProtocol.h"
+#include "HWSerialNoInt/HWSerialNoInt.h"
+#include "TimeScheduler/TimeScheduler.h"
 
 using namespace avrtl;
 
 #define LEFT_MOTOR_PIN 2
 #define RIGHT_MOTOR_PIN 3
-#define RF_RECEIVE_PIN 9
+#define RF_RECEIVE_PIN 8
+#define RIGHT_SPEED_PIN 9
+#define LEFT_SPEED_PIN 10
 #define LED_PIN 13
+#define TICKS_PER_ROUND 20
 
 auto LeftWheel = StaticPin<LEFT_MOTOR_PIN>();
+auto leftSpeed = StaticPin<LEFT_SPEED_PIN>();
 auto RightWheel = StaticPin<RIGHT_MOTOR_PIN>();
+auto rightSpeed = StaticPin<RIGHT_SPEED_PIN>();
 auto rf_rx = StaticPin<RF_RECEIVE_PIN>();
 auto led = StaticPin<LED_PIN>();
 RFSnifferProtocol remote;
 
-static void stop()
-{
-	LeftWheel=false;
-	RightWheel=false;
-}
+ByteStreamAdapter<HWSerialNoInt,100000UL> serialIO;
+PrintStream cout;
 
-static void ahead()
-{
-	LeftWheel=true;
-	RightWheel=true;
-}
-
-static void turnRight()
-{
-	LeftWheel=true;
-	RightWheel=false;
-}
-
-static void turnLeft()
-{
-	LeftWheel=false;
-	RightWheel=true;
-}
+using Scheduler = TimeSchedulerT<AvrTimer1<> >;
+static Scheduler ts;
 
 void setup()
 {
@@ -57,13 +45,52 @@ void setup()
 	
 	// setup pin mode
 	rf_rx.SetInput();
+	leftSpeed.SetInput();
+	rightSpeed.SetInput();
 	LeftWheel.SetOutput(); 
 	RightWheel.SetOutput(); 
-	stop();
+	LeftWheel.Set(LOW);
+	RightWheel.Set(LOW);
+	
+	cli();
+	ts.start();
+	
+	serialIO.m_rawIO.begin(57600);
+	cout.begin( &serialIO );
+	cout<<"Ready"<<endl;
 }
 
-static void goAhead()
+static uint32_t turnWheels(int LCount, int RCount)
 {
+	ts.reset();
+	bool ls = leftSpeed.Get();
+	bool rs = rightSpeed.Get();
+	int l=0, r=0;
+	uint32_t c=0;
+	LeftWheel.Set( l < LCount );
+	RightWheel.Set( r < RCount );
+	while( l < LCount || r < RCount )
+	{
+		ts.exec( 500, [&]()
+			{
+				bool nls = leftSpeed.Get();
+				bool nrs = rightSpeed.Get();			
+				if( nls != ls ) ++l;
+				if( nrs != rs ) ++r;
+				ls = nls;
+				rs = nrs;
+				LeftWheel.Set( l < LCount );
+				RightWheel.Set( r < RCount );
+				++c;
+			} );
+	}
+	LeftWheel.Set(LOW);
+	RightWheel.Set(LOW);
+	
+	if( r > l ) l = r;
+	uint32_t t = (r>l) ? r : l;
+	uint32_t ms = c/2;
+	return (t*1000) / ms;
 }
 
 void loop()
@@ -79,47 +106,34 @@ void loop()
 	switch( message[3] )
 	{
 		case 144:
-			ahead();
-			DelayMicroseconds(1500000UL);
-			stop();
+			turnWheels(128,128);
 			break;
 		case 128:
-			for(int i=0;i<4;i++)
-			{
-				ahead();
-				DelayMicroseconds(250000UL); 	
-				turnRight();
-				DelayMicroseconds(250000UL); 	
-				ahead();
-				DelayMicroseconds(250000UL); 	
-				turnLeft();
-				DelayMicroseconds(250000UL); 	
-			}
-			stop();
+			turnWheels(0,128);
 			break;
 		case 145:
-			turnRight();
-			DelayMicroseconds(400000UL);
-			stop();
+			turnWheels(128,0);
 			break;
 		case 129:	
-			turnRight();
-			DelayMicroseconds(1000000UL); 	
-			ahead();
-			DelayMicroseconds(1500000UL); 	
-			stop();
+			turnWheels(128,0);
+			turnWheels(128,128);
+			turnWheels(0,128);
 			break;
 		case 146: 
-			turnLeft(); 
-			DelayMicroseconds(400000UL); 
-			stop(); 
+			turnWheels(0,128);
+			turnWheels(128,128);
+			turnWheels(128,0);
 			break;
 		case 130:
-			turnLeft();
-			DelayMicroseconds(1000000UL); 	
-			ahead();
-			DelayMicroseconds(1500000UL); 	
-			stop();
+			uint32_t lspeed = turnWheels(256,0);
+			uint32_t lsi = lspeed / TICKS_PER_ROUND;
+			uint32_t lsf = ( (lspeed*100) / TICKS_PER_ROUND ) % 100;
+			cout << "Left RPM = "<<lsi<<'.'<<lsf<<endl;
+
+			uint32_t rspeed = turnWheels(0,256);
+			uint32_t rsi = rspeed / TICKS_PER_ROUND;
+			uint32_t rsf = ( (rspeed*100) / TICKS_PER_ROUND ) % 100;
+			cout << "Right RPM = "<<rsi<<'.'<<rsf<<endl;
 			break;
 	}
 }
