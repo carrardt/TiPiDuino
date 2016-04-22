@@ -13,14 +13,16 @@ using Linkuino = LinkuinoT<>;
 
 struct LinkuinoClient
 {
+	static constexpr int PacketRepeatCount = (Linkuino::PACKET_BYTES+Linkuino::CMD_COUNT-1) / Linkuino::CMD_COUNT ;
+	
 	inline LinkuinoClient(int fd)
 		: m_fd(fd)
 		, m_timeStamp(0)
 	{
-		setRegisterValue(Linkuino::TSTMP0_ADDR, 0);
+		setRegisterValue(Linkuino::TSTMP_ADDR, 0);
 		for(int i=0;i<Linkuino::PWM_COUNT;i++) { setPWMValue(i, 1250); }
 		setRegisterValue(Linkuino::DOUT_ADDR, 0);
-		setRegisterValue(Linkuino::REQ_ADDR, Linkuino::REQ_NOOP);
+		setRegisterValue(Linkuino::REQ_ADDR, Linkuino::REQ_NULL);
 		setRegisterValue(Linkuino::PWMSMTH_ADDR, 0);
 	}
 
@@ -50,17 +52,23 @@ struct LinkuinoClient
 
 	void setPWMValue( int p, uint16_t value )
 	{
+		// PWM cycle are 10mS long
+		// pulse length can be 0 (always LOW), 10mS (always HIGH) or in the range [400;9600]
+		// encoding : values in range[0;1536] encode pulse lengths in [400;1936]
+		// values in range [1536;4095] encode pulse lengths in [1936;9613]
 		if( p<0 || p>5 ) return ;
-		if(value<500) value = 500;
-		else if(value>2000) value=2000;
-		setRegisterValue( Linkuino::PWM0H_ADDR+2*p , value >> 6 );
+		if( value > 1536 )
+		{
+			uint16_t extValue = 1536 + ( (value-1536)/3 );
+		}
+		setRegisterValue( Linkuino::PWM0H_ADDR+2*p , (value >> 6) & 0x3F );
 		setRegisterValue( Linkuino::PWM0L_ADDR+2*p , value & 0x3F );
 	}
 
 	inline void updateTimeStamp()
 	{
 		m_timeStamp = (m_timeStamp+1) & 0x3F;
-		setRegisterValue( Linkuino::TSTMP0_ADDR, m_timeStamp );
+		setRegisterValue( Linkuino::TSTMP_ADDR, m_timeStamp );
 	}
 	
 	inline void printBuffer()
@@ -74,8 +82,9 @@ struct LinkuinoClient
 	
 	inline void send()
 	{
-		int n = (Linkuino::PACKET_BYTES+Linkuino::CMD_COUNT-1) / Linkuino::CMD_COUNT ;
-		for(int i=0;i<n;i++) { write(m_fd,m_buffer,Linkuino::CMD_COUNT); }
+		for(int i=0;i<PacketRepeatCount;i++) { write(m_fd,m_buffer,Linkuino::CMD_COUNT); }
+		write(m_fd,m_buffer,1); // finish with a timestamp marker
+		fsync(m_fd);
 		updateTimeStamp();
 	}
 

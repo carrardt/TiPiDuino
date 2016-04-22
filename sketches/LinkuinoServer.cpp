@@ -16,12 +16,12 @@ PrintStream cout;
 //#define DEBUG_TIMINGS 1
 
 #ifdef DEBUG_TIMINGS
-//using Scheduler = TimeSchedulerT<AvrTimer1<>,int16_t,true>;
-using Scheduler = TimeSchedulerT<AvrTimer1<false>,int32_t,true>;
+using Scheduler = TimeSchedulerT<AvrTimer1<>,int16_t,true>;
+//using Scheduler = TimeSchedulerT<AvrTimer1<false>,int32_t,true>;
 #else
 //using Scheduler = TimeSchedulerT<AvrTimer0> ; // SlotMax=127uS, resolution=500nS, 16Bits wallclock
 //using Scheduler = TimeSchedulerT<AvrTimer1<false>,int32_t> ; // SlotMax>1000S, resolution=62nS, 32Bits wallclock
-using Scheduler = TimeSchedulerT<AvrTimer1<> > ; // SlotMax=32767uS, resolution=500nS, 16Bits wallclock
+using Scheduler = TimeSchedulerT<AvrTimer1<>,int16_t > ; // SlotMax=32767uS, resolution=500nS, 16Bits wallclock
 #endif
 
 /*
@@ -36,7 +36,7 @@ struct LinkuinoUnoTraits
 	using PWMPinGroupT = avrtl::StaticPinGroup<0>; // Pins 0-7 (first bit set to 2 to let pins 0 & 1 free for hardware serial)
 	using DOutPinGroupT = avrtl::StaticPinGroup<1>; // Pins 8-13
 	using DInPinGroupT = StaticPinGroup<2>; // Pins 14-19 (a.k.a. A0-A5)
-	
+
 	static constexpr uint8_t PWMPortFirstBit = 2;
 	static constexpr uint8_t PWMPortMask = 0x3F;
 
@@ -70,77 +70,36 @@ void setup()
 	ts.start();
 }
 
-static uint32_t counter = 0;
-
 void loop()
 {
 	// for phase correctness, absorb loop latency here
 	ts.exec( 50, [](){} );			// 9950 uS -> 10000 uS (begining of next cycle)
 
-	ts.exec( 500, []()				// 0 -> 500 uS
+	ts.exec( 400, []()				// 0 -> 400 uS
 		{
-			//pwm = HIGH;
 			li.allPwmHigh();
-			// send reply bytes (x2), it takes approx 180 uS @57600 bauds
 		} );
 
-	ts.loop( 1500, [](WallClock t) 	// 500 uS -> 2000 uS
+	ts.loop( 1600, [](WallClock t) 	// 400 uS -> 2000 uS
 		{
-			//pwm = (t<pwmValue);
-			li.shutDownPWM( 500+t );
-		} );
-
-	ts.exec( 50, []()				// 2000 uS -> 2050 uS
-		{
-			//pwm = LOW;
-			li.allPwmLow();
-			li.prepareToReceive();
+			li.shutDownPWM( 400+t );
 		} );
 
 	// we have 5 milliseconds to listen for serial commands
-	ts.loop( 5000, [](WallClock t)	// 2050 uS -> 7050 uS
+	ts.loop( 7000, [](WallClock t)	// 2000 uS -> 9000 uS
 		{
 			li.receive( serialIO.m_rawIO );
+			li.shutDownPWM( 2000+t );
 		} );
 
-	ts.exec( 2000, []()				// 7050 uS -> 9050 uS
+	ts.exec( 950, []()				// 9000 uS -> 9950 uS
 		{
 			li.process();
-		} );
-
-	// keep 50 uS to be transfered at the beginning to absorb loop latency
-	ts.exec( 900, []()				// 9050 uS -> 9950 uS
-		{
 			li.reply( serialIO.m_rawIO );
+			li.prepareToReceive();
 		} );
 
-#ifdef DEBUG_TIMINGS
-	if( ( counter & 0xFF ) == 0 )
-	{
-		cout<<">"<<ts.m_dbg[0].m_i<<"\n";
-		for(int i=0;i<ts.m_dbg[0].m_i;i++)
-		{
-			uint32_t T = ts.m_dbg[0].m_timings[i];
-			T = ( T * ts.tickTime() ) / 1000;
-			cout<<T<< ( (i%3)==2 ? '\n' : ' ' );
-		}
-		ts.reset();
-	}
-	else { ts.m_dbg[0].reset(); }
-/*
-	if( ( counter & 0xFF ) == 0 )
-	{
-		cout<<'*'<<li.m_pwmSeqLen<<'\n';
-		for(int p=0;p<li.m_pwmSeqLen;p++)
-		{
-			cout<< (int)li.m_pwm[p] << '/' << (int)li.m_pwmShutDown[p] << ((p%2)? '\n' : ' ');
-		}
-		ts.reset();
-	}
-	*/
-	++ counter;
-
-#endif
-
+	ts.printDebugInfo( cout );
+	ts.endCycle();
 }
 

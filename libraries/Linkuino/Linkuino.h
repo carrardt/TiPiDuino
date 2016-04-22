@@ -103,6 +103,8 @@ struct LinkuinoT /* Server */
 	static constexpr uint8_t DInPortMask = LinkuinoTraits::DInPortMask;
 	static constexpr uint8_t DInPortFirstBit = LinkuinoTraits::DInPortFirstBit;
 
+	static constexpr uint16_t PWM_UNREACHABLE_VALUE = 32767;
+
 	/**************** Communication settings ***********/
 	static constexpr uint8_t PWM_COUNT   			= 6;
 	static constexpr uint8_t ANALOG_COUNT 			= 6;
@@ -112,7 +114,7 @@ struct LinkuinoT /* Server */
 	static constexpr uint16_t PACKET_BYTES      	= 64; //SERIAL_SPEED/1000; // 8+2 bits / byte, @ 57600 Bauds, to cover 10ms => 57.6 bytes
 
 	/******** Input register addresses **********/
-	static constexpr uint8_t TSTMP0_ADDR 	= 0x00;
+	static constexpr uint8_t TSTMP_ADDR 	= 0x00;
 	static constexpr uint8_t PWM0H_ADDR 	= 0x01;
 	static constexpr uint8_t PWM0L_ADDR 	= 0x02;
 	static constexpr uint8_t PWM1H_ADDR 	= 0x03;
@@ -166,6 +168,7 @@ struct LinkuinoT /* Server */
 	
 	static constexpr uint8_t REQ_NOOP		  	= 0x30;
 	static constexpr uint8_t REQ_RESET		  	= 0x3F;
+	static constexpr uint8_t REQ_NULL		  	= 0xFF;
 
 	inline LinkuinoT()
 		: m_pwmOutput()
@@ -178,6 +181,7 @@ struct LinkuinoT /* Server */
 		m_pwmSeqLen = 1;
 		m_pwm[0] = 1250;
 		m_pwmShutDown[0] = ~m_pwmPortMask;
+		m_pwm[PWM_COUNT] = PWM_UNREACHABLE_VALUE;
 		
 		m_digitalOutput.SetOutput( DOutPortMask << DOutPortFirstBit );
 		m_doutMask = DOutPortMask;
@@ -188,7 +192,7 @@ struct LinkuinoT /* Server */
 		
 		m_bufferIndex = 0;
 		m_readCycles = 0;
-		m_buffer[TSTMP0_ADDR] = 255;
+		m_buffer[TSTMP_ADDR] = 255;
 		for(uint8_t i=0; i<PWM_COUNT; i++)
 		{
 			m_buffer[2*i+1] = 0x08;
@@ -205,7 +209,7 @@ struct LinkuinoT /* Server */
 
 	inline void prepareToReceive()
 	{
-		m_buffer[TSTMP0_ADDR] = 255;
+		m_buffer[TSTMP_ADDR] = 255;
 		m_buffer[REQ_ADDR] = 255;
 		m_readCycles = 0;
 	}
@@ -221,9 +225,9 @@ struct LinkuinoT /* Server */
 			uint8_t clk = r >> 6;
 			if( clk == 0 )
 			{
-				if( m_buffer[TSTMP0_ADDR] == data ) ++ m_readCycles;
+				if( m_buffer[TSTMP_ADDR] == data ) ++ m_readCycles;
 				else m_readCycles = 0;
-				m_buffer[TSTMP0_ADDR] = data;
+				m_buffer[TSTMP_ADDR] = data;
 				m_bufferIndex = 1;
 			}
 			else
@@ -260,6 +264,21 @@ struct LinkuinoT /* Server */
 		return true;
 	}
 
+	static inline uint16_t encodePulseLength(uint16_t length)
+	{
+		if(length<=400) return 0;
+		length -= 400;
+		if(length<=1536) return length;
+		return 1536 + ( (length-1536)/3 );
+	}
+	
+	static inline uint16_t decodePulseLength(uint16_t length)
+	{
+		if(length<=1536) return length+400;
+		length -= 1536;
+		return (length-1536)*3 + 1936;
+	}
+
 	inline void process()
 	{
 		// check received data is complete
@@ -269,11 +288,12 @@ struct LinkuinoT /* Server */
 		for(uint8_t i=0;i<PWM_COUNT;i++) { m_pwm[i] = makePwmDesc(i); }
 		heapSort<uint16_t,PWM_COUNT>( m_pwm );
 		m_pwmSeqLen = 0;
-		m_pwmShutDown[0] = 1 << ( m_pwm[0] & 0x07 );
-		m_pwm[0] >>= 3;
+		m_pwmShutDown[0] = ~m_pwmPortMask;
+		m_pwmShutDown[0] |= 1 << ( m_pwm[0] & 0x07 );
+		m_pwm[0] = decodePulseLength( m_pwm[0] >> 3 );
 		for(int i=1;i<PWM_COUNT;i++)
 		{
-			uint16_t value = m_pwm[i] >> 3;
+			uint16_t value = decodePulseLength( m_pwm[i] >> 3 );
 			uint8_t mask = 1 << (m_pwm[i] & 0x07);
 			if( value > m_pwm[m_pwmSeqLen] )
 			{
@@ -285,6 +305,7 @@ struct LinkuinoT /* Server */
 		}
 		++ m_pwmSeqLen;
 		for(int i=0;i<m_pwmSeqLen;i++) { m_pwmShutDown[i] = ~m_pwmShutDown[i]; }
+		for(int i=m_pwmSeqLen;i<=PWM_COUNT;i++) { m_pwm[i] = PWM_UNREACHABLE_VALUE; }
 
 		// write Digital output updated values
 		m_digitalOutput.Set( ( m_buffer[DOUT_ADDR] & m_doutMask ) << DOutPortFirstBit , DOutPortMask << DOutPortFirstBit );
@@ -292,9 +313,21 @@ struct LinkuinoT /* Server */
 		// read digital input state
 		m_din = ( m_digitalInput.Get() >> DInPortFirstBit ) & m_dinMask;
 
-		if( m_buffer[REQ_ADDR]!=255 )
+		uint8_t req = m_buffer[REQ_ADDR];
+		if( req != REQ_NULL )
 		{
-			if( m_buffer[REQ_ADDR] == REQ_DIGITAL_READ )
+			if( req <= REQ_PWM5_DISABLE )
+			{
+				uint8_t pwmi = req;
+				m_pwmPortMask &= ~(1<<pwmi);
+			}
+			else if( req <= REQ_PWM5_ENABLE)
+			{
+				uint8_t pwmi = req - REQ_PWM0_ENABLE;
+				m_pwmPortMask |= 1<<pwmi;
+				m_pwmPortMask &= PWMPortMask;
+			}
+			else if( req == REQ_DIGITAL_READ )
 			{
 				m_reply[0] = REQ_DIGITAL_READ;
 				m_reply[1] = m_din;
@@ -315,7 +348,7 @@ struct LinkuinoT /* Server */
 		if( t >= m_pwm[m_pwmSeqIndex] )
 		{
 			m_pwmOutput.Set( m_pwmShutDown[m_pwmSeqIndex] << PWMPortFirstBit , m_pwmPortMask << PWMPortFirstBit );
-			if( (m_pwmSeqIndex+1) < m_pwmSeqLen ) { ++ m_pwmSeqIndex; }
+			++ m_pwmSeqIndex;
 		}
 	}
 
@@ -336,7 +369,7 @@ struct LinkuinoT /* Server */
 	}
 
 	// PWM state
-	uint16_t m_pwm[PWM_COUNT];
+	uint16_t m_pwm[PWM_COUNT+1];
 	uint8_t m_pwmShutDown[PWM_COUNT];
 	uint8_t m_pwmPortMask;
 	uint8_t m_pwmSeqLen;
