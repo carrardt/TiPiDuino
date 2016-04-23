@@ -175,12 +175,11 @@ struct LinkuinoT /* Server */
 		, m_digitalOutput()
 		, m_digitalInput()
 	{
-		m_pwmPortMask = PWMPortMask ;
+		m_pwmPortMask = 0 ;
 		m_pwmOutput.SetOutput( PWMPortMask  );
 		m_pwmSeqIndex = 0;
-		m_pwmSeqLen = 1;
-		m_pwm[0] = 1250;
-		m_pwmShutDown[0] = ~m_pwmPortMask;
+		m_pwmSeqLen = 0;
+		m_pwmShutDown[0] = 0;
 		m_pwm[PWM_COUNT] = PWM_UNREACHABLE_VALUE;
 		
 		m_digitalOutput.SetOutput( DOutPortMask << DOutPortFirstBit ); // TODO: pre-shift as for PWM
@@ -197,6 +196,7 @@ struct LinkuinoT /* Server */
 		{
 			m_buffer[2*i+1] = 0x08;
 			m_buffer[2*i+2] = 0x00;
+			m_pwm[i] = 1250;
 		}
 		m_buffer[DOUT_ADDR] = 0;
 		m_buffer[REQ_ADDR] = 255;
