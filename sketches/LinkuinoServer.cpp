@@ -80,19 +80,23 @@ void loop()
 			li.allPwmHigh();
 		} );
 
+	// no communications for the first 2mS to ensure
+	// maximum precision of servo compatible PWM pulses
 	ts.loop( 1600, [](WallClock t) 	// 400 uS -> 2000 uS
 		{
 			li.shutDownPWM( 400+t );
 		} );
 
-	// we have 5 milliseconds to listen for serial commands
-	ts.loop( 7000, [](WallClock t)	// 2000 uS -> 9000 uS
+	// during the second period, pulse length values and update frequencies are
+	// less precise, but we can receive command packet at the same time
+	// so we have 7.61 milliseconds to listen for serial commands
+	ts.loop( 7610, [](WallClock t)	// 2000 uS -> 9610 uS
 		{
 			li.receive( serialIO.m_rawIO );
 			li.shutDownPWM( 2000+t );
 		} );
 
-	ts.exec( 950, []()				// 9000 uS -> 9950 uS
+	ts.exec( 340, []()				// 9610 uS -> 9950 uS
 		{
 			li.process();
 			li.reply( serialIO.m_rawIO );

@@ -34,7 +34,7 @@ int main(int argc, char* argv[])
 			}
 			//link.printBuffer();
 			link.send();
-			t += 0.01;
+			t += 0.001;
 		}
 	}
 	else if( cmd=='d' )
