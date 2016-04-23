@@ -94,7 +94,7 @@ struct LinkuinoT /* Server */
 	using DOutPinGroupT = typename LinkuinoTraits::DOutPinGroupT;
 	using DInPinGroupT = typename LinkuinoTraits::DInPinGroupT;
 	
-	static constexpr uint8_t PWMPortMask = LinkuinoTraits::PWMPortMask;
+	static constexpr uint8_t PWMPortMask = LinkuinoTraits::PWMPortMask ;
 	static constexpr uint8_t PWMPortFirstBit = LinkuinoTraits::PWMPortFirstBit;
 
 	static constexpr uint8_t DOutPortMask = LinkuinoTraits::DOutPortMask;
@@ -103,7 +103,7 @@ struct LinkuinoT /* Server */
 	static constexpr uint8_t DInPortMask = LinkuinoTraits::DInPortMask;
 	static constexpr uint8_t DInPortFirstBit = LinkuinoTraits::DInPortFirstBit;
 
-	static constexpr uint16_t PWM_UNREACHABLE_VALUE = 32767;
+	static constexpr uint16_t PWM_UNREACHABLE_VALUE = 16383;
 
 	/**************** Communication settings ***********/
 	static constexpr uint8_t PWM_COUNT   			= 6;
@@ -175,18 +175,18 @@ struct LinkuinoT /* Server */
 		, m_digitalOutput()
 		, m_digitalInput()
 	{
-		m_pwmPortMask = PWMPortMask;
-		m_pwmOutput.SetOutput( m_pwmPortMask << PWMPortFirstBit );
+		m_pwmPortMask = PWMPortMask ;
+		m_pwmOutput.SetOutput( PWMPortMask  );
 		m_pwmSeqIndex = 0;
 		m_pwmSeqLen = 1;
 		m_pwm[0] = 1250;
 		m_pwmShutDown[0] = ~m_pwmPortMask;
 		m_pwm[PWM_COUNT] = PWM_UNREACHABLE_VALUE;
 		
-		m_digitalOutput.SetOutput( DOutPortMask << DOutPortFirstBit );
+		m_digitalOutput.SetOutput( DOutPortMask << DOutPortFirstBit ); // TODO: pre-shift as for PWM
 		m_doutMask = DOutPortMask;
 		
-		m_digitalInput.SetInput( DInPortMask << DInPortFirstBit );
+		m_digitalInput.SetInput( DInPortMask << DInPortFirstBit ); // TODO: pre-shift as for PWM
 		m_dinMask = DInPortMask;
 		m_din = 0;
 		
@@ -303,12 +303,12 @@ struct LinkuinoT /* Server */
 		heapSort<uint16_t,PWM_COUNT>( m_pwm );
 		m_pwmSeqLen = 0;
 		m_pwmShutDown[0] = ~m_pwmPortMask;
-		m_pwmShutDown[0] |= 1 << ( m_pwm[0] & 0x07 );
+		m_pwmShutDown[0] |= 1 << ( ( m_pwm[0] & 0x07 ) + PWMPortFirstBit );
 		m_pwm[0] = decodePulseLength( m_pwm[0] >> 3 );
 		for(int i=1;i<PWM_COUNT;i++)
 		{
 			uint16_t value = decodePulseLength( m_pwm[i] >> 3 );
-			uint8_t mask = 1 << (m_pwm[i] & 0x07);
+			uint8_t mask = 1 << ( (m_pwm[i] & 0x07) + PWMPortFirstBit );
 			if( value > m_pwm[m_pwmSeqLen] )
 			{
 				++m_pwmSeqLen;
@@ -333,12 +333,12 @@ struct LinkuinoT /* Server */
 			if( req <= REQ_PWM5_DISABLE )
 			{
 				uint8_t pwmi = req;
-				m_pwmPortMask &= ~(1<<pwmi);
+				m_pwmPortMask &= ~ (1<<(pwmi+PWMPortFirstBit));
 			}
 			else if( req <= REQ_PWM5_ENABLE)
 			{
 				uint8_t pwmi = req - REQ_PWM0_ENABLE;
-				m_pwmPortMask |= 1<<pwmi;
+				m_pwmPortMask |= 1<<(pwmi+PWMPortFirstBit);
 				m_pwmPortMask &= PWMPortMask;
 			}
 			else if( req == REQ_DIGITAL_READ )
@@ -358,8 +358,13 @@ struct LinkuinoT /* Server */
 
 	inline void allPwmHigh()
 	{
-		m_pwmOutput.Set( m_pwmPortMask << PWMPortFirstBit , m_pwmPortMask  << PWMPortFirstBit );
+		m_pwmOutput.Set( m_pwmPortMask , m_pwmPortMask );
 		m_pwmSeqIndex = 0;
+	}
+
+	inline void allPwmLow()
+	{
+		m_pwmOutput.Set( 0, m_pwmPortMask );
 	}
 
 	// t is time in uS since pulse start
@@ -367,14 +372,9 @@ struct LinkuinoT /* Server */
 	{
 		if( t >= m_pwm[m_pwmSeqIndex] )
 		{
-			m_pwmOutput.Set( m_pwmShutDown[m_pwmSeqIndex] << PWMPortFirstBit , m_pwmPortMask << PWMPortFirstBit );
+			m_pwmOutput.Set( m_pwmShutDown[m_pwmSeqIndex] , m_pwmPortMask );
 			++ m_pwmSeqIndex;
 		}
-	}
-
-	inline void allPwmLow()
-	{
-		m_pwmOutput.Set( 0, m_pwmPortMask << PWMPortFirstBit );
 	}
 
 	// return 12 bits value + 3 bits pin number (port bit position)

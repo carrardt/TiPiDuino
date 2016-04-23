@@ -37,8 +37,8 @@ struct LinkuinoUnoTraits
 	using DOutPinGroupT = avrtl::StaticPinGroup<1>; // Pins 8-13
 	using DInPinGroupT = StaticPinGroup<2>; // Pins 14-19 (a.k.a. A0-A5)
 
-	static constexpr uint8_t PWMPortFirstBit = 2;
-	static constexpr uint8_t PWMPortMask = 0x3F;
+	static constexpr uint8_t PWMPortFirstBit = 2; // first accessible for PWM
+	static constexpr uint8_t PWMPortMask = 0xFC; // mask of bits accessible for PWM
 
 	static constexpr uint8_t DOutPortFirstBit = 0; 
 	static constexpr uint8_t DOutPortMask = 0x3F;
@@ -89,7 +89,7 @@ void loop()
 	ts.loop( 7000, [](WallClock t)	// 2000 uS -> 9000 uS
 		{
 			li.receive( serialIO.m_rawIO );
-			//li.shutDownPWM( 2000+t );
+			li.shutDownPWM( 2000+t );
 		} );
 
 	ts.exec( 950, []()				// 9000 uS -> 9950 uS
