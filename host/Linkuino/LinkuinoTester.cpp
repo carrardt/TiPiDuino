@@ -62,6 +62,14 @@ int main(int argc, char* argv[])
 		link.setPWMValue( p , v );
 		link.send();
 	}
+	else if( cmd=='t' )
+	{
+		int v = 1250;
+		scanf("%d",&v);
+		int ve = Linkuino::encodePulseLength( v );
+		int vd = Linkuino::decodePulseLength ( ve );
+		printf("Encode Test : %d -> %d -> %d\n",v,ve,vd);
+	}
 	sleep(1);
 	return 0;
 }

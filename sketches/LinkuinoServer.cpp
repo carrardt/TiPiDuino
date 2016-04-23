@@ -89,7 +89,7 @@ void loop()
 	ts.loop( 7000, [](WallClock t)	// 2000 uS -> 9000 uS
 		{
 			li.receive( serialIO.m_rawIO );
-			li.shutDownPWM( 2000+t );
+			//li.shutDownPWM( 2000+t );
 		} );
 
 	ts.exec( 950, []()				// 9000 uS -> 9950 uS

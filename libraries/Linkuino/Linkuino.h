@@ -166,8 +166,8 @@ struct LinkuinoT /* Server */
 	static constexpr uint8_t REQ_DBG4_READ 		= 0x25;
 	static constexpr uint8_t REQ_DBG5_READ 		= 0x26;
 	
-	static constexpr uint8_t REQ_NOOP		  	= 0x30;
-	static constexpr uint8_t REQ_RESET		  	= 0x3F;
+	static constexpr uint8_t REQ_RESET		  	= 0x30;
+	static constexpr uint8_t REQ_NOOP		  	= 0x3F;
 	static constexpr uint8_t REQ_NULL		  	= 0xFF;
 
 	inline LinkuinoT()
@@ -266,23 +266,37 @@ struct LinkuinoT /* Server */
 
 	static inline uint16_t encodePulseLength(uint16_t length)
 	{
-		if(length<=400) return 0;
-		length -= 400;
-		if(length<=1536) return length;
-		return 1536 + ( (length-1536)/3 );
+		uint16_t r;
+		if( length > 400 )
+		{
+			length -= 400;
+			if(length>1536)
+			{
+				if(length>9213) { length = 9213; }
+				r = 1536 + ( (length-1536)/3 );
+			}
+			else { r = length; }
+		}
+		else { r = 0; }
+		return r & 0x0FFF;
 	}
 	
 	static inline uint16_t decodePulseLength(uint16_t length)
 	{
 		if(length<=1536) return length+400;
-		length -= 1536;
 		return (length-1536)*3 + 1936;
 	}
 
 	inline void process()
 	{
 		// check received data is complete
-		if( ! receiveComplete() ) return;
+		if( ! receiveComplete() )
+		{
+			m_reply[0]='N';
+			m_reply[1]='D';
+			m_reply[2]='\n';
+			return;
+		}
 
 		// process PWM commands, sort values, prepare next cycle pulses sequence
 		for(uint8_t i=0;i<PWM_COUNT;i++) { m_pwm[i] = makePwmDesc(i); }
@@ -314,7 +328,7 @@ struct LinkuinoT /* Server */
 		m_din = ( m_digitalInput.Get() >> DInPortFirstBit ) & m_dinMask;
 
 		uint8_t req = m_buffer[REQ_ADDR];
-		if( req != REQ_NULL )
+		if( req!=REQ_NOOP )
 		{
 			if( req <= REQ_PWM5_DISABLE )
 			{
@@ -333,6 +347,12 @@ struct LinkuinoT /* Server */
 				m_reply[1] = m_din;
 				m_reply[2] = 0;
 			}
+		}
+		else
+		{
+			m_reply[0]='O';
+			m_reply[1]='k';
+			m_reply[2]='\n';
 		}
 	}
 

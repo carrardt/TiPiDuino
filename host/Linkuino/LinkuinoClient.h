@@ -57,10 +57,7 @@ struct LinkuinoClient
 		// encoding : values in range[0;1536] encode pulse lengths in [400;1936]
 		// values in range [1536;4095] encode pulse lengths in [1936;9613]
 		if( p<0 || p>5 ) return ;
-		if( value > 1536 )
-		{
-			uint16_t extValue = 1536 + ( (value-1536)/3 );
-		}
+		value = Linkuino::encodePulseLength( value );
 		setRegisterValue( Linkuino::PWM0H_ADDR+2*p , (value >> 6) & 0x3F );
 		setRegisterValue( Linkuino::PWM0L_ADDR+2*p , value & 0x3F );
 	}
