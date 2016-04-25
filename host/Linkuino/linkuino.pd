@@ -1,0 +1,79 @@
+#N canvas 134 187 816 538 10;
+#X obj 121 325 linkuino, f 79;
+#X obj 41 310 bng 15 250 50 0 empty empty update 17 7 0 10 -262144
+-1 -1;
+#X floatatom 37 274 5 0 10 2 Serial_port - -, f 5;
+#X floatatom 75 374 5 0 0 0 Version - -, f 5;
+#X floatatom 120 374 5 0 0 0 - - -, f 5;
+#X obj 144 118 vsl 15 100 0 100 0 0 empty empty empty 0 -9 0 10 -262144
+-1 -1 7300 1;
+#X obj 144 250 t b f;
+#X floatatom 144 90 5 0 0 2 PWM0 - -, f 5;
+#X obj 193 119 vsl 15 100 0 100 0 0 empty empty empty 0 -9 0 10 -262144
+-1 -1 7500 1;
+#X obj 193 251 t b f;
+#X floatatom 193 90 5 0 0 2 PWM1 - -, f 5;
+#X obj 243 119 vsl 15 100 0 100 0 0 empty empty empty 0 -9 0 10 -262144
+-1 -1 4200 1;
+#X obj 243 251 t b f;
+#X floatatom 243 91 5 0 0 2 PWM2 - -, f 5;
+#X obj 298 119 vsl 15 100 0 100 0 0 empty empty empty 0 -9 0 10 -262144
+-1 -1 4800 1;
+#X obj 298 251 t b f;
+#X floatatom 298 91 5 0 0 2 PWM3 - -, f 5;
+#X obj 351 119 vsl 15 100 0 100 0 0 empty empty empty 0 -9 0 10 -262144
+-1 -1 5900 1;
+#X obj 351 251 t b f;
+#X floatatom 351 91 5 0 0 2 PWM4 - -, f 5;
+#X obj 403 119 vsl 15 100 0 100 0 0 empty empty empty 0 -9 0 10 -262144
+-1 -1 5900 1;
+#X obj 403 251 t b f;
+#X floatatom 403 91 5 0 0 2 PWM5 - -, f 5;
+#X obj 586 109 vradio 15 1 0 2 empty empty PWM3_Mode -16 -8 0 10 -262144
+-1 -1 0;
+#X obj 501 111 vradio 15 1 0 2 empty empty PWM1_Mode -16 -8 0 10 -262144
+-1 -1 1;
+#X obj 628 119 vradio 15 1 0 2 empty empty PWM4_Mode -16 -8 0 10 -262144
+-1 -1 0;
+#X obj 544 125 vradio 15 1 0 2 empty empty PWM2_Mode -16 -8 0 10 -262144
+-1 -1 0;
+#X obj 671 105 vradio 15 1 0 2 empty empty PWM5_Mode -16 -8 0 10 -262144
+-1 -1 0;
+#X obj 459 126 vradio 15 1 0 2 empty empty PWM0_Mode -16 -8 0 10 -262144
+-1 -1 1;
+#X text 145 24 pd-linkuino v0.9;
+#X connect 0 0 3 0;
+#X connect 0 1 4 0;
+#X connect 1 0 0 0;
+#X connect 2 0 0 1;
+#X connect 5 0 6 0;
+#X connect 6 0 0 0;
+#X connect 6 1 0 2;
+#X connect 7 0 5 0;
+#X connect 8 0 9 0;
+#X connect 9 0 0 0;
+#X connect 9 1 0 3;
+#X connect 10 0 8 0;
+#X connect 11 0 12 0;
+#X connect 12 0 0 0;
+#X connect 12 1 0 4;
+#X connect 13 0 11 0;
+#X connect 14 0 15 0;
+#X connect 15 0 0 0;
+#X connect 15 1 0 5;
+#X connect 16 0 14 0;
+#X connect 17 0 18 0;
+#X connect 18 0 0 0;
+#X connect 18 1 0 6;
+#X connect 19 0 17 0;
+#X connect 20 0 21 0;
+#X connect 21 0 0 0;
+#X connect 21 1 0 7;
+#X connect 22 0 20 0;
+#X connect 23 0 0 11;
+#X connect 24 0 0 9;
+#X connect 25 0 0 12;
+#X connect 26 0 0 10;
+#X connect 27 0 0 13;
+#X connect 28 0 0 8;
+#X coords 0 538 1 537 0 0 0;
