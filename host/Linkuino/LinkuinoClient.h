@@ -3,12 +3,16 @@
 
 #include <cstdint>
 #include <unistd.h>
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <fcntl.h>
 #include <termios.h>
+#include <time.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+
 
 #include "Linkuino/Linkuino.h"
+#include <string>
+#include <iostream>
 using Linkuino = LinkuinoT<>;
 
 struct LinkuinoClient
@@ -18,17 +22,28 @@ struct LinkuinoClient
 	inline LinkuinoClient(int fd)
 		: m_fd(fd)
 		, m_timeStamp(0)
+		, m_serverMajor(0)
+		, m_serverMinor(0)
 	{
 		setRegisterValue(Linkuino::TSTMP_ADDR, 0);
-		for(int i=0;i<Linkuino::PWM_COUNT;i++) { setPWMValue(i, 1250); }
+		for(int i=0;i<Linkuino::PWM_COUNT;i++) { setPWMValue(i, 1250); m_pwmEnabled[i]=false; }
 		setRegisterValue(Linkuino::DOUT_ADDR, 0);
 		setRegisterValue(Linkuino::REQ_ADDR, Linkuino::REQ_NULL);
 		setRegisterValue(Linkuino::PWMSMTH_ADDR, 0);
 	}
-
-	static inline int openSerialDevice(const char* devpath)
+	
+	inline ~LinkuinoClient()
 	{
-		int serial_fd = open( devpath, O_RDWR | O_SYNC);	
+		close(m_fd);
+		m_fd = -1;
+	}
+
+	inline int getServerVersionMajor() const {return m_serverMajor; }
+	inline int getServerVersionMinor() const {return m_serverMinor; }
+
+	static inline int openSerialDevice(const std::string& devpath)
+	{
+		int serial_fd = open( devpath.c_str(), O_RDWR | O_SYNC | O_NONBLOCK);	
 		if( serial_fd < 0 ) return -1;
 		struct termios serialConfig;
 		tcgetattr(serial_fd,&serialConfig);
@@ -50,6 +65,20 @@ struct LinkuinoClient
 		}
 	}
 
+	void enablePWM(int p)
+	{
+		setRegisterValue(Linkuino::REQ_ADDR, Linkuino::REQ_PWM0_ENABLE+p);
+		send();
+		m_pwmEnabled[p] = true;
+	}
+
+	void disablePWM(int p)
+	{
+		setRegisterValue(Linkuino::REQ_ADDR, Linkuino::REQ_PWM0_DISABLE+p);
+		send();
+		m_pwmEnabled[p] = false;
+	}
+
 	void setPWMValue( int p, uint16_t value )
 	{
 		// PWM cycle are 10mS long
@@ -57,6 +86,8 @@ struct LinkuinoClient
 		// encoding : values in range[0;1536] encode pulse lengths in [400;1936]
 		// values in range [1536;4095] encode pulse lengths in [1936;9613]
 		if( p<0 || p>5 ) return ;
+		if( value>=400 && !m_pwmEnabled[p] ) { enablePWM(p); }
+		if( value<400 && m_pwmEnabled[p]) { disablePWM(p); }
 		value = Linkuino::encodePulseLength( value );
 		setRegisterValue( Linkuino::PWM0H_ADDR+2*p , (value >> 6) & 0x3F );
 		setRegisterValue( Linkuino::PWM0L_ADDR+2*p , value & 0x3F );
@@ -68,6 +99,51 @@ struct LinkuinoClient
 		setRegisterValue( Linkuino::TSTMP_ADDR, m_timeStamp );
 	}
 	
+	bool testConnection()
+	{
+		const double timeoutNanoSecs = 1.e9;
+		
+		setRegisterValue(Linkuino::REQ_ADDR, Linkuino::REQ_NOOP);
+		send();
+		send();
+
+		struct timespec T0, T1;
+		clock_gettime(CLOCK_REALTIME,&T0);
+
+		char reply[16];
+		const int R=12;
+		int l=0;
+		while( l<R )
+		{
+			clock_gettime(CLOCK_REALTIME,&T1);
+			if( ((T1.tv_sec-T0.tv_sec)*1.e9+T1.tv_nsec-T0.tv_nsec) > timeoutNanoSecs) { return false; }
+			int n = read(m_fd,reply+l,R-l);
+			if( n>0 ) l += n;
+		}
+		for(int i=0;i<R;i++) if(reply[i]==0) reply[i]=' ';
+		reply[R-1]='\0';
+
+		setRegisterValue(Linkuino::REQ_ADDR, Linkuino::REQ_REV);
+		send();
+		send();
+
+		l=0;
+		while( l<R )
+		{
+			if( ((T1.tv_sec-T0.tv_sec)*1.e9+T1.tv_nsec-T0.tv_nsec) > timeoutNanoSecs) { return false;	}
+			int n = read(m_fd,reply+l,R-l);
+			if( n>0 ) l += n;
+		}
+		reply[R-1]='\0';
+
+		l=0;
+		while( reply[l]!=Linkuino::REQ_REV && l<R ) ++l;
+		if( l>=(R-2) || reply[l]!=Linkuino::REQ_REV ) { return false; }
+		m_serverMajor = reply[l+1];
+		m_serverMinor = reply[l+2];
+		return true;
+	}
+
 	inline void printBuffer()
 	{
 		for(int i=0;i<16;i++)
@@ -88,8 +164,11 @@ struct LinkuinoClient
   private:
 
 	int m_fd;
+	int m_serverMajor;
+	int m_serverMinor;
 	uint8_t m_buffer[Linkuino::CMD_COUNT];
 	uint8_t m_timeStamp;
+	bool m_pwmEnabled[Linkuino::PWM_COUNT];
 };
 
 #endif

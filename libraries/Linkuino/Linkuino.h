@@ -105,6 +105,10 @@ struct LinkuinoT /* Server */
 
 	static constexpr uint16_t PWM_UNREACHABLE_VALUE = 16383;
 
+	/*************** Server version ********************/
+	static constexpr uint8_t REV_MAJOR = 0;
+	static constexpr uint8_t REV_MINOR = 9;
+
 	/**************** Communication settings ***********/
 	static constexpr uint8_t PWM_COUNT   			= 6;
 	static constexpr uint8_t ANALOG_COUNT 			= 6;
@@ -167,6 +171,7 @@ struct LinkuinoT /* Server */
 	static constexpr uint8_t REQ_DBG5_READ 		= 0x26;
 	
 	static constexpr uint8_t REQ_RESET		  	= 0x30;
+	static constexpr uint8_t REQ_REV		  	= 0x31;
 	static constexpr uint8_t REQ_NOOP		  	= 0x3F;
 	static constexpr uint8_t REQ_NULL		  	= 0xFF;
 
@@ -199,7 +204,7 @@ struct LinkuinoT /* Server */
 			m_pwm[i] = 1250;
 		}
 		m_buffer[DOUT_ADDR] = 0;
-		m_buffer[REQ_ADDR] = 255;
+		m_buffer[REQ_ADDR] = REQ_NULL;
 		m_buffer[PWMSMTH_ADDR] = 0;
 		
 		m_reply[0] = 'O';
@@ -292,9 +297,11 @@ struct LinkuinoT /* Server */
 		// check received data is complete
 		if( ! receiveComplete() )
 		{
+			/* No : repeat last reply unitl we get another valid request
 			m_reply[0]='N';
 			m_reply[1]='D';
 			m_reply[2]='\n';
+			*/
 			return;
 		}
 
@@ -328,27 +335,30 @@ struct LinkuinoT /* Server */
 		m_din = ( m_digitalInput.Get() >> DInPortFirstBit ) & m_dinMask;
 
 		uint8_t req = m_buffer[REQ_ADDR];
-		if( req!=REQ_NOOP )
+		if( req <= REQ_PWM5_DISABLE )
 		{
-			if( req <= REQ_PWM5_DISABLE )
-			{
-				uint8_t pwmi = req;
-				m_pwmPortMask &= ~ (1<<(pwmi+PWMPortFirstBit));
-			}
-			else if( req <= REQ_PWM5_ENABLE)
-			{
-				uint8_t pwmi = req - REQ_PWM0_ENABLE;
-				m_pwmPortMask |= 1<<(pwmi+PWMPortFirstBit);
-				m_pwmPortMask &= PWMPortMask;
-			}
-			else if( req == REQ_DIGITAL_READ )
-			{
-				m_reply[0] = REQ_DIGITAL_READ;
-				m_reply[1] = m_din;
-				m_reply[2] = 0;
-			}
+			uint8_t pwmi = req;
+			m_pwmPortMask &= ~ (1<<(pwmi+PWMPortFirstBit));
 		}
-		else
+		else if( req <= REQ_PWM5_ENABLE)
+		{
+			uint8_t pwmi = req - REQ_PWM0_ENABLE;
+			m_pwmPortMask |= 1<<(pwmi+PWMPortFirstBit);
+			m_pwmPortMask &= PWMPortMask;
+		}
+		else if( req == REQ_DIGITAL_READ )
+		{
+			m_reply[0] = REQ_DIGITAL_READ;
+			m_reply[1] = m_din;
+			m_reply[2] = 0;
+		}
+		else if( req == REQ_REV )
+		{
+			m_reply[0] = REQ_REV;
+			m_reply[1] = REV_MAJOR;
+			m_reply[2] = REV_MINOR;
+		}
+		else if( req==REQ_NOOP )
 		{
 			m_reply[0]='O';
 			m_reply[1]='k';
