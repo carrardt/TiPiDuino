@@ -47,8 +47,8 @@ generate_avr_firmware(
 # Simple input/output test for HW Serial port not using interrupts
 #====================================================================#
 generate_avr_firmware(
-	HWSerialTest2
-    SRCS HWSerialTest2.cpp
+	HWSerialNoIntTest
+    SRCS HWSerialNoIntTest.cpp
     LIBS HWSerialNoInt BasicIO AvrApp
     )
 

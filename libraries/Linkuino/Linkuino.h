@@ -114,8 +114,9 @@ struct LinkuinoT /* Server */
 	static constexpr uint8_t ANALOG_COUNT 			= 6;
 	static constexpr uint8_t CMD_COUNT 	 			= 16;
 	static constexpr uint8_t REPLY_BUFFER_SIZE 		= 2;
-	static constexpr uint16_t SERIAL_SPEED 			= 57600;
-	static constexpr uint16_t PACKET_BYTES      	= 64; //SERIAL_SPEED/1000; // 8+2 bits / byte, @ 57600 Bauds, to cover 10ms => 57.6 bytes
+	static constexpr uint32_t SERIAL_SPEED 			= 115200;
+	static constexpr uint32_t PACKET_BYTES      	= SERIAL_SPEED/1000; //SERIAL_SPEED/1000; // 8+2 bits / byte, @ 57600 Bauds, to cover 10ms => 57.6 bytes
+	static constexpr uint32_t MESSAGE_REPEATS      	= (PACKET_BYTES+CMD_COUNT-1)/CMD_COUNT; //SERIAL_SPEED/1000; // 8+2 bits / byte, @ 57600 Bauds, to cover 10ms => 57.6 bytes
 
 	/******** Input register addresses **********/
 	static constexpr uint8_t TSTMP_ADDR 	= 0x00;

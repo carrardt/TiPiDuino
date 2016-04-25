@@ -18,7 +18,7 @@ InputStream cin;
 
 void setup()
 {
-	serialIO.m_rawIO.begin(57600);
+	serialIO.m_rawIO.begin(115200);
 	cout.begin( &serialIO );
 	cin.begin( &serialIO );
 	cout<<"Ready"<<endl;

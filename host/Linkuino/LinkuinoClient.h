@@ -17,7 +17,7 @@ using Linkuino = LinkuinoT<>;
 
 struct LinkuinoClient
 {
-	static constexpr int PacketRepeatCount = (Linkuino::PACKET_BYTES+Linkuino::CMD_COUNT-1) / Linkuino::CMD_COUNT ;
+	static constexpr int PacketRepeatCount = Linkuino::MESSAGE_REPEATS ;
 	
 	inline LinkuinoClient(int fd)
 		: m_fd(fd)
@@ -48,7 +48,7 @@ struct LinkuinoClient
 		struct termios serialConfig;
 		tcgetattr(serial_fd,&serialConfig);
 		cfmakeraw(&serialConfig);
-		cfsetspeed(&serialConfig, 57600);
+		cfsetspeed(&serialConfig, Linkuino::SERIAL_SPEED );
 		tcsetattr(serial_fd,TCSANOW,&serialConfig);
 		return serial_fd;
 	}
@@ -155,7 +155,13 @@ struct LinkuinoClient
 	
 	inline void send()
 	{
-		for(int i=0;i<PacketRepeatCount;i++) { write(m_fd,m_buffer,Linkuino::CMD_COUNT); }
+		struct timespec st = { 0 , 80000 };
+		for(int i=0;i<PacketRepeatCount;i++)
+		{
+			write(m_fd,m_buffer,Linkuino::CMD_COUNT);
+			fsync(m_fd);
+			nanosleep( &st , &st );
+		}
 		write(m_fd,m_buffer,1); // finish with a timestamp marker
 		fsync(m_fd);
 		updateTimeStamp();

@@ -9,6 +9,8 @@ int main(int argc, char* argv[])
 {
 	if(argc<2) { fprintf(stderr,"Usage: %s /dev/ttySomething\n",argv[0]); return 1; }
 
+	std::cout<<"Speed="<<Linkuino::SERIAL_SPEED<<", repeats="<<LinkuinoClient::PacketRepeatCount<<'\n';
+
 	int serial_fd = LinkuinoClient::openSerialDevice( argv[1] );
 	if( serial_fd < 0 ) { fprintf(stderr,"can't open device '%s'\n",argv[1]); return 1; }
 	LinkuinoClient link( serial_fd );
@@ -39,7 +41,8 @@ int main(int argc, char* argv[])
 			}
 			//link.printBuffer();
 			link.send();
-			t += 0.001;
+			//link.send();
+			t += 0.0001;
 		}
 	}
 	else if( cmd=='d' )

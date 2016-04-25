@@ -59,9 +59,8 @@ static Linkuino li;
 
 void setup()
 {
-	serialIO.m_rawIO.begin(57600);
+	serialIO.m_rawIO.begin(Linkuino::SERIAL_SPEED);
 	cout.begin(&serialIO);
-	//pwm.SetOutput();
 	cout<<"Linkuino"<<endl;
 	cout<<"Tt="<<ts.tickTime()<<"nS"<<endl;
 	cout<<"Tf="<<ts.maxFuncTime()<<"uS"<<endl;
