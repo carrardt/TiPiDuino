@@ -12,7 +12,7 @@ void setup() {
   // initialize digital pin 13 as an output.
   pinMode(CLK_PIN, OUTPUT);
   pinMode(LED_PIN, OUTPUT);
-  DDRB |= 0x03;
+  //DDRB |= 0x03;
   cli();
 }
 
@@ -21,9 +21,9 @@ void loop() {
   static uint16_t counter = 0;
   static uint8_t tick = 0;
   uint8_t tock = (TCNT0>>7) & 0x01;
-  //digitalWrite(CLK_PIN, tock  );   // turn the LED on (HIGH is the voltage level)
+  digitalWrite(CLK_PIN, tock  );   // turn the LED on (HIGH is the voltage level)
   counter += tick^tock;
-  //digitalWrite(LED_PIN, (counter>>10) & 0x01  );
+  digitalWrite(LED_PIN, (counter>>10) & 0x01  );
   tick = tock;
-  PORTB = ( (counter>>10) & 0x02 ) | tock;
+  //PORTB = ( (counter>>10) & 0x02 ) | tock;
 }
