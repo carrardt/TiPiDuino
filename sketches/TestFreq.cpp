@@ -1,3 +1,6 @@
+#include <avr/io.h>
+#include <avr/interrupt.h>
+
 /*
  * Test de fréquence pour l'ATtiny85 (ou autre)
  * 1. Graver la séquence d'initialisation avec la config voulue (i.e. 8Mhz internal clock, etc.)
@@ -10,8 +13,8 @@
 // the setup function runs once when you press reset or power the board
 void setup() {
   // initialize digital pin 13 as an output.
-  pinMode(CLK_PIN, OUTPUT);
-  pinMode(LED_PIN, OUTPUT);
+  //pinMode(CLK_PIN, OUTPUT);
+  //pinMode(LED_PIN, OUTPUT);
   DDRB |= 0x03;
   cli();
 }

@@ -7,7 +7,7 @@ using namespace avrtl;
 
 #define TRIGGER_PIN 3
 #define ECHO_PIN 2
-#define PWM_PIN 13
+#define PWM_PIN 4
 
 #define SMOOTHING 2 // 0,1,2 or 3 level of input value smoothing
 

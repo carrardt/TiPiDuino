@@ -21,8 +21,10 @@ struct AvrTimer0
 	{
 		saved_TCCR0A = TCCR0A;
 		saved_TCCR0B = TCCR0B;
+#ifdef TIMSK0
 		saved_TIMSK0 = TIMSK0;
 		TIMSK0 = 0;
+#endif
 		TCCR0A = 0;
 		TCCR0B = 0b00000010 ; // this set prescaler to 8
 		return TCNT0;
@@ -32,7 +34,9 @@ struct AvrTimer0
 	{
 		TCCR0A = saved_TCCR0A;
 		TCCR0B = saved_TCCR0B;
+#ifdef TIMSK0
 		TIMSK0 = saved_TIMSK0;
+#endif
 	}
 	
 	static inline TimerCounterType counter() { return TCNT0; }
@@ -46,8 +50,8 @@ struct AvrTimer1
 	using TimerCounterType = uint16_t;
 	static constexpr uint32_t TimerCounterResolution = 65536;
 	static constexpr uint32_t TimerCounterMax = TimerCounterResolution - 1;
-	static constexpr uint32_t TimerPrescaler = _Prescaler8 ? 8 : 1;
 	
+	static constexpr uint32_t TimerPrescaler = _Prescaler8 ? 8 : 1;
 	static constexpr uint32_t ClockMhz = F_CPU / 1000000UL;
 	static constexpr uint32_t NanoSecPerTick = ( 1000UL * TimerPrescaler ) / ClockMhz;
 	static constexpr uint32_t TicksPerMilliSec = ( F_CPU / TimerPrescaler ) / 1000UL;
@@ -55,24 +59,33 @@ struct AvrTimer1
 
 	inline TimerCounterType start()
 	{
-		saved_TCCR1A = TCCR1A;
-		saved_TCCR1B = TCCR1B;
-		saved_TCCR1C = TCCR1C;
-		saved_TIMSK1 = TIMSK1;
-		TIMSK1 = 0;
-		TCCR1A = 0;
-		TCCR1C = 0;
-		// this set prescaler to 8 or 1
-		TCCR1B = (TimerPrescaler==8) ? 0b00000010 : 0b00000001;
+		
+#		ifdef TCCR1 // this is certainly an attinyx5, set bits accordingly
+			saved_TCCR1A = TCCR1;
+			TCCR1 = (TimerPrescaler==8) ? 0b00000100 : 0b00000001;
+#		else
+			saved_TCCR1A = TCCR1A;
+			saved_TCCR1B = TCCR1B;
+			saved_TCCR1C = TCCR1C;
+			saved_TIMSK1 = TIMSK1;
+			TIMSK1 = 0;
+			TCCR1A = 0;
+			TCCR1C = 0;
+			TCCR1B = (TimerPrescaler==8) ? 0b00000010 : 0b00000001;
+#		endif
 		return TCNT1;
 	}
 	
 	inline void stop()
 	{
-		TCCR1A = saved_TCCR1A;
-		TCCR1B = saved_TCCR1B;
-		TCCR1C = saved_TCCR1C;
-		TIMSK1 = saved_TIMSK1;
+#		ifdef TCCR1 
+			TCCR1 = saved_TCCR1A;
+#		else
+			TCCR1A = saved_TCCR1A;
+			TCCR1B = saved_TCCR1B;
+			TCCR1C = saved_TCCR1C;
+			TIMSK1 = saved_TIMSK1;
+#		endif
 	}
 	
 	static inline TimerCounterType counter() { return TCNT1; }

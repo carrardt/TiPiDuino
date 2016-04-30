@@ -1,3 +1,12 @@
-parameters used to flash ATtiny85 using an Arduino as ISP :
-avrdude -v -pattiny85 -cstk500v1 -P/dev/ttyACM0 -b19200 -Uflash:w:TestFreq.ino.tiny8.hex:i
+For ATtiny85 &co, dont use the 'make target-upload' from arduino-cmake.
+1. burn the bootloader from Arduino IDE
+2. use the following shell function to flash the ATtiny using an Arduino UNO like board as an ISP.
+tn85upload()
+{
+  avrdude -v -pattiny85 -cstk500v1 -P/dev/ttyACM0 -b19200 -Uflash:w:$1:i
+}
+
+exemple :
+
+tn85upload mysketch.hex
 

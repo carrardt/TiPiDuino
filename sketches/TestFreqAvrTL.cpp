@@ -1,3 +1,7 @@
+#include <AvrTL.h>
+#include <AvrTLPin.h>
+#include <avr/interrupt.h>
+
 /*
  * Test de fréquence pour l'ATtiny85 (ou autre)
  * 1. Graver la séquence d'initialisation avec la config voulue (i.e. 8Mhz internal clock, etc.)
@@ -7,12 +11,15 @@
  */
 #define CLK_PIN 0
 #define LED_PIN 1
+
+auto clk = avrtl::StaticPin<CLK_PIN>();
+auto led = avrtl::StaticPin<LED_PIN>();
+
 // the setup function runs once when you press reset or power the board
-void setup() {
-  // initialize digital pin 13 as an output.
-  pinMode(CLK_PIN, OUTPUT);
-  pinMode(LED_PIN, OUTPUT);
-  DDRB |= 0x03;
+void setup()
+{
+  clk.SetOutput();
+  led.SetOutput();
   cli();
 }
 
@@ -21,9 +28,8 @@ void loop() {
   static uint16_t counter = 0;
   static uint8_t tick = 0;
   uint8_t tock = (TCNT0>>7) & 0x01;
-  //digitalWrite(CLK_PIN, tock  );   // turn the LED on (HIGH is the voltage level)
   counter += tick^tock;
-  //digitalWrite(LED_PIN, (counter>>10) & 0x01  );
   tick = tock;
-  PORTB = ( (counter>>10) & 0x02 ) | tock;
+  clk.Set( tock );
+  led.Set( (counter>>10) & 0x01 );
 }

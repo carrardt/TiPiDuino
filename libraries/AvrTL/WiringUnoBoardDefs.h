@@ -53,6 +53,7 @@
 /*************************************************************
  * Pin to register mapping macros
  *************************************************************/
+#if defined(DDRD) && defined(PIND) && defined(PORTD) && defined(DDRC) && defined(PINC) && defined(PORTC) 
 
 #define WdigitalPinToPortReg(PIN) \
         ( ((PIN) >= 0  && (PIN) <= 7)  ? &PORTD : \
@@ -92,6 +93,14 @@
 #define A3 17
 #define A4 18
 #define A5 19
+
+#else // probably an attiny85
+#define WdigitalPinToPort(PORT) 	0
+#define WportModeRegister(PORT) 	&DDRB
+#define WportOutputRegister(PORT) 	&PORTB
+#define WportInputRegister(PORT) 	&PINB
+#define WdigitalPinToBit(PIN) 	 	PIN
+#endif
 
 #endif
 // BOARDDEFS_H

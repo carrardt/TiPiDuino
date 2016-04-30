@@ -1,17 +1,33 @@
+//#define RFCAR_SERIAL_DEBUG 1
+#define RFCAR_ATTINY_PINS 1
+
+
 #include <AvrTL.h>
 #include <AvrTLPin.h>
 #include "RFSniffer/RFSnifferProtocol.h"
-#include "HWSerialNoInt/HWSerialNoInt.h"
 #include "TimeScheduler/TimeScheduler.h"
+
+#ifdef RFCAR_SERIAL_DEBUG
+#include "HWSerialNoInt/HWSerialNoInt.h"
+#endif
 
 using namespace avrtl;
 
-#define LEFT_MOTOR_PIN 2
+#ifdef RFCAR_ATTINY_PINS
+#define LEFT_MOTOR_PIN 	0
+#define RIGHT_MOTOR_PIN 1
+#define RF_RECEIVE_PIN 	2
+#define RIGHT_SPEED_PIN 3
+#define LEFT_SPEED_PIN 	4
+#else
+#define LEFT_MOTOR_PIN 	2
 #define RIGHT_MOTOR_PIN 3
-#define RF_RECEIVE_PIN 8
+#define RF_RECEIVE_PIN 	8
 #define RIGHT_SPEED_PIN 9
 #define LEFT_SPEED_PIN 10
-#define LED_PIN 13
+#define LED_PIN 	   13
+#endif
+
 #define TICKS_PER_ROUND 20
 
 auto LeftWheel = StaticPin<LEFT_MOTOR_PIN>();
@@ -19,11 +35,15 @@ auto leftSpeed = StaticPin<LEFT_SPEED_PIN>();
 auto RightWheel = StaticPin<RIGHT_MOTOR_PIN>();
 auto rightSpeed = StaticPin<RIGHT_SPEED_PIN>();
 auto rf_rx = StaticPin<RF_RECEIVE_PIN>();
-auto led = StaticPin<LED_PIN>();
 RFSnifferProtocol remote;
 
+#ifdef RFCAR_SERIAL_DEBUG
+auto led = StaticPin<LED_PIN>();
 ByteStreamAdapter<HWSerialNoInt,100000UL> serialIO;
 PrintStream cout;
+#else
+auto led = NullPin();
+#endif
 
 using Scheduler = TimeSchedulerT<AvrTimer1<> >;
 static Scheduler ts;
@@ -55,9 +75,11 @@ void setup()
 	cli();
 	ts.start();
 	
+#	ifdef RFCAR_SERIAL_DEBUG
 	serialIO.m_rawIO.begin(57600);
 	cout.begin( &serialIO );
 	cout<<"Ready"<<endl;
+#	endif
 }
 
 static uint32_t turnWheels(int LCount, int RCount)
@@ -124,6 +146,7 @@ void loop()
 			turnWheels(128,128);
 			turnWheels(128,0);
 			break;
+#		ifdef RFCAR_SERIAL_DEBUG
 		case 130:
 			uint32_t lspeed = turnWheels(256,0);
 			uint32_t lsi = lspeed / TICKS_PER_ROUND;
@@ -135,6 +158,7 @@ void loop()
 			uint32_t rsf = ( (rspeed*100) / TICKS_PER_ROUND ) % 100;
 			cout << "Right RPM = "<<rsi<<'.'<<rsf<<endl;
 			break;
+#		endif
 	}
 }
 

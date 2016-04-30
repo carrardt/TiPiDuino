@@ -4,12 +4,16 @@
 add_subdirectory(AvrTL)
 add_subdirectory(TimeScheduler)
 add_subdirectory(SoftSerial)
-add_subdirectory(HWSerial)
-add_subdirectory(HWSerialNoInt)
+if(NOT "${ARDUINO_DEFAULT_BOARD}" MATCHES "attiny85.*" )
+	add_subdirectory(HWSerial) # to be removed once port to noint version is done
+	add_subdirectory(HWSerialNoInt)
+endif()
 add_subdirectory(AvrApp)
 add_subdirectory(BasicIO)
 add_subdirectory(LCD1602)
-add_subdirectory(LCD12864)
+if(NOT "${ARDUINO_DEFAULT_BOARD}" MATCHES "attiny85.*" )
+	add_subdirectory(LCD12864) # Needs to be ported for attiny compatibility
+endif()
 add_subdirectory(RFSniffer)
 add_subdirectory(Linkuino)
 
