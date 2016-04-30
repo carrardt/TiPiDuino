@@ -1,0 +1,3 @@
+parameters used to flash ATtiny85 using an Arduino as ISP :
+avrdude -v -pattiny85 -cstk500v1 -P/dev/ttyACM0 -b19200 -Uflash:w:TestFreq.ino.tiny8.hex:i
+
