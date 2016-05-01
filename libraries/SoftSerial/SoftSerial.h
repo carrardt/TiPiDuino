@@ -2,13 +2,11 @@
 #define __TIDUINO_SoftSerial_h
 
 #include <stdint.h>
-#include <BasicIO/ByteStream.h>
-#include <AvrTL/AvrTL.h>
-#include <AvrTL/AvrTLPin.h>
 #include <TimeScheduler/TimeScheduler.h>
+#include <AvrTL/WiringUnoBoardDefs.h>
 
 template<typename _RxPinT, typename _TxPinT, uint32_t _BaudRate = 9600>
-struct SoftSerialIO : public ByteStream
+struct SoftSerialIO 
 {
 	using RxPin = _RxPinT;
 	using TxPin = _TxPinT;
@@ -30,9 +28,7 @@ struct SoftSerialIO : public ByteStream
 		tx = HIGH;
 	}
 
-	virtual const char* endline() const { return "\n\r"; }
-
-	virtual uint8_t readByte()
+	inline uint8_t readByte()
 	{
 	  uint8_t C = 0;
 	  ts.start();
@@ -51,7 +47,7 @@ struct SoftSerialIO : public ByteStream
 	  return C;
 	}
 	
-	virtual bool writeByte(uint8_t b)
+	inline bool writeByte(uint8_t b)
 	{
 	  ts.start();
 	  ts.exec( 64, [](){} ); // just to absorb startup time

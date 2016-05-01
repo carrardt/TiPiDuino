@@ -43,6 +43,15 @@ generate_avr_firmware(
 	LIBS AvrApp
 	)
 
+#====================================================================#
+# DC motor controller, taking inputs from soft-serial input
+#====================================================================#
+generate_avr_firmware(
+	DCMotorController
+	SRCS DCMotorController.cpp
+	LIBS SoftSerial AvrTL AvrApp
+	)
+
 if(NOT "${ARDUINO_DEFAULT_BOARD}" MATCHES "attiny85.*" )
 #====================================================================#
 # Keypad test

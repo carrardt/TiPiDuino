@@ -1,6 +1,8 @@
-#include <AvrTL.h>
 #include <SoftSerial.h>
+#include <BasicIO/ByteStream.h>
 #include <BasicIO/PrintStream.h>
+#include <AvrTL.h>
+#include <AvrTLPin.h>
 
 using namespace avrtl;
 
@@ -35,14 +37,15 @@ static auto tx = StaticPin<TX_PIN>();
  * 57600 : Tx Ok, Rx _NOT_ Ok
  */
 
-static auto serialIO = make_softserial<38400>(rx,tx);
-PrintStream cout;
+static auto rawSerialIO = make_softserial<38400>(rx,tx);
+static ByteStreamAdapter<decltype(rawSerialIO),100000UL> serialIO = { rawSerialIO };
+static PrintStream cout;
 
 void setup()
 {
 	cli();
 	led.SetOutput();
-	serialIO.begin();
+	serialIO.m_rawIO.begin();
 	cout.begin( &serialIO );
 	cout<<"F_CPU="<<F_CPU<<endl;
 	cout<<"Ready"<<endl;
@@ -58,9 +61,9 @@ void loop()
 	++ counter;
 	*/
 	
-	char buf[32];
+	char buf[64];
 	uint8_t i=0;
-	while( ( buf[i]=serialIO.readByte() ) != '\n' && i<32 ) ++i;
+	while( ( buf[i]=serialIO.readByte() ) != '\n' && i<63 ) ++i;
 	buf[i]='\0';
 	cout<<counter<<':'<<buf<<endl;
 	++ counter;

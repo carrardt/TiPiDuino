@@ -6,6 +6,6 @@ generate_arduino_library(
 	SoftSerial
 	SRCS SoftSerial.cpp
     HDRS SoftSerial.h
-    LIBS BasicIO TimeScheduler AvrTL
+    LIBS TimeScheduler AvrTL
     NO_AUTOLIBS MANUAL
 	)

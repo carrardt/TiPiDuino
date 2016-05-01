@@ -94,7 +94,7 @@
 #define A4 18
 #define A5 19
 
-#else // probably an attiny85
+#else // probably an attiny85, but this should be cleaner
 #define WdigitalPinToPort(PORT) 	0
 #define WportModeRegister(PORT) 	&DDRB
 #define WportOutputRegister(PORT) 	&PORTB

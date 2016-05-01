@@ -44,13 +44,16 @@ struct AvrTimer0
 	uint8_t saved_TCCR0A, saved_TCCR0B, saved_TIMSK0;
 };
 
+
+// Warning! : it seems it doesn't work on ATtiny85, needs investigation. for ATtiny, use only Timer0.
+#if defined(TCCR1A) && defined(TCCR1B) && defined(TCCR1C) && defined(TIMSK1) 
 template<bool _Prescaler8 = true>
 struct AvrTimer1
 {
 	using TimerCounterType = uint16_t;
 	static constexpr uint32_t TimerCounterResolution = 65536;
 	static constexpr uint32_t TimerCounterMax = TimerCounterResolution - 1;
-	
+
 	static constexpr uint32_t TimerPrescaler = _Prescaler8 ? 8 : 1;
 	static constexpr uint32_t ClockMhz = F_CPU / 1000000UL;
 	static constexpr uint32_t NanoSecPerTick = ( 1000UL * TimerPrescaler ) / ClockMhz;
@@ -59,39 +62,32 @@ struct AvrTimer1
 
 	inline TimerCounterType start()
 	{
-		
-#		ifdef TCCR1 // this is certainly an attinyx5, set bits accordingly
-			saved_TCCR1A = TCCR1;
-			TCCR1 = (TimerPrescaler==8) ? 0b00000100 : 0b00000001;
-#		else
-			saved_TCCR1A = TCCR1A;
-			saved_TCCR1B = TCCR1B;
-			saved_TCCR1C = TCCR1C;
-			saved_TIMSK1 = TIMSK1;
-			TIMSK1 = 0;
-			TCCR1A = 0;
-			TCCR1C = 0;
-			TCCR1B = (TimerPrescaler==8) ? 0b00000010 : 0b00000001;
-#		endif
+		saved_TCCR1A = TCCR1A;
+		saved_TCCR1B = TCCR1B;
+		saved_TCCR1C = TCCR1C;
+		saved_TIMSK1 = TIMSK1;
+		TIMSK1 = 0;
+		TCCR1A = 0;
+		TCCR1C = 0;
+		TCCR1B = (TimerPrescaler==8) ? 0b00000010 : 0b00000001;
 		return TCNT1;
 	}
-	
+
 	inline void stop()
 	{
-#		ifdef TCCR1 
-			TCCR1 = saved_TCCR1A;
-#		else
-			TCCR1A = saved_TCCR1A;
-			TCCR1B = saved_TCCR1B;
-			TCCR1C = saved_TCCR1C;
-			TIMSK1 = saved_TIMSK1;
-#		endif
+		TCCR1A = saved_TCCR1A;
+		TCCR1B = saved_TCCR1B;
+		TCCR1C = saved_TCCR1C;
+		TIMSK1 = saved_TIMSK1;
 	}
-	
+
 	static inline TimerCounterType counter() { return TCNT1; }
 
-	uint8_t saved_TCCR1A, saved_TCCR1B, saved_TCCR1C, saved_TIMSK1;
+	uint8_t saved_TCCR1A;
+	uint8_t saved_TCCR1B, saved_TCCR1C, saved_TIMSK1;
 };
+#endif
+
 
 // --- Debugging features ---
 template<typename WallClockT, bool DebugMode>
