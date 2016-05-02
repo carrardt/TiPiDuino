@@ -12,6 +12,11 @@
 #include <BasicIO/PrintStream.h>
 #endif
 
+/*
+ * to send a command :
+	echo "S005R00500E" > /dev/ttyUSB0 
+*/
+
 using namespace avrtl;
 
 #ifdef DCMOTOR_ATTINY_PINS
@@ -61,54 +66,62 @@ void setup()
 // the loop function runs over and over again forever
 void loop()
 {
-	uint8_t commandStart = serialIO.readByte();
-	if( commandStart != 'S' ) return;
-	
-	uint8_t targetTickTime = serialIO.readByte() - '0';
-	uint8_t rotation = serialIO.readByte() - '0';
-	rotation = (rotation+1)*8;
-	targetTickTime = (targetTickTime+1)*8;
+	uint16_t targetTickCount =  0;
+	uint16_t rotation = 0;
+	uint8_t digit=0;
+	while( serialIO.readByte() != 'S' ) ;
+	while( (digit=serialIO.readByte()) != 'R' ) { targetTickCount=targetTickCount*10+digit-'0'; }
+	while( (digit=serialIO.readByte()) != 'E' ) { rotation=rotation*10+digit-'0'; }
 
-	uint8_t commandEnd = serialIO.readByte();
-	if( commandEnd != 'E' ) return;
 	
 #ifdef DCMOTOR_SERIAL_DEBUG
-	cout<<"target="<<targetTickTime<<", rotation="<<rotation<<endl;
+	cout<<"target="<<targetTickCount<<", rotation="<<rotation<<endl;
 #endif
-	
+
 	// turn the wheel of fortune !
 	uint16_t r=0;
-	uint32_t c=0;
-	uint16_t tickTime=0;
-	uint16_t lastTickTime=0;
-	
+	uint16_t tickCount = 0;
+	uint16_t lastTickCount = 0;
+	uint16_t minTickCount = 4096;
+	uint16_t maxTickCount = 0;
+	uint32_t ticks = 0;
+
 	TimeScheduler ts;
-	ts.start();
 	bool s = motorSpeed.Get();
-	motorPWM.Set( r < rotation );
-	while( r<rotation && c<10000 ) // can't run more than 5 Sec (just in case)
+	motorPWM.Set( HIGH );
+	ts.start();
+	while( r<rotation )
 	{
-		ts.exec( 500, [&]()
-			{
-				bool ns = motorSpeed.Get();			
-				if( ns != s )
-				{ 
-					++r;
-					lastTickTime = tickTime;
-					tickTime = 0;
+		ts.exec( 256, [&]()
+		{
+			bool ns = motorSpeed.Get();
+			bool warm = ( r >= 3 ) ;
+			if( ns != s )
+			{ 
+				if( warm )
+				{
+					if( tickCount<minTickCount) minTickCount = tickCount;
+					if( tickCount>maxTickCount) maxTickCount = tickCount;
 				}
-				else { ++tickTime; }
-				s = ns;
-				bool motorPower = r<rotation ;
-				if( tickTime<targetTickTime && lastTickTime<targetTickTime ) motorPower = LOW;
-				motorPWM.Set( motorPower );
-				++c;
-			} );
+				lastTickCount = tickCount;
+				tickCount = 0;
+				++r;
+			}
+			else
+			{ 
+				++tickCount;
+				if( tickCount >= 4096 ) { r = rotation+1; }
+			}
+			s = ns;
+			bool motorState = !warm || lastTickCount>targetTickCount;
+			motorPWM.Set( motorState );
+			++ticks;
+		} );
 	}
-	motorPWM.Set(LOW);
+	motorPWM.Set( LOW );
 	ts.stop();
 
 #ifdef DCMOTOR_SERIAL_DEBUG
-	cout<<"Done: c="<<c<<", r="<<r<<endl;
+	cout<<"min="<<minTickCount<<", max="<<maxTickCount<<", avg="<<ticks/r<<", r="<<r<<endl;
 #endif
 }
