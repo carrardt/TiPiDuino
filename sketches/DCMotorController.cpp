@@ -14,7 +14,9 @@
 
 /*
  * to send a command :
-	echo "S005R00500E" > /dev/ttyUSB0 
+ * echo "S0060R00500E" > /dev/ttyUSB0 
+ * targetTickCount, similar to 1/speed, must be in the range [40;160] (the bigger the slower)
+ * 
 */
 
 using namespace avrtl;
@@ -66,9 +68,23 @@ void setup()
 // the loop function runs over and over again forever
 void loop()
 {
-	uint16_t targetTickCount =  0;
+	static constexpr uint8_t pwmCycleTicks = 64;
+	uint16_t r=0;
+	int16_t tickCount = 0;
+	int16_t lastTickCount = 0;
+	int16_t lastTickDelta = 0;
+	int16_t minTickCount = 4096;
+	int16_t maxTickCount = 0;
+	uint16_t cycles = 0;
+	int16_t targetTickCount =  0;
 	uint16_t rotation = 0;
-	uint8_t digit=0;
+	uint8_t ticks = 0;
+	uint8_t digit = 0;
+	uint8_t pwmDuty = pwmCycleTicks/4;
+	uint8_t minDuty = pwmCycleTicks;
+	uint8_t maxDuty = 0;
+	
+
 	while( serialIO.readByte() != 'S' ) ;
 	while( (digit=serialIO.readByte()) != 'R' ) { targetTickCount=targetTickCount*10+digit-'0'; }
 	while( (digit=serialIO.readByte()) != 'E' ) { rotation=rotation*10+digit-'0'; }
@@ -79,12 +95,6 @@ void loop()
 #endif
 
 	// turn the wheel of fortune !
-	uint16_t r=0;
-	uint16_t tickCount = 0;
-	uint16_t lastTickCount = 0;
-	uint16_t minTickCount = 4096;
-	uint16_t maxTickCount = 0;
-	uint32_t ticks = 0;
 
 	TimeScheduler ts;
 	bool s = motorSpeed.Get();
@@ -96,13 +106,14 @@ void loop()
 		{
 			bool ns = motorSpeed.Get();
 			bool warm = ( r >= 3 ) ;
-			if( ns != s )
+			if( ns && !s )
 			{ 
 				if( warm )
 				{
 					if( tickCount<minTickCount) minTickCount = tickCount;
 					if( tickCount>maxTickCount) maxTickCount = tickCount;
 				}
+				lastTickDelta = tickCount - lastTickCount;
 				lastTickCount = tickCount;
 				tickCount = 0;
 				++r;
@@ -113,15 +124,29 @@ void loop()
 				if( tickCount >= 4096 ) { r = rotation+1; }
 			}
 			s = ns;
-			bool motorState = !warm || lastTickCount>targetTickCount;
+			bool motorState = ( ticks < pwmDuty );
 			motorPWM.Set( motorState );
 			++ticks;
+			if( ticks == pwmCycleTicks )
+			{
+				if(warm)
+				{
+					int16_t targetTickDelta = (targetTickCount - lastTickCount)/4;
+					if( lastTickDelta<targetTickDelta && pwmDuty>1 ) -- pwmDuty;
+					if( lastTickDelta>targetTickDelta && pwmDuty<pwmCycleTicks ) ++ pwmDuty;
+				}
+				if( pwmDuty>maxDuty ) maxDuty=pwmDuty;
+				if( pwmDuty<minDuty ) minDuty=pwmDuty;
+				ticks = 0;
+				++ cycles;
+			}
 		} );
 	}
 	motorPWM.Set( LOW );
 	ts.stop();
 
 #ifdef DCMOTOR_SERIAL_DEBUG
-	cout<<"min="<<minTickCount<<", max="<<maxTickCount<<", avg="<<ticks/r<<", r="<<r<<endl;
+	uint32_t totalTicks = cycles*pwmCycleTicks + ticks;
+	cout<<"ticks="<<totalTicks/r<<'/'<<minTickCount<<'/'<<maxTickCount<<", duty="<<pwmDuty<<'/'<<minDuty<<'/'<<maxDuty<<endl;
 #endif
 }
