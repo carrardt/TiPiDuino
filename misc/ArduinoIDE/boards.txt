@@ -584,3 +584,22 @@ attiny85i8.build.mcu=attiny85
 attiny85i8.build.variant=tiny8
 attiny85i8.build.f_cpu=8000000L
 
+##############################################################
+attiny85e16.name=ATtiny85 (external 16Mhz clock)
+attiny85e16.bootloader.tool=arduino:avrdude
+attiny85e16.bootloader.unlock_bits=0xff
+attiny85e16.bootloader.lock_bits=0xff
+attiny85e16.bootloader.low_fuses=0xe2
+attiny85e16.bootloader.high_fuses=0xdf
+attiny85e16.bootloader.extended_fuses=0xff
+attiny85e16.bootloader.path=atmega8
+attiny85e16.bootloader.file=ATmegaBOOT.hex
+attiny85e16.upload.maximum_size=8192
+attiny85e16.upload.speed=19200
+attiny85e16.upload.protocol=stk500v1
+attiny85e16.build.core=arduino
+attiny85e16.build.board=attiny
+attiny85e16.build.mcu=attiny85
+attiny85e16.build.variant=tiny8
+attiny85e16.build.f_cpu=16000000L
+
