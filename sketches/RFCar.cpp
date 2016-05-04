@@ -45,8 +45,8 @@ PrintStream cout;
 auto led = NullPin();
 #endif
 
-using Scheduler = TimeSchedulerT<AvrTimer1<> >;
-static Scheduler ts;
+//using Scheduler = TimeSchedulerT<AvrTimer1<> >;
+static TimeScheduler ts;
 
 void setup()
 {
