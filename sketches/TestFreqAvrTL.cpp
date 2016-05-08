@@ -9,8 +9,8 @@
  * 3. mesurer la durée d'un créneau à l'oscilo. par exemple T = 0.0005 sec (500uS)
  * 4. Fréquence d'horloge = 8192 / T
  */
-#define CLK_PIN 0
-#define LED_PIN 1
+#define CLK_PIN 8
+#define LED_PIN 13
 
 auto clk = avrtl::StaticPin<CLK_PIN>();
 auto led = avrtl::StaticPin<LED_PIN>();
