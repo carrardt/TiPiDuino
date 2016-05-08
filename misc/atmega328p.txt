@@ -1,0 +1,7 @@
+m328upload()
+{
+        avrdude -v -pm328p -cstk500v1 -P/dev/ttyACM0 -b19200 -Uflash:w:$1:i
+}
+
+# Exemple: m328upload mySketch.hex
+
