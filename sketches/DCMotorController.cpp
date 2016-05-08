@@ -14,28 +14,26 @@
 
 /*
  * to send a command :
- * echo "S0060R00500E" > /dev/ttyUSB0 
+ * echo "R0040r00200L0040l00200" > /dev/ttyUSB0
  * targetTickCount, similar to 1/speed, must be in the range [40;160] (the bigger the slower)
  * 
- * deceleration :
- * step period		steps to stop
- * 40 				18
- * 50				12
- * 70				8
- * 140+				2
+ *   ATtiny85 wiring
+ *         __
+ *   RST -|v |- VCC
+ * R PWM -|  |- Left speed encoder (input)
+ * L PWM -|  |- Right speed encoder (input)
+ *   GND -|__|- RX 
  * 
- * i = max( rotation-targetRotation+20 , 0 )
- * minimum step period is : 32+64*i
 */
 
 using namespace avrtl;
 
 #ifdef DCMOTOR_ATTINY_PINS
-#define motorRight_PWM_PIN  	3
-#define motorLeft_PWM_PIN  		4
+#define RX_PIN 		    		0
 #define motorRight_SPEED_PIN 	1
 #define motorLeft_SPEED_PIN 	2
-#define RX_PIN 		    		0
+#define motorRight_PWM_PIN  	3
+#define motorLeft_PWM_PIN  		4
 #else
 #define motorRight_PWM_PIN  8
 #define motorLeft_PWM_PIN  9
@@ -146,9 +144,26 @@ void loop()
 			}
 			leftEncoder = encL;
 			bool warmL = ( rotationL >= 4 ) ;
-			
+						
 			motorRightPWM.Set( ticks<pwmDutyR && rotationR<targetRotationR );
 			motorLeftPWM.Set( ticks<pwmDutyL && rotationL<targetRotationL );
+
+			// speed limitation when close to target rotation
+			int16_t stepsBeforeEndL = targetRotationL - rotationL;
+			if( stepsBeforeEndL <= 32 )
+			{
+				int16_t i = 32 - stepsBeforeEndL;
+				int16_t minTicksL = 64+4*i;
+				if( minTicksL > targetTickCountL ) targetTickCountL = minTicksL;
+			}
+			int16_t stepsBeforeEndR = targetRotationR - rotationR;
+			if( stepsBeforeEndR <= 32 )
+			{
+				int16_t i = 32 - stepsBeforeEndR;
+				int16_t minTicksR = 64+4*i;
+				if( minTicksR > targetTickCountR ) targetTickCountR = minTicksR;
+			}
+
 			++ticks;
 			if( ticks == pwmCycleTicks )
 			{
