@@ -35,10 +35,15 @@ static auto tx = StaticPin<TX_PIN>();
  * 9200 : Tx Ok, Rx Ok
  * 38400 : Tx Ok, Rx Ok
  * 57600 : Tx Ok, Rx Ok
- * 115200 :
+ * 115200 : not working at all 
+ * 
+ * Tested using the following command line :
+ * for i in `seq 1000`; do echo "Numéro $i s'affiche sans complexe                        543210" ; sleep 1 ; done > /dev/ttyUSB0
  */
 
-static auto rawSerialIO = make_softserial<57600>(rx,tx);
+using SerialScheduler = TimeSchedulerT<AvrTimer0NoPrescaler>;
+static auto rawSerialIO = make_softserial_hr<57600,SerialScheduler>(rx,tx);
+
 static ByteStreamAdapter<decltype(rawSerialIO),100000UL> serialIO = { rawSerialIO };
 static PrintStream cout;
  
@@ -50,6 +55,7 @@ void setup()
 	cout.begin( &serialIO );
 	cout<<"F_CPU="<<F_CPU<<endl;
 	cout<<"Ready"<<endl;
+	serialIO.m_rawIO.ts.start();
 }
 
 static uint32_t counter = 0;
@@ -64,8 +70,9 @@ void loop()
 	
 	char buf[64];
 	uint8_t i=0;
-	while( ( buf[i]=serialIO.readByte() ) != '\n' && i<63 ) ++i;
-	buf[i]='\0';
+//	while( ( buf[i]=serialIO.readByte() ) != '\n' && i<63 ) ++i;
+	for(uint8_t i=0;i<64;i++) { buf[i]=serialIO.m_rawIO.readByteFast(); }
+	buf[63]='\0';
 	cout<<counter<<':'<<buf<<endl;
 	++ counter;
 	
