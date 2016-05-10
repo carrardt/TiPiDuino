@@ -14,7 +14,7 @@ using namespace avrtl;
 
 #define RX_PIN 3
 #define TX_PIN 4
-#define LED_PIN 1
+#define LED_PIN 2
 
 static auto led = StaticPin<LED_PIN>();
 static auto rx = StaticPin<RX_PIN>();
@@ -34,13 +34,14 @@ static auto tx = StaticPin<TX_PIN>();
  * 9600 : Tx Ok, Rx Ok
  * 9200 : Tx Ok, Rx Ok
  * 38400 : Tx Ok, Rx Ok
- * 57600 : Tx Ok, Rx _NOT_ Ok
+ * 57600 : Tx Ok, Rx Ok
+ * 115200 :
  */
 
-static auto rawSerialIO = make_softserial<38400>(rx,tx);
+static auto rawSerialIO = make_softserial<57600>(rx,tx);
 static ByteStreamAdapter<decltype(rawSerialIO),100000UL> serialIO = { rawSerialIO };
 static PrintStream cout;
-
+ 
 void setup()
 {
 	cli();

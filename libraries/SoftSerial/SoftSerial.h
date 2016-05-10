@@ -11,9 +11,11 @@ struct SoftSerialIO
 	using RxPin = _RxPinT;
 	using TxPin = _TxPinT;
 	static constexpr uint32_t BaudRate = _BaudRate;
+	static constexpr uint32_t bitDelay( uint32_t i )
+	{
+		return ( ((i+1)*1000000UL) / BaudRate ) - ( (i*1000000UL) / BaudRate );
+	}
 	static constexpr uint32_t bitPeriod = 1000000UL / BaudRate;
-	static constexpr uint32_t timeShift = bitPeriod + bitPeriod/4;
-	static constexpr uint32_t byteGap = bitPeriod/4;
 
 	TimeScheduler ts;
 	RxPin rx;
@@ -32,35 +34,41 @@ struct SoftSerialIO
 	{
 	  uint8_t C = 0;
 	  ts.start();
-	  while( rx.Get() ) ts.reset();
-	  ts.exec( timeShift, [](){} );
-	  ts.exec( bitPeriod, [this,&C](){ uint8_t bit=rx.Get(); C=(C>>1)|(bit<<7); } );	  
-	  ts.exec( bitPeriod, [this,&C](){ uint8_t bit=rx.Get(); C=(C>>1)|(bit<<7); } );	  
-	  ts.exec( bitPeriod, [this,&C](){ uint8_t bit=rx.Get(); C=(C>>1)|(bit<<7); } );	  
-	  ts.exec( bitPeriod, [this,&C](){ uint8_t bit=rx.Get(); C=(C>>1)|(bit<<7); } );	  
-	  ts.exec( bitPeriod, [this,&C](){ uint8_t bit=rx.Get(); C=(C>>1)|(bit<<7); } );	  
-	  ts.exec( bitPeriod, [this,&C](){ uint8_t bit=rx.Get(); C=(C>>1)|(bit<<7); } );	  
-	  ts.exec( bitPeriod, [this,&C](){ uint8_t bit=rx.Get(); C=(C>>1)|(bit<<7); } );	  
-	  ts.exec( bitPeriod, [this,&C](){ uint8_t bit=rx.Get(); C=(C>>1)|(bit<<7); } );
-	  ts.exec( byteGap, [](){} );
+	  
+	  // avoid detecting a start bit while still reading last byte's ending 0
+	  while( ! rx.Get() ) ;
+	  // wait for start bit
+	  while( rx.Get() ) ;
+	  
+	  ts.reset();
+	  ts.exec( bitDelay(0) + bitPeriod/4, [](){} );
+	  // read bits
+	  ts.exec( bitDelay(1), [this,&C](){ uint8_t bit=rx.Get(); C=(C>>1)|(bit<<7); } );
+	  ts.exec( bitDelay(2), [this,&C](){ uint8_t bit=rx.Get(); C=(C>>1)|(bit<<7); } );
+	  ts.exec( bitDelay(3), [this,&C](){ uint8_t bit=rx.Get(); C=(C>>1)|(bit<<7); } );
+	  ts.exec( bitDelay(4), [this,&C](){ uint8_t bit=rx.Get(); C=(C>>1)|(bit<<7); } );
+	  ts.exec( bitDelay(5), [this,&C](){ uint8_t bit=rx.Get(); C=(C>>1)|(bit<<7); } );
+	  ts.exec( bitDelay(6), [this,&C](){ uint8_t bit=rx.Get(); C=(C>>1)|(bit<<7); } );
+	  ts.exec( bitDelay(7), [this,&C](){ uint8_t bit=rx.Get(); C=(C>>1)|(bit<<7); } );
+	  ts.exec( bitDelay(8), [this,&C](){ uint8_t bit=rx.Get(); C=(C>>1)|(bit<<7); } );
 	  ts.stop();
 	  return C;
 	}
-	
+
 	inline bool writeByte(uint8_t b)
 	{
 	  ts.start();
 	  ts.exec( 64, [](){} ); // just to absorb startup time
-	  ts.exec( bitPeriod, [this](){ tx = LOW; } );
-	  ts.exec( bitPeriod, [this,&b](){ tx = b&0x01; b>>=1; } );
-	  ts.exec( bitPeriod, [this,&b](){ tx = b&0x01; b>>=1; } );
-	  ts.exec( bitPeriod, [this,&b](){ tx = b&0x01; b>>=1; } );
-	  ts.exec( bitPeriod, [this,&b](){ tx = b&0x01; b>>=1; } );
-	  ts.exec( bitPeriod, [this,&b](){ tx = b&0x01; b>>=1; } );
-	  ts.exec( bitPeriod, [this,&b](){ tx = b&0x01; b>>=1; } );
-	  ts.exec( bitPeriod, [this,&b](){ tx = b&0x01; b>>=1; } );
-	  ts.exec( bitPeriod, [this,&b](){ tx = b&0x01; b>>=1; } );
-	  ts.exec( bitPeriod, [this](){ tx = HIGH; } );
+	  ts.exec( bitDelay(0), [this](){ tx = LOW; } );
+	  ts.exec( bitDelay(1), [this,&b](){ tx = b&0x01; b>>=1; } );
+	  ts.exec( bitDelay(2), [this,&b](){ tx = b&0x01; b>>=1; } );
+	  ts.exec( bitDelay(3), [this,&b](){ tx = b&0x01; b>>=1; } );
+	  ts.exec( bitDelay(4), [this,&b](){ tx = b&0x01; b>>=1; } );
+	  ts.exec( bitDelay(5), [this,&b](){ tx = b&0x01; b>>=1; } );
+	  ts.exec( bitDelay(6), [this,&b](){ tx = b&0x01; b>>=1; } );
+	  ts.exec( bitDelay(7), [this,&b](){ tx = b&0x01; b>>=1; } );
+	  ts.exec( bitDelay(8), [this,&b](){ tx = b&0x01; b>>=1; } );
+	  ts.exec( bitDelay(9), [this](){ tx = HIGH; } );
 	  ts.stop();
 	  return true;
 	}

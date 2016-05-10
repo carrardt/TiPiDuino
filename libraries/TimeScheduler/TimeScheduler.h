@@ -44,7 +44,6 @@ struct AvrTimer0
 	uint8_t saved_TCCR0A, saved_TCCR0B, saved_TIMSK0;
 };
 
-
 // Warning! : it seems it doesn't work on ATtiny85, needs investigation. for ATtiny, use only Timer0.
 #if defined(TCCR1A) && defined(TCCR1B) && defined(TCCR1C) && defined(TIMSK1) 
 template<bool _Prescaler8 = true>
@@ -194,7 +193,7 @@ struct TimeSchedulerT
 		m_t = t2;
 		return m_wallclock;
 	}
-		
+	
 	template<typename FuncT>
 	inline void exec( WallClockT t, FuncT f )
 	{
@@ -203,7 +202,7 @@ struct TimeSchedulerT
 		m_debugger.setTiming(wallclock());
 		m_debugger.next();
 		while( wallclock() < t );
-		m_wallclock -= t;				
+		m_wallclock -= t;
 	}
 
 	template<typename FuncT>

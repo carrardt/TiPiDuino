@@ -1,4 +1,4 @@
-#define DCMOTOR_SERIAL_DEBUG 1
+//#define DCMOTOR_SERIAL_DEBUG 1
 #define DCMOTOR_ATTINY_PINS 1
 
 #include <AvrTL.h>
@@ -14,15 +14,17 @@
 
 /*
  * to send a command :
+ * stty -F /dev/ttyUSB0 38400 raw cs8
  * echo "R0040r00200L0040l00200" > /dev/ttyUSB0
  * targetTickCount, similar to 1/speed, must be in the range [40;160] (the bigger the slower)
+ * minimum targetTuickCount must be 50 for precise stop
  * 
  *   ATtiny85 wiring
- *         __
- *   RST -|v |- VCC
- * R PWM -|  |- Left speed encoder (input)
- * L PWM -|  |- Right speed encoder (input)
- *   GND -|__|- RX 
+ *   ___    __
+ *   RST ->|v |-- VCC
+ * R PWM <-|  |<- Left speed encoder
+ * L PWM <-|  |<- Right speed encoder
+ *   GND --|__|<- RX 
  * 
 */
 
@@ -94,11 +96,10 @@ void loop()
 	uint8_t pwmDutyR = pwmCycleTicks/4;
 	uint8_t pwmDutyL = pwmCycleTicks/4;
 
-	while( serialIO.readByte() != 'R' ) ;
-	while( (digit=serialIO.readByte()) != 'r' ) { targetTickCountR=targetTickCountR*10+digit-'0'; }
-	while( (digit=serialIO.readByte()) != 'L' ) { targetRotationR=targetRotationR*10+digit-'0'; }
-	while( (digit=serialIO.readByte()) != 'l' ) { targetTickCountL=targetTickCountL*10+digit-'0'; }
-	while( (digit=serialIO.readByte()) != '\n' ) { targetRotationL=targetRotationL*10+digit-'0'; }
+	targetTickCountR = serialIO.readByte();
+	targetRotationR = serialIO.readByte() * 4;
+	targetTickCountL = serialIO.readByte();
+	targetRotationL = serialIO.readByte() * 4;
 
 	TimeScheduler ts;
 
@@ -125,7 +126,6 @@ void loop()
 			else
 			{ 
 				++tickCountR;
-				if( tickCountR >= 4096 ) { turnWheels = false; }
 			}
 			rightEncoder = encR;
 			bool warmR = ( rotationR >= 4 ) ;
@@ -140,13 +140,9 @@ void loop()
 			else
 			{ 
 				++tickCountL;
-				if( tickCountL >= 4096 ) { turnWheels = false; }
 			}
 			leftEncoder = encL;
 			bool warmL = ( rotationL >= 4 ) ;
-						
-			motorRightPWM.Set( ticks<pwmDutyR && rotationR<targetRotationR );
-			motorLeftPWM.Set( ticks<pwmDutyL && rotationL<targetRotationL );
 
 			// speed limitation when close to target rotation
 			int16_t stepsBeforeEndL = targetRotationL - rotationL;
@@ -163,6 +159,9 @@ void loop()
 				int16_t minTicksR = 64+4*i;
 				if( minTicksR > targetTickCountR ) targetTickCountR = minTicksR;
 			}
+
+			motorRightPWM.Set( ticks<pwmDutyR && rotationR<targetRotationR );
+			motorLeftPWM.Set( ticks<pwmDutyL && rotationL<targetRotationL );
 
 			++ticks;
 			if( ticks == pwmCycleTicks )
@@ -181,7 +180,14 @@ void loop()
 				}
 				ticks = 0;
 			}
-			//if( r>=rotationR && l>=rotationL ) { turnWheels = false; }
+
+#ifdef DCMOTOR_SERIAL_DEBUG
+			if( tickCountL >= 4096 && tickCountR >= 4096 ) { turnWheels = false; }
+#else
+			if( tickCountL >= 4096  ) {	rotationL = targetRotationL; }
+			if( tickCountR >= 4096  ) {	rotationR = targetRotationR; }
+			if( rotationR>=targetRotationR && rotationL>=targetRotationL ) { turnWheels = false; }
+#endif
 		} );
 	}
 	motorRightPWM.Set( LOW );
