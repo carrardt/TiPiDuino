@@ -26,6 +26,24 @@ generate_avr_firmware(
 	)
 
 #====================================================================#
+# FastSerial test
+#====================================================================#
+generate_avr_firmware(
+	FastSerialTest
+	SRCS FastSerialTest.cpp
+	LIBS FastSerial AvrTL AvrApp
+	)
+
+#====================================================================#
+# FastSerial receive test
+#====================================================================#
+generate_avr_firmware(
+	FastSerialRead
+	SRCS FastSerialRead.cpp
+	LIBS FastSerial SoftSerial TimeScheduler AvrTL AvrApp
+	)
+
+#====================================================================#
 # Clock test
 #====================================================================#
 generate_avr_firmware(

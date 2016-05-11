@@ -248,6 +248,14 @@ struct TimeSchedulerT
 	}
 
 	template<typename FuncT>
+	inline void loopFast( WallClockT t, FuncT f )
+	{
+		WallClockT w;
+		while( (w=wallclock()) < t ) { f( w ); }
+		m_wallclock -= t;
+	}
+
+	template<typename FuncT>
 	inline void exec( WallClockT t, FuncT f )
 	{
 		t = ( t * BaseTimerT::ClockMhz ) / BaseTimerT::TimerPrescaler;
