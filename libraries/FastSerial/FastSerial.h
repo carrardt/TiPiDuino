@@ -14,8 +14,8 @@ struct FastSerial
 
 	inline void begin()
 	{
-		//m_rx.SetOutput(); // debug
-		m_rx.SetInput(); 
+		m_rx.SetOutput(); // debug
+		//m_rx.SetInput(); 
 		m_tx.SetOutput();
 		m_tx = HIGH;
 	}
@@ -26,19 +26,29 @@ struct FastSerial
 		m_tx.Set(HIGH);
 		if( b ) { m_tx.Set(HIGH); m_tx.Set(HIGH); }
 	}
-	inline void endBit()
+	inline void stopBit()
+	{
+		m_tx.Set(LOW);
+		m_tx.Set(HIGH);
+	}
+	inline void startBit()
 	{
 		for(uint8_t i=0;i<4;i++) m_tx.Set(LOW);
-		m_tx.Set(HIGH);
+		for(uint8_t i=0;i<4;i++) m_tx.Set(HIGH);
 	}
 
 	template<uint8_t NBits=32>
 	inline void write(uint32_t word)
 	{
-		//m_rx = HIGH; // debug
-		for(uint8_t i=0;i<NBits;i++) {	writeBit( word & 0x01 ); word >>= 1; }
-		endBit();
-		//m_rx = LOW; // debug
+		m_rx = HIGH; // debug
+		startBit();
+		for(uint8_t i=0;i<NBits;i++)
+		{
+			writeBit( word & 0x01 );
+			word >>= 1;
+		}
+		stopBit();
+		m_rx = LOW; // debug
 	}
 
 	template<uint8_t NBits=32>

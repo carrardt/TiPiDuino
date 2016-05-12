@@ -63,7 +63,8 @@ void setup()
 
 void loop()
 {
+	constexpr uint8_t NBits = 24;
 	led = !led;
-	uint32_t n = fastSerial.read<32>();
+	uint32_t n = fastSerial.read<NBits>();
 	cout<<n<<endl;
 }

@@ -29,6 +29,7 @@ void setup()
 static uint32_t counter = 0;
 void loop()
 {
-	fastSerial.write<32>(counter);
+	constexpr uint8_t NBits = 24;
+	fastSerial.write<NBits>(counter);
 	++ counter;
 }
