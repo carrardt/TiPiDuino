@@ -58,6 +58,7 @@ void setup()
 	cout.begin( &serialIO );
 	cout<<"F_CPU="<<F_CPU<<endl;
 	cout<<"Ready"<<endl;
+	fastSerial.begin();
 	serialIO.m_rawIO.ts.start();
 }
 

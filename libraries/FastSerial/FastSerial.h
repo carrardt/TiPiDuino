@@ -14,12 +14,11 @@ struct FastSerial
 
 	inline void begin()
 	{
-		m_rx.SetOutput(); // debug
-		//m_rx.SetInput(); 
+		m_rx.SetInput(); 
 		m_tx.SetOutput();
 		m_tx = HIGH;
 	}
-
+#if F_CPU==8000000
 	inline void writeBit(bool b)
 	{
 		m_tx.Set(LOW);
@@ -36,11 +35,34 @@ struct FastSerial
 		for(uint8_t i=0;i<4;i++) m_tx.Set(LOW);
 		for(uint8_t i=0;i<4;i++) m_tx.Set(HIGH);
 	}
-
+#elif F_CPU==16000000
+	inline void writeBit(bool b)
+	{
+		m_tx.Set(LOW);
+		m_tx.Set(LOW);
+		m_tx.Set(HIGH);
+		m_tx.Set(HIGH);
+		if( b ) { m_tx.Set(HIGH); m_tx.Set(HIGH); m_tx.Set(HIGH); m_tx.Set(HIGH); }
+	}
+	inline void stopBit()
+	{
+		m_tx.Set(LOW);
+		m_tx.Set(LOW);
+		m_tx.Set(HIGH);
+		m_tx.Set(HIGH);
+	}
+	inline void startBit()
+	{
+		for(uint8_t i=0;i<8;i++) {m_tx.Set(LOW); }
+		for(uint8_t i=0;i<8;i++) {m_tx.Set(HIGH); }
+	}
+#else
+#error code has only been tested on 8MHz and 16MHz atmega/attiny
+#endif
+	
 	template<uint8_t NBits=32>
 	inline void write(uint32_t word)
 	{
-		m_rx = HIGH; // debug
 		startBit();
 		for(uint8_t i=0;i<NBits;i++)
 		{
@@ -48,9 +70,7 @@ struct FastSerial
 			word >>= 1;
 		}
 		stopBit();
-		m_rx = LOW; // debug
 	}
-
 	template<uint8_t NBits=32>
 	inline uint32_t read()
 	{

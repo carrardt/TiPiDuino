@@ -13,7 +13,6 @@ using namespace avrtl;
 
 #define RX_PIN 3
 #define TX_PIN 4
-#define LED_PIN 2
 
 static auto rx = StaticPin<RX_PIN>();
 static auto tx = StaticPin<TX_PIN>();

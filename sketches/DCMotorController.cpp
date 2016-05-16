@@ -3,11 +3,13 @@
 
 #include <AvrTL.h>
 #include <AvrTLPin.h>
-#include <SoftSerial/SoftSerial.h>
 #include <avr/interrupt.h>
 #include <TimeScheduler/TimeScheduler.h>
 
+#include <FastSerial/FastSerial.h>
+
 #ifdef DCMOTOR_SERIAL_DEBUG
+#include <SoftSerial/SoftSerial.h>
 #include <BasicIO/ByteStream.h>
 #include <BasicIO/PrintStream.h>
 #endif
@@ -20,11 +22,11 @@
  * minimum targetTuickCount must be 50 for precise stop
  * 
  *   ATtiny85 wiring
- *   ___    __
- *   RST ->|v |-- VCC
- * R PWM <-|  |<- Left speed encoder
- * L PWM <-|  |<- Right speed encoder
- *   GND --|__|<- RX 
+ *   ___    ___
+ *   RST ->| v |-- VCC
+ * R PWM <-|   |<- Right speed encoder
+ * L PWM <-|   |<- Left speed encoder
+ *   GND --|___|<- RX 
  * 
 */
 
@@ -32,8 +34,8 @@ using namespace avrtl;
 
 #ifdef DCMOTOR_ATTINY_PINS
 #define RX_PIN 		    		0
-#define motorRight_SPEED_PIN 	1
-#define motorLeft_SPEED_PIN 	2
+#define motorLeft_SPEED_PIN 	1
+#define motorRight_SPEED_PIN 	2
 #define motorRight_PWM_PIN  	3
 #define motorLeft_PWM_PIN  		4
 #else
@@ -50,9 +52,11 @@ static auto motorRightSpeed = StaticPin<motorRight_SPEED_PIN>();
 static auto motorLeftPWM = StaticPin<motorLeft_PWM_PIN>();
 static auto motorLeftSpeed = StaticPin<motorLeft_SPEED_PIN>();
 static auto rx = StaticPin<RX_PIN>();
-static auto serialIO = make_softserial<38400>(rx,motorLeftPWM); // we'll use the same pin for debug output
+
+static auto fastSerial = make_fastserial(rx,NullPin());
 
 #ifdef DCMOTOR_SERIAL_DEBUG
+static auto serialIO = make_softserial<38400>(NullPin(),motorLeftPWM); // we'll use the same pin for debug output
 static ByteStreamAdapter<decltype(serialIO),100000UL> serialAdapter = { serialIO };
 static PrintStream cout;
 #endif
@@ -71,9 +75,8 @@ void setup()
 #ifdef DCMOTOR_SERIAL_DEBUG
   serialAdapter.m_rawIO.begin();
   cout.begin( &serialAdapter );
-#else
-  serialIO.begin();
 #endif
+	fastSerial.begin();
 
 	motorRightPWM = LOW;
 	motorLeftPWM = LOW;
@@ -83,6 +86,8 @@ void setup()
 void loop()
 {
 	static constexpr uint8_t pwmCycleTicks = 64;
+	static constexpr uint8_t startUpPWMDuty = 32;
+	static constexpr uint16_t warmUpTicks = 4;
 	
 	uint16_t rotationR=0, rotationL=0;
 	int16_t tickCountR=0, tickCountL=0;
@@ -93,13 +98,20 @@ void loop()
 
 	uint8_t ticks = 0;
 	uint8_t digit = 0;
-	uint8_t pwmDutyR = pwmCycleTicks/4;
-	uint8_t pwmDutyL = pwmCycleTicks/4;
+	uint8_t pwmDutyR = startUpPWMDuty;
+	uint8_t pwmDutyL = startUpPWMDuty;
 
-	targetTickCountR = serialIO.readByte();
-	targetRotationR = serialIO.readByte() * 4;
-	targetTickCountL = serialIO.readByte();
-	targetRotationL = serialIO.readByte() * 4;
+	// read command from RX pin, using FastSerial protocol
+	uint32_t command = fastSerial.read<24>();
+	uint16_t commandTR = (command>>20) & 0x0F;
+	uint16_t commandRR = (command>>12) & 0xFF;
+	uint16_t commandTL = (command>>8) & 0x0F;
+	uint16_t commandRL = command & 0xFF;
+
+	targetTickCountR = 40 + commandTR * 8;
+	targetRotationR = commandRR * 4;
+	targetTickCountL = 40 + commandTL * 8;
+	targetRotationL = commandRL * 4;
 
 	TimeScheduler ts;
 
@@ -128,7 +140,7 @@ void loop()
 				++tickCountR;
 			}
 			rightEncoder = encR;
-			bool warmR = ( rotationR >= 4 ) ;
+			bool warmR = ( rotationR >= warmUpTicks ) ;
 
 			if( encL && !leftEncoder )
 			{ 
@@ -142,7 +154,7 @@ void loop()
 				++tickCountL;
 			}
 			leftEncoder = encL;
-			bool warmL = ( rotationL >= 4 ) ;
+			bool warmL = ( rotationL >= warmUpTicks ) ;
 
 			// speed limitation when close to target rotation
 			int16_t stepsBeforeEndL = targetRotationL - rotationL;
@@ -181,6 +193,9 @@ void loop()
 				ticks = 0;
 			}
 
+			if( tickCountL >= 4096 ) tickCountL=4096;
+			if( tickCountR >= 4096 ) tickCountR=4096;
+
 #ifdef DCMOTOR_SERIAL_DEBUG
 			if( tickCountL >= 4096 && tickCountR >= 4096 ) { turnWheels = false; }
 #else
@@ -197,8 +212,9 @@ void loop()
 #ifdef DCMOTOR_SERIAL_DEBUG
 	motorLeftPWM = HIGH;
 	ts.start();	ts.exec( 10000, [&](){} ); ts.stop();
-	cout<<"R:"<<targetTickCountR<<'/'<<targetRotationR<<", L:"<<targetTickCountL<<'/'<<targetRotationL<<endl;
-	cout<<"r="<<rotationR<<", l="<<rotationL<<endl;
+	cout<<"R:"<<targetTickCountR<<'/'<<targetRotationR<<", L:"<<targetTickCountL<<'/'<<targetRotationL;
+	cout<<", tc="<<tickCountR<<'/'<<tickCountL;
+	cout<<", rot="<<rotationR<<'/'<<rotationL<<endl;
 	ts.start();	ts.exec( 10000, [&](){} ); ts.stop();
 	motorLeftPWM = LOW;
 #endif

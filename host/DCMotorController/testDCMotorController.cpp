@@ -21,7 +21,7 @@ int main(int argc, char* argv[])
 	int s1=60, t1=200, s2=60, t2=200;
 	scanf("%d %d %d %d",&s1,&t1,&s2,&t2);
 	printf("%d %d %d %d\n",s1,t1,s2,t2);
-	uint8_t buf[4] = { s1, t1/4, s2, t2/4 };
+	uint8_t buf[4] = { s1, t1, s2, t2 };
 	
 	write(serial_fd,buf,4);
 	fsync(serial_fd);
