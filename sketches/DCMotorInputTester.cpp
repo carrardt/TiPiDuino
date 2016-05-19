@@ -3,6 +3,7 @@
 #include <AvrTLPin.h>
 #include <avr/interrupt.h>
 #include <BasicIO/InputStream.h>
+#include <BasicIO/PrintStream.h>
 #include <HWSerialNoInt/HWSerialNoInt.h>
 
 using namespace avrtl;
@@ -16,12 +17,14 @@ static auto fastSerial = make_fastserial(rx,tx);
  
 ByteStreamAdapter<HWSerialNoInt,100000UL> serialIO;
 InputStream cin;
+PrintStream cout;
  
 void setup()
 {
 	cli();
 	serialIO.m_rawIO.begin(38400);
 	cin.begin( &serialIO );
+	cout.begin( &serialIO );
 	fastSerial.begin();
 }
 
@@ -39,6 +42,8 @@ void loop()
 	data |= targetTickCountL;
 	data <<= 8;
 	data |= targetRotationL;
+	
+	cout<<"TR="<<targetTickCountR<<", RR="<<targetRotationR<<", TL="<<targetTickCountL<<", RL="<<targetRotationL<<" => "<<data<<endl;
 
 	fastSerial.write<24>(data);
 }

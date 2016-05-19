@@ -16,8 +16,12 @@
 
 /*
  * to send a command :
- * stty -F /dev/ttyUSB0 38400 raw cs8
- * echo "R0040r00200L0040l00200" > /dev/ttyUSB0
+ * echo "7 50 7 50" | ./testdcmotorcontroller /dev/ttyUSB1
+ * values are : (TR-40)/8 , RR/4 , (TL-40)/8 and RL/4
+ * TR = target tick count between 2 rotation steps (right)
+ * RR = target rotation (right)
+ * TL = target tick count (left)
+ * RL = target rotation (left)
  * targetTickCount, similar to 1/speed, must be in the range [40;160] (the bigger the slower)
  * minimum targetTuickCount must be 50 for precise stop
  * 
@@ -114,6 +118,18 @@ void loop()
 	targetRotationL = commandRL * 4;
 
 	TimeScheduler ts;
+
+	if( targetTickCountR<40 || targetTickCountR>200 || targetTickCountL<40 || targetTickCountL>200 || targetRotationR<=4 || targetRotationL<=4 )
+	{
+#ifdef DCMOTOR_SERIAL_DEBUG
+		motorLeftPWM = HIGH;
+		ts.start();	ts.exec( 10000, [&](){} ); ts.stop();
+		cout<<"Error: R:"<<targetTickCountR<<'/'<<targetRotationR<<", L:"<<targetTickCountL<<'/'<<targetRotationL;
+		ts.start();	ts.exec( 10000, [&](){} ); ts.stop();
+		motorLeftPWM = LOW;
+#endif
+		return;
+	}
 
 	bool rightEncoder = motorRightSpeed.Get();
 	bool leftEncoder = motorLeftSpeed.Get();
