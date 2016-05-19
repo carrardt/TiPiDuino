@@ -8,17 +8,15 @@
 
 using namespace avrtl;
 
-#define RX_PIN 3
-#define TX_PIN 4
+#define TX_PIN 13
 
-static auto rx = StaticPin<RX_PIN>();
 static auto tx = StaticPin<TX_PIN>();
-static auto fastSerial = make_fastserial(rx,tx);
+static auto fastSerial = make_fastserial(NullPin(),tx);
  
 ByteStreamAdapter<HWSerialNoInt,100000UL> serialIO;
 InputStream cin;
 PrintStream cout;
- 
+
 void setup()
 {
 	cli();
@@ -30,10 +28,22 @@ void setup()
 
 void loop()
 {
-	uint32_t targetTickCountR = serialIO.readByte();
-	uint32_t targetRotationR = serialIO.readByte();
-	uint32_t targetTickCountL = serialIO.readByte();
-	uint32_t targetRotationL = serialIO.readByte();
+	uint8_t buf[4];
+	buf[0] = serialIO.readByte();
+	buf[1] = serialIO.readByte();
+	buf[2] = serialIO.readByte();
+	buf[3] = serialIO.readByte();
+	
+	// synchronization sequence : 0x00 (many times, >=8 ) 0xFF
+	if( buf[1]==0 && buf[3]==0 )
+	{
+		while( serialIO.readByte() != 0xFF );
+		return;
+	}
+	uint32_t targetTickCountR = buf[0];
+	uint32_t targetRotationR  = buf[1];
+	uint32_t targetTickCountL = buf[2];
+	uint32_t targetRotationL  = buf[3];
 
 	uint32_t data = targetTickCountR;
 	data <<= 8;

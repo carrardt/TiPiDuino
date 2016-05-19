@@ -7,6 +7,14 @@
 #include <sys/stat.h>
 #include <stdio.h>
 
+/*
+ * echo "7 50 7 50" | ./testdcmotorcontroller /dev/ttyUSB1
+ * 
+ * reset sequence :
+ * echo "0 0 0 0" | ./testdcmotorcontroller /dev/ttyUSB1
+ * echo "0 0 0 255" | ./testdcmotorcontroller /dev/ttyUSB1
+ */
+
 int main(int argc, char* argv[])
 {
 	if( argc<2 ) return 1;
@@ -19,10 +27,9 @@ int main(int argc, char* argv[])
 	tcsetattr(serial_fd,TCSANOW,&serialConfig);
 	
 	int s1=60, t1=200, s2=60, t2=200;
-	scanf("%d %d %d %d",&s1,&t1,&s2,&t2);
-	printf("%d %d %d %d\n",s1,t1,s2,t2);
+	scanf("%d %d %d %d",&s1,&t1,&s2,&t2);	
+	printf("send: %d %d %d %d\n",s1,t1,s2,t2);
 	uint8_t buf[4] = { s1, t1, s2, t2 };
-	
 	write(serial_fd,buf,4);
 	fsync(serial_fd);
 	
