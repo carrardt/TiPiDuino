@@ -36,13 +36,13 @@ int main(int argc, char* argv[])
 			for(int i=0;i<6;i++)
 			{
 				uint32_t x = sin(t+0.33*i) * a + m;
-				printf("PWM%d=%x ",i,x);
 				link.setPWMValue( i , x );
 			}
-			link.printBuffer();
 			link.send();
+			//link.printBuffer();
 			//link.send();
-			t += 0.001;
+			//sleep(1);
+			t+=0.01;
 		}
 	}
 	else if( cmd=='d' )
@@ -77,6 +77,14 @@ int main(int argc, char* argv[])
 		int ve = Linkuino::encodePulseLength( v );
 		int vd = Linkuino::decodePulseLength ( ve );
 		printf("Encode Test : %d -> %d -> %d\n",v,ve,vd);
+	}
+	else if( cmd=='o' )
+	{
+		uint16_t v=0;
+		scanf("%d",&v);
+		printf("digital out = %d\n",v);
+		link.setRegisterValue(Linkuino::DOUT_ADDR, v);
+		link.send();
 	}
 	sleep(1);
 	return 0;

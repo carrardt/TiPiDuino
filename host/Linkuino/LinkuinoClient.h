@@ -88,9 +88,10 @@ struct LinkuinoClient
 		if( p<0 || p>5 ) return ;
 		if( value>=400 && !m_pwmEnabled[p] ) { enablePWM(p); }
 		if( value<400 && m_pwmEnabled[p]) { disablePWM(p); }
-		value = Linkuino::encodePulseLength( value );
-		setRegisterValue( Linkuino::PWM0H_ADDR+2*p , (value >> 6) & 0x3F );
-		setRegisterValue( Linkuino::PWM0L_ADDR+2*p , value & 0x3F );
+		uint16_t valueEnc = Linkuino::encodePulseLength( value );
+		//printf("PWM%d : %d => %d\n",p,value, valueEnc);
+		setRegisterValue( Linkuino::PWM0H_ADDR+2*p , (valueEnc >> 6) & 0x3F );
+		setRegisterValue( Linkuino::PWM0L_ADDR+2*p , valueEnc & 0x3F );
 	}
 
 	inline void updateTimeStamp()
@@ -155,15 +156,29 @@ struct LinkuinoClient
 	
 	inline void send()
 	{
-		struct timespec st = { 0 , 80000 };
+		// TODO: rather than waiting for 10mS, we should just check that last send terminated at least 10mS earlier and wait just enough
+		struct timespec st = { 0 , 10000000UL }; // 10 milliseconds delay
+		struct timespec rem = { 0 , 0 };
+		int r = 0;
 		for(int i=0;i<PacketRepeatCount;i++)
 		{
 			write(m_fd,m_buffer,Linkuino::CMD_COUNT);
-			fsync(m_fd);
-			nanosleep( &st , &st );
+			//fsync(m_fd);
 		}
 		write(m_fd,m_buffer,1); // finish with a timestamp marker
 		fsync(m_fd);
+		r = nanosleep( &st , &rem );
+		while( r == EINTR )
+		{
+			st = rem;
+			rem = {0,0};
+			fprintf(stderr,"Warning: nanosleep interrupted\n");
+			r = nanosleep( &st , &rem );
+		}
+		if( r==EFAULT || r==EINVAL)
+		{
+			fprintf(stderr,"ERROR: nanosleep failed\n");
+		}
 		updateTimeStamp();
 	}
 
