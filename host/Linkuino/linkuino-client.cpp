@@ -31,15 +31,15 @@ int main(int argc, char* argv[])
 		scanf("%d %d",&m,&a);
 		printf("Sin : avg=%d, amp=%d\n",m,a);
 		double t=0.0;
-		int p = 0;
 		while( true )
 		{
 			for(int i=0;i<6;i++)
 			{
-				uint32_t x = sin(t+0.5*i) * a + m;
+				uint32_t x = sin(t+0.33*i) * a + m;
+				printf("PWM%d=%x ",i,x);
 				link.setPWMValue( i , x );
 			}
-			//link.printBuffer();
+			link.printBuffer();
 			link.send();
 			//link.send();
 			t += 0.001;
