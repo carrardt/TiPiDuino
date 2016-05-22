@@ -86,6 +86,18 @@ int main(int argc, char* argv[])
 		link.setRegisterValue(Linkuino::DOUT_ADDR, v);
 		link.send();
 	}
+	else if( cmd=='f' )
+	{
+		uint16_t a=0, b=0, c=0, d=0;
+		scanf("%d %d %d %d",&a,&b,&c,&d);
+		printf("forward %d %d %d %d\n",a,b,c,d);
+		link.setRegisterValue(Linkuino::REQ_ADDR, Linkuino::REQ_FWD_SERIAL);
+		link.setRegisterValue(Linkuino::REQ_DATA0_ADDR, a);
+		link.setRegisterValue(Linkuino::REQ_DATA1_ADDR, b);
+		link.setRegisterValue(Linkuino::REQ_DATA2_ADDR, c);
+		link.setRegisterValue(Linkuino::REQ_DATA3_ADDR, d);
+		link.send();
+	}
 	sleep(1);
 	return 0;
 }

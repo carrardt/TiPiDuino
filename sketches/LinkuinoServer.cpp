@@ -5,6 +5,7 @@
 #include <HWSerialNoInt.h>
 #include <BasicIO/ByteStream.h>
 #include <BasicIO/PrintStream.h>
+#include <FastSerial.h>
 
 #include <Linkuino/Linkuino.h>
 
@@ -36,13 +37,12 @@ struct LinkuinoUnoTraits
 	using PWMPinGroupT = avrtl::StaticPinGroup<0>; // Pins 0-7 (first bit set to 2 to let pins 0 & 1 free for hardware serial)
 	using DOutPinGroupT = avrtl::StaticPinGroup<1>; // Pins 8-13
 	using DInPinGroupT = StaticPinGroup<2>; // Pins 14-19 (a.k.a. A0-A5)
-	using ForwardSerialPinT = StaticPin<13>; // Pins 13 will be used to forward messages using the FastSerial protocol.
 
 	static constexpr uint8_t PWMPortFirstBit = 2; // first accessible for PWM
 	static constexpr uint8_t PWMPortMask = 0xFC; // mask of bits accessible for PWM
 
 	static constexpr uint8_t DOutPortFirstBit = 0; 
-	static constexpr uint8_t DOutPortMask = 0x3F;
+	static constexpr uint8_t DOutPortMask = 0x1F; // last digital output bit is disabled to be used for message forwarding
 
 	static constexpr uint8_t DInPortFirstBit = 0;
 	static constexpr uint8_t DInPortMask = 0x3F;
@@ -58,15 +58,29 @@ using Linkuino = LinkuinoT< LinkuinoUnoTraits >;
 static Scheduler ts;
 static Linkuino li;
 
+// the last digital output pin can be written to by linkuino client, but will be also be used
+// as a led and a fast-serial line.
+static auto led = StaticPin<13>();
+static auto fastSerial = make_fastserial(NullPin(),led);
+
 void setup()
 {
+	cli();
+
 	serialIO.m_rawIO.begin(Linkuino::SERIAL_SPEED);
 	cout.begin(&serialIO);
+	li.begin();
+
 	cout<<"Linkuino"<<endl;
 	cout<<"Tt="<<ts.tickTime()<<"nS"<<endl;
 	cout<<"Tf="<<ts.maxFuncTime()<<"uS"<<endl;
 	cout<<"Tc="<<ts.maxCycleTime()<<"mS"<<endl;
-	cli();
+
+	// last bit of digital output will be used 
+	led.SetOutput();
+	led = HIGH;
+	fastSerial.write<24>(0);
+	
 	ts.start();
 }
 
@@ -99,7 +113,7 @@ void loop()
 	ts.exec( 450, []()				// 9500 uS -> 9950 uS
 		{
 			li.process();
-			li.reply( serialIO.m_rawIO );
+			li.reply( serialIO.m_rawIO, fastSerial );
 			li.prepareToReceive();
 		} );
 

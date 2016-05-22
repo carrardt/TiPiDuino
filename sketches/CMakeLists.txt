@@ -149,7 +149,7 @@ generate_avr_firmware(
 generate_avr_firmware(
 	LinkuinoServer
 	SRCS LinkuinoServer.cpp
-	LIBS HWSerialNoInt TimeScheduler Linkuino AvrTL AvrApp
+	LIBS FastSerial HWSerialNoInt TimeScheduler Linkuino AvrTL AvrApp
 	)
 
 #====================================================================#

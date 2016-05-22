@@ -27,9 +27,13 @@ struct LinkuinoClient
 	{
 		setRegisterValue(Linkuino::TSTMP_ADDR, 0);
 		for(int i=0;i<Linkuino::PWM_COUNT;i++) { setPWMValue(i, 1250); m_pwmEnabled[i]=false; }
+		setRegisterValue(Linkuino::PWMSMTH_ADDR, 0);
 		setRegisterValue(Linkuino::DOUT_ADDR, 0);
 		setRegisterValue(Linkuino::REQ_ADDR, Linkuino::REQ_NULL);
-		setRegisterValue(Linkuino::PWMSMTH_ADDR, 0);
+		setRegisterValue(Linkuino::REQ_DATA0_ADDR, 0);
+		setRegisterValue(Linkuino::REQ_DATA1_ADDR, 0);
+		setRegisterValue(Linkuino::REQ_DATA2_ADDR, 0);
+		setRegisterValue(Linkuino::REQ_DATA3_ADDR, 0);
 	}
 	
 	inline ~LinkuinoClient()
@@ -111,8 +115,8 @@ struct LinkuinoClient
 		struct timespec T0, T1;
 		clock_gettime(CLOCK_REALTIME,&T0);
 
-		char reply[16];
-		const int R=12;
+		char reply[32];
+		const int R=16;
 		int l=0;
 		while( l<R )
 		{
@@ -123,6 +127,7 @@ struct LinkuinoClient
 		}
 		for(int i=0;i<R;i++) if(reply[i]==0) reply[i]=' ';
 		reply[R-1]='\0';
+		//printf("REQ_NOOP=%s\n",reply);
 
 		setRegisterValue(Linkuino::REQ_ADDR, Linkuino::REQ_REV);
 		send();
@@ -163,7 +168,6 @@ struct LinkuinoClient
 		for(int i=0;i<PacketRepeatCount;i++)
 		{
 			write(m_fd,m_buffer,Linkuino::CMD_COUNT);
-			//fsync(m_fd);
 		}
 		write(m_fd,m_buffer,1); // finish with a timestamp marker
 		fsync(m_fd);

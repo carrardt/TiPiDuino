@@ -102,7 +102,6 @@ struct LinkuinoT /* Server */
 	using PWMPinGroupT = typename LinkuinoTraits::PWMPinGroupT;
 	using DOutPinGroupT = typename LinkuinoTraits::DOutPinGroupT;
 	using DInPinGroupT = typename LinkuinoTraits::DInPinGroupT;
-	using SerialForwardPinT = typename LinkuinoTraits::ForwardSerialPinT;
 	
 	static constexpr uint8_t PWMPortMask = LinkuinoTraits::PWMPortMask ;
 	static constexpr uint8_t PWMPortFirstBit = LinkuinoTraits::PWMPortFirstBit;
@@ -116,13 +115,13 @@ struct LinkuinoT /* Server */
 	static constexpr uint16_t PWM_UNREACHABLE_VALUE = 16383;
 
 	/*************** Server version ********************/
-	static constexpr uint8_t REV_MAJOR = 0;
-	static constexpr uint8_t REV_MINOR = 9;
+	static constexpr uint8_t REV_MAJOR = 1;
+	static constexpr uint8_t REV_MINOR = 0;
 
 	/**************** Communication settings ***********/
 	static constexpr uint8_t PWM_COUNT   			= 6;
 	static constexpr uint8_t ANALOG_COUNT 			= 6;
-	static constexpr uint8_t CMD_COUNT 	 			= 16;
+	static constexpr uint8_t CMD_COUNT 	 			= 20;
 	static constexpr uint8_t REPLY_BUFFER_SIZE 		= 2;
 	static constexpr uint32_t SERIAL_SPEED 			= 115200;
 	static constexpr uint32_t PACKET_BYTES      	= SERIAL_SPEED/1000; //SERIAL_SPEED/1000; // 8+2 bits / byte, @ 57600 Bauds, to cover 10ms => 57.6 bytes
@@ -142,9 +141,13 @@ struct LinkuinoT /* Server */
 	static constexpr uint8_t PWM4L_ADDR 	= 0x0A;
 	static constexpr uint8_t PWM5H_ADDR 	= 0x0B;
 	static constexpr uint8_t PWM5L_ADDR 	= 0x0C;
-	static constexpr uint8_t DOUT_ADDR 	 	= 0x0D;
-	static constexpr uint8_t REQ_ADDR	 	= 0x0E;
-	static constexpr uint8_t PWMSMTH_ADDR 	= 0x0F; // smoothing factor : [0;3] 0 means no smoothing
+	static constexpr uint8_t PWMSMTH_ADDR 	= 0x0D; // smoothing factor : [0;3] 0 means no smoothing
+	static constexpr uint8_t DOUT_ADDR 	 	= 0x0E;
+	static constexpr uint8_t REQ_ADDR	 	= 0x0F;
+	static constexpr uint8_t REQ_DATA0_ADDR	= 0x10;
+	static constexpr uint8_t REQ_DATA1_ADDR	= 0x11;
+	static constexpr uint8_t REQ_DATA2_ADDR	= 0x12;
+	static constexpr uint8_t REQ_DATA3_ADDR	= 0x13;
 
 	/************** Request messages ****************/
 	static constexpr uint8_t REQ_PWM0_DISABLE 	= 0x00;
@@ -180,6 +183,7 @@ struct LinkuinoT /* Server */
 	static constexpr uint8_t REQ_DBG3_READ 		= 0x24;
 	static constexpr uint8_t REQ_DBG4_READ 		= 0x25;
 	static constexpr uint8_t REQ_DBG5_READ 		= 0x26;
+	static constexpr uint8_t REQ_FWD_SERIAL	    = 0x27;
 	
 	static constexpr uint8_t REQ_RESET		  	= 0x30;
 	static constexpr uint8_t REQ_REV		  	= 0x31;
@@ -190,6 +194,9 @@ struct LinkuinoT /* Server */
 		: m_pwmOutput()
 		, m_digitalOutput()
 		, m_digitalInput()
+	{}
+		
+	void begin()
 	{
 		m_pwmPortMask = 0 ;
 		m_pwmOutput.SetOutput( PWMPortMask  );
@@ -218,9 +225,13 @@ struct LinkuinoT /* Server */
 		m_buffer[REQ_ADDR] = REQ_NULL;
 		m_buffer[PWMSMTH_ADDR] = 0;
 		
+		m_replyEnable = true;
 		m_reply[0] = 'O';
 		m_reply[1] = 'k';
 		m_reply[2] = '\n';
+
+		m_fwdEnable = false;
+		m_fwd = 0;
 	}
 
 	inline void prepareToReceive()
@@ -228,6 +239,8 @@ struct LinkuinoT /* Server */
 		m_buffer[TSTMP_ADDR] = 255;
 		m_buffer[REQ_ADDR] = 255;
 		m_readCycles = 0;
+		m_replyEnable = true;
+		m_fwdEnable = false;
 	}
 
 	template<typename IODeviceT>
@@ -254,13 +267,19 @@ struct LinkuinoT /* Server */
 		}
 	}
 
-	template<typename IODeviceT>
-	inline void reply(IODeviceT& io)
+	template<typename IODeviceT, typename FwdSerialT>
+	inline void reply(IODeviceT& io, FwdSerialT& fwdSerial)
 	{
-		// @ 57600 bauds, each byte takes about 180-200 uS to send
-		io.writeByte(m_reply[0]);
-		io.writeByte(m_reply[1]);
-		io.writeByte(m_reply[2]);
+		if( m_replyEnable )
+		{
+			io.writeByte(m_reply[0]);
+			io.writeByte(m_reply[1]);
+			io.writeByte(m_reply[2]);
+		}
+		if( m_fwdEnable )
+		{
+			fwdSerial.write24( m_fwd );
+		}
 	}
 
 	inline bool receiveComplete()
@@ -308,11 +327,6 @@ struct LinkuinoT /* Server */
 		// check received data is complete
 		if( ! receiveComplete() )
 		{
-			/* No : repeat last reply unitl we get another valid request
-			m_reply[0]='N';
-			m_reply[1]='D';
-			m_reply[2]='\n';
-			*/
 			return;
 		}
 
@@ -346,6 +360,8 @@ struct LinkuinoT /* Server */
 		m_din = ( m_digitalInput.Get() >> DInPortFirstBit ) & m_dinMask;
 
 		uint8_t req = m_buffer[REQ_ADDR];
+		m_replyEnable = true;
+		m_fwdEnable = false;
 		if( req <= REQ_PWM5_DISABLE )
 		{
 			uint8_t pwmi = req;
@@ -369,11 +385,23 @@ struct LinkuinoT /* Server */
 			m_reply[1] = REV_MAJOR;
 			m_reply[2] = REV_MINOR;
 		}
-		else if( req==REQ_NOOP )
+		else if( req == REQ_NOOP )
 		{
-			m_reply[0]='O';
-			m_reply[1]='k';
-			m_reply[2]='\n';
+			m_reply[0] = 'O';
+			m_reply[1] = 'k';
+			m_reply[2] = '\n';
+		}
+		else if( req == REQ_FWD_SERIAL )
+		{
+			m_fwd  = m_buffer[REQ_DATA0_ADDR] & 0x3F;
+			m_fwd <<= 6;
+			m_fwd |= m_buffer[REQ_DATA1_ADDR] & 0x3F;
+			m_fwd <<= 6;
+			m_fwd |= m_buffer[REQ_DATA2_ADDR] & 0x3F;
+			m_fwd <<= 6;
+			m_fwd |= m_buffer[REQ_DATA3_ADDR] & 0x3F;
+			m_fwdEnable = true;
+			m_replyEnable = false;
 		}
 	}
 
@@ -429,7 +457,12 @@ struct LinkuinoT /* Server */
 	uint8_t m_readCycles;
 	
 	// reply buffer
+	bool m_replyEnable;
 	uint8_t m_reply[3];
+	
+	// forward buffer
+	bool m_fwdEnable;
+	uint32_t m_fwd;
 
 	// hardware pins accessors
 	PWMPinGroupT m_pwmOutput;

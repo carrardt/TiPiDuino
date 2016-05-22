@@ -71,6 +71,12 @@ struct FastSerial
 		}
 		stopBit();
 	}
+	
+	inline void write24(uint32_t word)
+	{
+		write<24>(word);
+	}
+	
 	template<uint8_t NBits=32>
 	inline uint32_t read()
 	{
