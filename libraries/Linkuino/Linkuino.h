@@ -49,12 +49,20 @@ static inline void heapSort(ElemT numbers[])
   }
 }
 
-struct NullPinGroup
+struct LkNullPinGroup
 {
 	static void SetOutput(uint8_t mask) { }
 	static void SetInput(uint8_t mask) {}
 	static uint8_t Get() { return 0; }
 	static void Set(uint8_t x , uint8_t mask=0xFF) { }
+};
+
+struct LkNullPin
+{
+	static void SetOutput() {}
+	static void SetInput() {}
+	static bool Get() { return false; }
+	static void Set(bool x) { }
 };
 
 
@@ -67,9 +75,10 @@ struct NullPinGroup
  */
 struct LinkuinoNullTraits
 {
-	using PWMPinGroupT = NullPinGroup;
-	using DOutPinGroupT = NullPinGroup;
-	using DInPinGroupT = NullPinGroup;
+	using PWMPinGroupT = LkNullPinGroup;
+	using DOutPinGroupT = LkNullPinGroup;
+	using DInPinGroupT = LkNullPinGroup;
+	using ForwardSerialPinT = LkNullPin;
 	
 	static constexpr uint8_t PWMPortFirstBit = 0;
 	static constexpr uint8_t PWMPortMask = 0x3F;
@@ -93,6 +102,7 @@ struct LinkuinoT /* Server */
 	using PWMPinGroupT = typename LinkuinoTraits::PWMPinGroupT;
 	using DOutPinGroupT = typename LinkuinoTraits::DOutPinGroupT;
 	using DInPinGroupT = typename LinkuinoTraits::DInPinGroupT;
+	using SerialForwardPinT = typename LinkuinoTraits::ForwardSerialPinT;
 	
 	static constexpr uint8_t PWMPortMask = LinkuinoTraits::PWMPortMask ;
 	static constexpr uint8_t PWMPortFirstBit = LinkuinoTraits::PWMPortFirstBit;

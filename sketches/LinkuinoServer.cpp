@@ -36,6 +36,7 @@ struct LinkuinoUnoTraits
 	using PWMPinGroupT = avrtl::StaticPinGroup<0>; // Pins 0-7 (first bit set to 2 to let pins 0 & 1 free for hardware serial)
 	using DOutPinGroupT = avrtl::StaticPinGroup<1>; // Pins 8-13
 	using DInPinGroupT = StaticPinGroup<2>; // Pins 14-19 (a.k.a. A0-A5)
+	using ForwardSerialPinT = StaticPin<13>; // Pins 13 will be used to forward messages using the FastSerial protocol.
 
 	static constexpr uint8_t PWMPortFirstBit = 2; // first accessible for PWM
 	static constexpr uint8_t PWMPortMask = 0xFC; // mask of bits accessible for PWM
@@ -89,13 +90,13 @@ void loop()
 	// during the second period, pulse length values and update frequencies are
 	// less precise, but we can receive command packet at the same time
 	// so we have 7.61 milliseconds to listen for serial commands
-	ts.loop( 7610, [](WallClock t)	// 2000 uS -> 9610 uS
+	ts.loop( 7500, [](WallClock t)	// 2000 uS -> 9500 uS
 		{
 			li.receive( serialIO.m_rawIO );
 			li.shutDownPWM( 2000+t );
 		} );
 
-	ts.exec( 340, []()				// 9610 uS -> 9950 uS
+	ts.exec( 450, []()				// 9500 uS -> 9950 uS
 		{
 			li.process();
 			li.reply( serialIO.m_rawIO );

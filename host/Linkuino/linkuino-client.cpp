@@ -42,7 +42,7 @@ int main(int argc, char* argv[])
 			//link.printBuffer();
 			link.send();
 			//link.send();
-			t += 0.0001;
+			t += 0.001;
 		}
 	}
 	else if( cmd=='d' )
