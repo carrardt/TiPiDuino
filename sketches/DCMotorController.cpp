@@ -119,7 +119,7 @@ void loop()
 
 	TimeScheduler ts;
 
-	if( targetTickCountR<40 || targetTickCountR>200 || targetTickCountL<40 || targetTickCountL>200 || targetRotationR<=4 || targetRotationL<=4 )
+	if( targetTickCountR<40 || targetTickCountR>200 || targetTickCountL<40 || targetTickCountL>200 || (targetRotationR<=4 && targetRotationL<=4) )
 	{
 #ifdef DCMOTOR_SERIAL_DEBUG
 		motorLeftPWM = HIGH;
