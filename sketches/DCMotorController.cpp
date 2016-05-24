@@ -90,7 +90,7 @@ void setup()
 void loop()
 {
 	static constexpr uint8_t pwmCycleTicks = 64;
-	static constexpr uint8_t startUpPWMDuty = 32;
+	static constexpr uint8_t startUpPWMDuty = 16;
 	static constexpr uint16_t warmUpTicks = 4;
 	
 	uint16_t rotationR=0, rotationL=0;
