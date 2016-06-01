@@ -1,3 +1,11 @@
+/*
+ * puredata external object to connce to an avr using the Linkuino interface
+ * once compiled, copy the dynamic library liblinkuino.so to puredata externals
+ * On Linux :
+ * mkdir -p ~/pd-externals/linkuino
+ * cp liblinkuino.so ~/pd-externals/linkuino/linkuino.pd_linux
+ */
+
 extern "C"
 {
 	#include "pd/m_pd.h"
@@ -27,6 +35,12 @@ extern "C"
 	  t_float f_amode3; 
 	  t_float f_amode4; 
 	  t_float f_amode5;
+	  t_float f_d0;
+	  t_float f_d1;
+	  t_float f_d2;
+	  t_float f_d3;
+	  t_float f_d4;
+	  t_float f_d5;
 	  t_outlet *f_revmajor;
 	  t_outlet *f_revminor;
 	  struct LinkuinoClient* x_link;
@@ -88,6 +102,12 @@ extern "C"
 	  floatinlet_new(&x->x_obj, &x->f_amode3);
 	  floatinlet_new(&x->x_obj, &x->f_amode4);
 	  floatinlet_new(&x->x_obj, &x->f_amode5);
+	  floatinlet_new(&x->x_obj, &x->f_d0);
+	  floatinlet_new(&x->x_obj, &x->f_d1);
+	  floatinlet_new(&x->x_obj, &x->f_d2);
+	  floatinlet_new(&x->x_obj, &x->f_d3);
+	  floatinlet_new(&x->x_obj, &x->f_d4);
+	  floatinlet_new(&x->x_obj, &x->f_d5);
 	  x->f_revmajor = outlet_new(&x->x_obj, &s_float);
 	  x->f_revminor = outlet_new(&x->x_obj, &s_float);
 	  x->x_link = 0;
@@ -125,10 +145,19 @@ static std::vector<std::string> linkuino_devices;
 
 LinkuinoClient* linkuino_open_device(int i)
 {
+	const int maxRetry = 3;
+	int retryCount = 0;
+	bool connected = false;
 	int fd = LinkuinoClient::openSerialDevice(linkuino_devices[i]);
 	if(fd<0) return 0;
 	LinkuinoClient* li = new LinkuinoClient(fd);
-	if( ! li->testConnection() )
+	while( !connected && retryCount<maxRetry )
+	{
+		connected = li->testConnection() ;
+		if( ! connected ) { sleep(1); }
+		++ retryCount;
+	}
+	if( ! connected )
 	{
 		delete li;
 		return 0;
