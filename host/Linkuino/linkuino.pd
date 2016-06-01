@@ -1,47 +1,72 @@
-#N canvas 134 187 816 538 10;
-#X obj 121 325 linkuino, f 79;
-#X obj 41 310 bng 15 250 50 0 empty empty update 17 7 0 10 -262144
+#N canvas 0 60 720 516 10;
+#X obj 144 302 linkuino, f 114;
+#X obj 41 288 bng 15 250 50 0 empty empty update 17 7 0 10 -262144
 -1 -1;
-#X floatatom 37 274 5 0 10 2 Serial_port - -, f 5;
-#X floatatom 75 374 5 0 0 0 Version - -, f 5;
-#X floatatom 120 374 5 0 0 0 - - -, f 5;
-#X obj 144 118 vsl 15 100 0 100 0 0 empty empty empty 0 -9 0 10 -262144
--1 -1 7300 1;
-#X obj 144 250 t b f;
-#X floatatom 144 90 5 0 0 2 PWM0 - -, f 5;
-#X obj 193 119 vsl 15 100 0 100 0 0 empty empty empty 0 -9 0 10 -262144
--1 -1 7500 1;
-#X obj 193 251 t b f;
-#X floatatom 193 90 5 0 0 2 PWM1 - -, f 5;
-#X obj 243 119 vsl 15 100 0 100 0 0 empty empty empty 0 -9 0 10 -262144
--1 -1 4200 1;
-#X obj 243 251 t b f;
-#X floatatom 243 91 5 0 0 2 PWM2 - -, f 5;
-#X obj 298 119 vsl 15 100 0 100 0 0 empty empty empty 0 -9 0 10 -262144
--1 -1 4800 1;
-#X obj 298 251 t b f;
-#X floatatom 298 91 5 0 0 2 PWM3 - -, f 5;
-#X obj 351 119 vsl 15 100 0 100 0 0 empty empty empty 0 -9 0 10 -262144
--1 -1 5900 1;
-#X obj 351 251 t b f;
-#X floatatom 351 91 5 0 0 2 PWM4 - -, f 5;
-#X obj 403 119 vsl 15 100 0 100 0 0 empty empty empty 0 -9 0 10 -262144
--1 -1 5900 1;
-#X obj 403 251 t b f;
-#X floatatom 403 91 5 0 0 2 PWM5 - -, f 5;
-#X obj 586 109 vradio 15 1 0 2 empty empty PWM3_Mode -16 -8 0 10 -262144
+#X floatatom 37 252 5 0 10 2 Serial_port - -, f 5;
+#X floatatom 75 352 5 0 0 0 Version - -, f 5;
+#X floatatom 120 352 5 0 0 0 - - -, f 5;
+#X obj 144 95 vsl 15 100 0 100 0 0 empty empty empty 0 -9 0 10 -262144
+-1 -1 3564 1;
+#X obj 144 228 t b f;
+#X floatatom 144 68 5 0 0 2 PWM0 - -, f 5;
+#X obj 193 97 vsl 15 100 0 100 0 0 empty empty empty 0 -9 0 10 -262144
+-1 -1 3663 1;
+#X obj 193 229 t b f;
+#X floatatom 193 68 5 0 0 2 PWM1 - -, f 5;
+#X obj 243 97 vsl 15 100 0 100 0 0 empty empty empty 0 -9 0 10 -262144
+-1 -1 2772 1;
+#X obj 243 229 t b f;
+#X floatatom 243 69 5 0 0 2 PWM2 - -, f 5;
+#X obj 298 97 vsl 15 100 0 100 0 0 empty empty empty 0 -9 0 10 -262144
+-1 -1 7524 1;
+#X obj 298 229 t b f;
+#X floatatom 298 69 5 0 0 2 PWM3 - -, f 5;
+#X obj 351 97 vsl 15 100 0 100 0 0 empty empty empty 0 -9 0 10 -262144
+-1 -1 6633 1;
+#X obj 351 229 t b f;
+#X floatatom 351 69 5 0 0 2 PWM4 - -, f 5;
+#X obj 403 97 vsl 15 100 0 100 0 0 empty empty empty 0 -9 0 10 -262144
+-1 -1 4950 1;
+#X obj 403 229 t b f;
+#X floatatom 403 69 5 0 0 2 PWM5 - -, f 5;
+#X obj 586 87 vradio 15 1 0 2 empty empty PWM3_Mode -16 -8 0 10 -262144
 -1 -1 0;
-#X obj 501 111 vradio 15 1 0 2 empty empty PWM1_Mode -16 -8 0 10 -262144
--1 -1 1;
-#X obj 628 119 vradio 15 1 0 2 empty empty PWM4_Mode -16 -8 0 10 -262144
+#X obj 501 89 vradio 15 1 0 2 empty empty PWM1_Mode -16 -8 0 10 -262144
 -1 -1 0;
-#X obj 544 125 vradio 15 1 0 2 empty empty PWM2_Mode -16 -8 0 10 -262144
+#X obj 628 97 vradio 15 1 0 2 empty empty PWM4_Mode -16 -8 0 10 -262144
 -1 -1 0;
-#X obj 671 105 vradio 15 1 0 2 empty empty PWM5_Mode -16 -8 0 10 -262144
+#X obj 544 103 vradio 15 1 0 2 empty empty PWM2_Mode -16 -8 0 10 -262144
 -1 -1 0;
-#X obj 459 126 vradio 15 1 0 2 empty empty PWM0_Mode -16 -8 0 10 -262144
--1 -1 1;
-#X text 145 24 pd-linkuino v0.9;
+#X obj 671 83 vradio 15 1 0 2 empty empty PWM5_Mode -16 -8 0 10 -262144
+-1 -1 0;
+#X obj 459 104 vradio 15 1 0 2 empty empty PWM0_Mode -16 -8 0 10 -262144
+-1 -1 0;
+#X text 145 2 pd-linkuino v1.0;
+#X obj 729 93 tgl 15 0 empty empty empty 17 7 0 10 -262144 -1 -1 0
+1;
+#X obj 771 97 tgl 15 0 empty empty empty 17 7 0 10 -262144 -1 -1 0
+1;
+#X obj 813 95 tgl 15 0 empty empty empty 17 7 0 10 -262144 -1 -1 0
+1;
+#X obj 855 97 tgl 15 0 empty empty empty 17 7 0 10 -262144 -1 -1 0
+1;
+#X obj 897 97 tgl 15 0 empty empty empty 17 7 0 10 -262144 -1 -1 0
+1;
+#X obj 939 101 tgl 15 0 empty empty empty 17 7 0 10 -262144 -1 -1 0
+1;
+#X text 793 63 digtal outputs;
+#X text 751 113 D1;
+#X text 795 112 D2;
+#X text 835 117 D3;
+#X text 879 115 D4;
+#X text 922 117 D5;
+#X text 710 111 D0;
+#X obj 700 189 t b f;
+#X obj 744 201 t b f;
+#X obj 787 214 t b f;
+#X obj 834 224 t b f;
+#X obj 880 233 t b f;
+#X obj 923 253 t b f;
 #X connect 0 0 3 0;
 #X connect 0 1 4 0;
 #X connect 1 0 0 0;
@@ -76,4 +101,22 @@
 #X connect 26 0 0 10;
 #X connect 27 0 0 13;
 #X connect 28 0 0 8;
-#X coords 0 538 1 537 0 0 0;
+#X connect 30 0 43 0;
+#X connect 31 0 44 0;
+#X connect 32 0 45 0;
+#X connect 33 0 46 0;
+#X connect 34 0 47 0;
+#X connect 35 0 48 0;
+#X connect 43 0 0 0;
+#X connect 43 1 0 14;
+#X connect 44 0 0 0;
+#X connect 44 1 0 15;
+#X connect 45 0 0 0;
+#X connect 45 1 0 16;
+#X connect 46 0 0 0;
+#X connect 46 1 0 17;
+#X connect 47 0 0 0;
+#X connect 47 1 0 18;
+#X connect 48 0 0 0;
+#X connect 48 1 0 19;
+#X coords 0 516 1 515 0 0 0;
