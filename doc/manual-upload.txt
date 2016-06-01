@@ -1,0 +1,13 @@
+in case you want to manually upload a .hex to an avr, using an ArduinoAsISP, you can use these 
+ shell functions :
+
+tn85upload()
+{
+        avrdude -v -pattiny85 -cstk500v1 -P/dev/ttyACM0 -b19200 -Uflash:w:$1:i
+}
+
+m328upload()
+{
+        avrdude -v -pm328p -cstk500v1 -P/dev/ttyACM0 -b19200 -Uflash:w:$1:i
+}
+
