@@ -1,32 +1,32 @@
 #N canvas 0 60 720 516 10;
 #X obj 144 302 linkuino, f 114;
-#X obj 41 288 bng 15 250 50 0 empty empty update 17 7 0 10 -262144
+#X obj 36 288 bng 15 250 50 0 empty empty update 17 7 0 10 -262144
 -1 -1;
 #X floatatom 37 252 5 0 10 2 Serial_port - -, f 5;
 #X floatatom 75 352 5 0 0 0 Version - -, f 5;
 #X floatatom 120 352 5 0 0 0 - - -, f 5;
 #X obj 144 95 vsl 15 100 0 100 0 0 empty empty empty 0 -9 0 10 -262144
--1 -1 3564 1;
+-1 -1 0 1;
 #X obj 144 228 t b f;
 #X floatatom 144 68 5 0 0 2 PWM0 - -, f 5;
 #X obj 193 97 vsl 15 100 0 100 0 0 empty empty empty 0 -9 0 10 -262144
--1 -1 3663 1;
+-1 -1 0 1;
 #X obj 193 229 t b f;
 #X floatatom 193 68 5 0 0 2 PWM1 - -, f 5;
 #X obj 243 97 vsl 15 100 0 100 0 0 empty empty empty 0 -9 0 10 -262144
--1 -1 2772 1;
+-1 -1 0 1;
 #X obj 243 229 t b f;
 #X floatatom 243 69 5 0 0 2 PWM2 - -, f 5;
 #X obj 298 97 vsl 15 100 0 100 0 0 empty empty empty 0 -9 0 10 -262144
--1 -1 7524 1;
+-1 -1 0 1;
 #X obj 298 229 t b f;
 #X floatatom 298 69 5 0 0 2 PWM3 - -, f 5;
 #X obj 351 97 vsl 15 100 0 100 0 0 empty empty empty 0 -9 0 10 -262144
--1 -1 6633 1;
+-1 -1 0 1;
 #X obj 351 229 t b f;
 #X floatatom 351 69 5 0 0 2 PWM4 - -, f 5;
 #X obj 403 97 vsl 15 100 0 100 0 0 empty empty empty 0 -9 0 10 -262144
--1 -1 4950 1;
+-1 -1 0 1;
 #X obj 403 229 t b f;
 #X floatatom 403 69 5 0 0 2 PWM5 - -, f 5;
 #X obj 586 87 vradio 15 1 0 2 empty empty PWM3_Mode -16 -8 0 10 -262144
@@ -41,32 +41,35 @@
 -1 -1 0;
 #X obj 459 104 vradio 15 1 0 2 empty empty PWM0_Mode -16 -8 0 10 -262144
 -1 -1 0;
-#X text 145 2 pd-linkuino v1.0;
-#X obj 729 93 tgl 15 0 empty empty empty 17 7 0 10 -262144 -1 -1 0
-1;
-#X obj 771 97 tgl 15 0 empty empty empty 17 7 0 10 -262144 -1 -1 0
-1;
-#X obj 813 95 tgl 15 0 empty empty empty 17 7 0 10 -262144 -1 -1 0
-1;
-#X obj 855 97 tgl 15 0 empty empty empty 17 7 0 10 -262144 -1 -1 0
-1;
-#X obj 897 97 tgl 15 0 empty empty empty 17 7 0 10 -262144 -1 -1 0
-1;
-#X obj 939 101 tgl 15 0 empty empty empty 17 7 0 10 -262144 -1 -1 0
-1;
-#X text 793 63 digtal outputs;
-#X text 751 113 D1;
-#X text 795 112 D2;
-#X text 835 117 D3;
-#X text 879 115 D4;
-#X text 922 117 D5;
-#X text 710 111 D0;
+#X obj 716 50 tgl 15 0 empty empty D0 17 7 0 10 -262144 -1 -1 0 1;
+#X obj 756 50 tgl 15 0 empty empty D1 17 7 0 10 -262144 -1 -1 0 1;
+#X obj 801 49 tgl 15 0 empty empty D2 17 7 0 10 -262144 -1 -1 0 1;
+#X obj 844 49 tgl 15 0 empty empty D3 17 7 0 10 -262144 -1 -1 0 1;
+#X obj 889 50 tgl 15 0 empty empty D4 17 7 0 10 -262144 -1 -1 0 1;
+#X obj 932 47 tgl 15 0 empty empty D5 17 7 0 10 -262144 -1 -1 0 1;
 #X obj 700 189 t b f;
 #X obj 744 201 t b f;
 #X obj 787 214 t b f;
 #X obj 834 224 t b f;
 #X obj 880 233 t b f;
 #X obj 923 253 t b f;
+#X text 190 29 Pin3;
+#X text 141 31 Pin2;
+#X text 243 29 Pin4;
+#X text 296 28 Pin5;
+#X text 349 28 Pin6;
+#X text 400 27 Pin7;
+#X text 2 -21 pd-linkuino v1.0 (c) B.A.T. Cave 2016;
+#X text 707 29 Pin8;
+#X text 927 28 XXX;
+#X text 878 29 Pin12;
+#X text 833 29 Pin11;
+#X text 790 28 Pin10;
+#X text 750 29 Pin9;
+#X text 252 -13 PWM Outputs;
+#X text 485 -19 PWM Configuration Up = DC Motor / full range Down =
+Servo;
+#X text 782 -20 Digital Outputs;
 #X connect 0 0 3 0;
 #X connect 0 1 4 0;
 #X connect 1 0 0 0;
@@ -101,22 +104,22 @@
 #X connect 26 0 0 10;
 #X connect 27 0 0 13;
 #X connect 28 0 0 8;
-#X connect 30 0 43 0;
-#X connect 31 0 44 0;
-#X connect 32 0 45 0;
-#X connect 33 0 46 0;
-#X connect 34 0 47 0;
-#X connect 35 0 48 0;
-#X connect 43 0 0 0;
-#X connect 43 1 0 14;
-#X connect 44 0 0 0;
-#X connect 44 1 0 15;
-#X connect 45 0 0 0;
-#X connect 45 1 0 16;
-#X connect 46 0 0 0;
-#X connect 46 1 0 17;
-#X connect 47 0 0 0;
-#X connect 47 1 0 18;
-#X connect 48 0 0 0;
-#X connect 48 1 0 19;
+#X connect 29 0 35 0;
+#X connect 30 0 36 0;
+#X connect 31 0 37 0;
+#X connect 32 0 38 0;
+#X connect 33 0 39 0;
+#X connect 34 0 40 0;
+#X connect 35 0 0 0;
+#X connect 35 1 0 14;
+#X connect 36 0 0 0;
+#X connect 36 1 0 15;
+#X connect 37 0 0 0;
+#X connect 37 1 0 16;
+#X connect 38 0 0 0;
+#X connect 38 1 0 17;
+#X connect 39 0 0 0;
+#X connect 39 1 0 18;
+#X connect 40 0 0 0;
+#X connect 40 1 0 19;
 #X coords 0 516 1 515 0 0 0;

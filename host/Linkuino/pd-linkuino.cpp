@@ -16,6 +16,7 @@ extern "C"
 	int linkuino_getversionmajor(struct LinkuinoClient*);
 	int linkuino_getversionminor(struct LinkuinoClient*);
 	void linkuino_set_pwm_value(struct LinkuinoClient*,int,float);
+	void linkuino_set_dout(struct LinkuinoClient*,int);
 	void linkuino_send(struct LinkuinoClient*);
 
 	static t_class *linkuino_class;  
@@ -61,12 +62,26 @@ extern "C"
 	  if( x->x_link == 0 ) return;
 	  outlet_float(x->f_revmajor, vmaj);  
 	  outlet_float(x->f_revminor, vmin);
+	  
+	  // update PWM state
 	  linkuino_set_pwm_value(x->x_link,0, PWM_FLOAT_VALUE(x,0) );
 	  linkuino_set_pwm_value(x->x_link,1, PWM_FLOAT_VALUE(x,1) );
 	  linkuino_set_pwm_value(x->x_link,2, PWM_FLOAT_VALUE(x,2) );
 	  linkuino_set_pwm_value(x->x_link,3, PWM_FLOAT_VALUE(x,3) );
 	  linkuino_set_pwm_value(x->x_link,4, PWM_FLOAT_VALUE(x,4) );
 	  linkuino_set_pwm_value(x->x_link,5, PWM_FLOAT_VALUE(x,5) );
+	  
+	  // update digital output state
+	  int d = 0;
+	  d  = (x->f_d0 > 0.5) ? 1 : 0;
+	  d |= (x->f_d1 > 0.5) ? 2 : 0;
+	  d |= (x->f_d2 > 0.5) ? 4 : 0;
+	  d |= (x->f_d3 > 0.5) ? 8 : 0;
+	  d |= (x->f_d4 > 0.5) ? 16 : 0;
+	  d |= (x->f_d5 > 0.5) ? 32 : 0;
+	  linkuino_set_dout(x->x_link,d);
+	  
+	  // send new state and commands to device
 	  linkuino_send(x->x_link);
 	}
 
@@ -184,6 +199,11 @@ void linkuino_set_pwm_value(struct LinkuinoClient* li, int pwmI, float pwmValue)
 	if( pwmValue > 1.0f ) pwmValue = 1.0f;
 	value = pwmValue*10000.0f;
 	li->setPWMValue( pwmI, value );
+}
+
+void linkuino_set_dout(struct LinkuinoClient* li,int v)
+{
+	li->setRegisterValue(Linkuino::DOUT_ADDR, v);
 }
 
 void linkuino_send(struct LinkuinoClient* li)
