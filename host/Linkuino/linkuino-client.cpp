@@ -107,7 +107,7 @@ int main(int argc, char* argv[])
 		uint16_t d1 = (data>>12) & 0x3F;
 		uint16_t d2 = (data>>6) & 0x3F;
 		uint16_t d3 = data & 0x3F;
-		printf("forward: %d %d %d %d => %08X => %02X %02X %02X %02X\n",a,b,c,d,data,d0,d1,d2,d3);
+		printf("forward: %d %d %d %d => %d (0x%08X) => %02X %02X %02X %02X\n",a,b,c,d,data,data,d0,d1,d2,d3);
 		link.setRegisterValue(Linkuino::REQ_ADDR, Linkuino::REQ_FWD_SERIAL);
 		link.setRegisterValue(Linkuino::REQ_DATA0_ADDR, d0);
 		link.setRegisterValue(Linkuino::REQ_DATA1_ADDR, d1);
@@ -115,6 +115,6 @@ int main(int argc, char* argv[])
 		link.setRegisterValue(Linkuino::REQ_DATA3_ADDR, d3);
 		link.send();
 	}
-	sleep(1);
+	//sleep(1);
 	return 0;
 }

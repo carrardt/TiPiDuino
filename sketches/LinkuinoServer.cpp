@@ -12,13 +12,13 @@
 using namespace avrtl;
 
 ByteStreamAdapter<HWSerialNoInt,100000UL> serialIO;
-PrintStream cout;
 
 //#define DEBUG_TIMINGS 1
 
 #ifdef DEBUG_TIMINGS
 using Scheduler = TimeSchedulerT<AvrTimer1<>,int16_t,true>;
 //using Scheduler = TimeSchedulerT<AvrTimer1<false>,int32_t,true>;
+PrintStream cout;
 #else
 //using Scheduler = TimeSchedulerT<AvrTimer0> ; // SlotMax=127uS, resolution=500nS, 16Bits wallclock
 //using Scheduler = TimeSchedulerT<AvrTimer1<false>,int32_t> ; // SlotMax>1000S, resolution=62nS, 32Bits wallclock
@@ -40,12 +40,15 @@ struct LinkuinoUnoTraits
 
 	static constexpr uint8_t PWMPortFirstBit = 2; // first accessible for PWM
 	static constexpr uint8_t PWMPortMask = 0xFC; // mask of bits accessible for PWM
+	static constexpr uint8_t PWMCount = 6;
 
-	static constexpr uint8_t DOutPortFirstBit = 0; 
-	static constexpr uint8_t DOutPortMask = 0x1F; // last digital output bit is disabled to be used for message forwarding
+	static constexpr uint8_t DOutPortFirstBit = 1; 
+	static constexpr uint8_t DOutPortMask = 0x3E; // first digital output bit is disabled to be used for message forwarding
+	static constexpr uint8_t DOutCount = 5;
 
 	static constexpr uint8_t DInPortFirstBit = 0;
 	static constexpr uint8_t DInPortMask = 0x3F;
+	static constexpr uint8_t DInCount = 6;
 
 	static inline void selectAnalogChannel(uint8_t ch) {}
 	static inline void analogAcquire() {}
@@ -58,29 +61,32 @@ using Linkuino = LinkuinoT< LinkuinoUnoTraits >;
 static Scheduler ts;
 static Linkuino li;
 
-// the last digital output pin can be written to by linkuino client, but will be also be used
-// as a led and a fast-serial line.
-static auto led = StaticPin<13>();
-static auto fastSerial = make_fastserial(NullPin(),led);
+// One of the digital output pin is reserved for message forwarding, using the FastSerial protocol
+static auto fastSerialPin = StaticPin<8>();
+static auto fastSerial = make_fastserial(NullPin(),fastSerialPin);
 
 void setup()
 {
 	cli();
 
 	serialIO.m_rawIO.begin(Linkuino::SERIAL_SPEED);
-	cout.begin(&serialIO);
-	li.begin();
 
+#ifdef DEBUG_TIMINGS
+	cout.begin(&serialIO);
 	cout<<"Linkuino"<<endl;
 	cout<<"Tt="<<ts.tickTime()<<"nS"<<endl;
 	cout<<"Tf="<<ts.maxFuncTime()<<"uS"<<endl;
 	cout<<"Tc="<<ts.maxCycleTime()<<"mS"<<endl;
+#endif
+
+	li.begin();
 
 	// last bit of digital output will be used 
-	led.SetOutput();
-	led = HIGH;
+	// fastSerialPin.SetOutput();
+	// fastSerialPin = HIGH;
+	fastSerial.begin();
 	fastSerial.write<24>(0);
-	
+
 	ts.start();
 }
 
@@ -117,7 +123,9 @@ void loop()
 			li.prepareToReceive();
 		} );
 
+#ifdef DEBUG_TIMINGS
 	ts.printDebugInfo( cout );
+#endif
 	ts.endCycle();
 }
 

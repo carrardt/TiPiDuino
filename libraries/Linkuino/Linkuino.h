@@ -116,7 +116,7 @@ struct LinkuinoT /* Server */
 
 	/*************** Server version ********************/
 	static constexpr uint8_t REV_MAJOR = 1;
-	static constexpr uint8_t REV_MINOR = 10;
+	static constexpr uint8_t REV_MINOR = 2;
 
 	/**************** Communication settings ***********/
 	static constexpr uint8_t PWM_COUNT   			= 6;
@@ -141,7 +141,7 @@ struct LinkuinoT /* Server */
 	static constexpr uint8_t PWM4L_ADDR 	= 0x0A;
 	static constexpr uint8_t PWM5H_ADDR 	= 0x0B;
 	static constexpr uint8_t PWM5L_ADDR 	= 0x0C;
-	static constexpr uint8_t PWMSMTH_ADDR 	= 0x0D; // smoothing factor : [0;3] 0 means no smoothing
+	static constexpr uint8_t PWMSMTH_ADDR 	= 0x0D; // smoothing factor : [0;3] 0 means no smoothing (not implemented)
 	static constexpr uint8_t DOUT_ADDR 	 	= 0x0E;
 	static constexpr uint8_t REQ_ADDR	 	= 0x0F;
 	static constexpr uint8_t REQ_DATA0_ADDR	= 0x10;
@@ -185,11 +185,11 @@ struct LinkuinoT /* Server */
 	static constexpr uint8_t REQ_DBG5_READ 		= 0x26;
 	static constexpr uint8_t REQ_FWD_SERIAL	    = 0x27;
 	
-	static constexpr uint8_t REQ_RESET		  	= 0x30;
-	static constexpr uint8_t REQ_REV		  	= 0x31;
-	static constexpr uint8_t REQ_NOREPLY		= 0x3E;
+	static constexpr uint8_t REQ_RESET		  	= 0x30; // not implemented
+	static constexpr uint8_t REQ_REV		  	= 0x31; // sends REQ_REV, version major, version minor
+	static constexpr uint8_t REQ_NOREPLY		= 0x3E; // stop sending reply
 	static constexpr uint8_t REQ_NOOP		  	= 0x3F; // i.e. ACKnowledge => sends 'Ok\n'
-	static constexpr uint8_t REQ_NULL		  	= 0xFF;
+	static constexpr uint8_t REQ_NULL		  	= 0xFF; // no request received
 
 	inline LinkuinoT()
 		: m_pwmOutput()

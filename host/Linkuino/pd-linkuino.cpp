@@ -70,7 +70,7 @@ extern "C"
 	  linkuino_set_pwm_value(x->x_link,3, PWM_FLOAT_VALUE(x,3) );
 	  linkuino_set_pwm_value(x->x_link,4, PWM_FLOAT_VALUE(x,4) );
 	  linkuino_set_pwm_value(x->x_link,5, PWM_FLOAT_VALUE(x,5) );
-	  
+
 	  // update digital output state
 	  int d = 0;
 	  d  = (x->f_d0 > 0.5) ? 1 : 0;
@@ -80,7 +80,7 @@ extern "C"
 	  d |= (x->f_d4 > 0.5) ? 16 : 0;
 	  d |= (x->f_d5 > 0.5) ? 32 : 0;
 	  linkuino_set_dout(x->x_link,d);
-	  
+
 	  // send new state and commands to device
 	  linkuino_send(x->x_link);
 	}

@@ -29,7 +29,7 @@ struct LinkuinoClient
 		for(int i=0;i<Linkuino::PWM_COUNT;i++) { setPWMValue(i, 1250); m_pwmEnabled[i]=false; }
 		setRegisterValue(Linkuino::PWMSMTH_ADDR, 0);
 		setRegisterValue(Linkuino::DOUT_ADDR, 0);
-		setRegisterValue(Linkuino::REQ_ADDR, Linkuino::REQ_NULL);
+		setRegisterValue(Linkuino::REQ_ADDR, Linkuino::REQ_NOREPLY);
 		setRegisterValue(Linkuino::REQ_DATA0_ADDR, 0);
 		setRegisterValue(Linkuino::REQ_DATA1_ADDR, 0);
 		setRegisterValue(Linkuino::REQ_DATA2_ADDR, 0);
