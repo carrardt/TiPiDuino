@@ -147,12 +147,12 @@ extern "C"
 static const char* serial_devices[] = {
 	  "/dev/ttyAMA0"
 	, "/dev/ttyAMA1"
-	, "/dev/ttyACM0"
-	, "/dev/ttyACM1"
 	, "/dev/ttyUSB0"
 	, "/dev/ttyUSB1"
 	, "/dev/ttyUSB2"
 	, "/dev/ttyUSB3"
+	, "/dev/ttyACM0"
+	, "/dev/ttyACM1"
 	, nullptr
 	};
 

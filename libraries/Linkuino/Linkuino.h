@@ -116,7 +116,7 @@ struct LinkuinoT /* Server */
 
 	/*************** Server version ********************/
 	static constexpr uint8_t REV_MAJOR = 1;
-	static constexpr uint8_t REV_MINOR = 0;
+	static constexpr uint8_t REV_MINOR = 10;
 
 	/**************** Communication settings ***********/
 	static constexpr uint8_t PWM_COUNT   			= 6;
@@ -187,7 +187,8 @@ struct LinkuinoT /* Server */
 	
 	static constexpr uint8_t REQ_RESET		  	= 0x30;
 	static constexpr uint8_t REQ_REV		  	= 0x31;
-	static constexpr uint8_t REQ_NOOP		  	= 0x3F;
+	static constexpr uint8_t REQ_NOREPLY		= 0x3E;
+	static constexpr uint8_t REQ_NOOP		  	= 0x3F; // i.e. ACKnowledge => sends 'Ok\n'
 	static constexpr uint8_t REQ_NULL		  	= 0xFF;
 
 	inline LinkuinoT()
@@ -225,7 +226,7 @@ struct LinkuinoT /* Server */
 		m_buffer[REQ_ADDR] = REQ_NULL;
 		m_buffer[PWMSMTH_ADDR] = 0;
 		
-		m_replyEnable = true;
+		m_replyEnable = false;
 		m_reply[0] = 'O';
 		m_reply[1] = 'k';
 		m_reply[2] = '\n';
@@ -237,9 +238,11 @@ struct LinkuinoT /* Server */
 	inline void prepareToReceive()
 	{
 		m_buffer[TSTMP_ADDR] = 255;
-		m_buffer[REQ_ADDR] = 255;
+		// default is to reply to the last request unless NO_REPLY request is received
+		// so we do not overwrite REQ_ADDR until we receive a valid message overwriting it
+		//m_buffer[REQ_ADDR] = REQ_NULL;
 		m_readCycles = 0;
-		m_replyEnable = true;
+		//m_replyEnable = false;
 		m_fwdEnable = false;
 	}
 
@@ -285,16 +288,14 @@ struct LinkuinoT /* Server */
 	inline bool receiveComplete()
 	{
 		if( m_readCycles == 0 ) return false;
-		uint8_t check = 0;
-		for(int i=0;i<5;i++)
+		uint8_t clk=0;
+		for(int i=1;i<CMD_COUNT;i++)
 		{
-			m_buffer[i*3+1] = m_buffer[i*3+1]^0x40;
-			m_buffer[i*3+2] = m_buffer[i*3+2]^0x80;
-			m_buffer[i*3+3] = m_buffer[i*3+3]^0xC0;
-		}
-		for(int i=1;i<16;i++)
-		{
-			if( ( m_buffer[i] & 0xC0 ) != 0 ) return false;
+			uint8_t cm = (clk+1)<<6;
+			m_buffer[i] = m_buffer[i]^cm;
+			if( ( m_buffer[i] & 0xC0 ) != 0 ) { return false; }
+			++clk;
+			if(clk==3) clk=0;
 		}
 		return true;
 	}
@@ -360,8 +361,8 @@ struct LinkuinoT /* Server */
 		m_din = ( m_digitalInput.Get() >> DInPortFirstBit ) & m_dinMask;
 
 		uint8_t req = m_buffer[REQ_ADDR];
-		m_replyEnable = true;
 		m_fwdEnable = false;
+		//m_replyEnable = true;
 		if( req <= REQ_PWM5_DISABLE )
 		{
 			uint8_t pwmi = req;
@@ -378,18 +379,21 @@ struct LinkuinoT /* Server */
 			m_reply[0] = REQ_DIGITAL_READ;
 			m_reply[1] = m_din;
 			m_reply[2] = 0;
+			m_replyEnable = true;
 		}
 		else if( req == REQ_REV )
 		{
 			m_reply[0] = REQ_REV;
 			m_reply[1] = REV_MAJOR;
 			m_reply[2] = REV_MINOR;
+			m_replyEnable = true;
 		}
 		else if( req == REQ_NOOP )
 		{
 			m_reply[0] = 'O';
 			m_reply[1] = 'k';
 			m_reply[2] = '\n';
+			m_replyEnable = true;
 		}
 		else if( req == REQ_FWD_SERIAL )
 		{
@@ -401,6 +405,10 @@ struct LinkuinoT /* Server */
 			m_fwd <<= 6;
 			m_fwd |= m_buffer[REQ_DATA3_ADDR] & 0x3F;
 			m_fwdEnable = true;
+			m_replyEnable = false;
+		}
+		else if( req == REQ_NOREPLY )
+		{
 			m_replyEnable = false;
 		}
 	}

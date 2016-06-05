@@ -108,40 +108,35 @@ struct LinkuinoClient
 	{
 		const double timeoutNanoSecs = 1.e9;
 		
-		setRegisterValue(Linkuino::REQ_ADDR, Linkuino::REQ_NOOP);
+		setRegisterValue(Linkuino::REQ_ADDR, Linkuino::REQ_REV);
 		send();
 		send();
 
 		struct timespec T0, T1;
 		clock_gettime(CLOCK_REALTIME,&T0);
 
-		char reply[32];
-		const int R=16;
+		char reply[256];
+		int R=32;
 		int l=0;
 		while( l<R )
 		{
 			clock_gettime(CLOCK_REALTIME,&T1);
-			if( ((T1.tv_sec-T0.tv_sec)*1.e9+T1.tv_nsec-T0.tv_nsec) > timeoutNanoSecs) { return false; }
+			if( ((T1.tv_sec-T0.tv_sec)*1.e9+T1.tv_nsec-T0.tv_nsec) > timeoutNanoSecs)
+			{ 
+				reply[l]='\0';
+				printf("Linkuino client : Timeout, reply='%s'\n",reply);
+				return false;
+			}
 			int n = read(m_fd,reply+l,R-l);
 			if( n>0 ) l += n;
 		}
-		for(int i=0;i<R;i++) if(reply[i]==0) reply[i]=' ';
-		reply[R-1]='\0';
-		//printf("REQ_NOOP=%s\n",reply);
 
-		setRegisterValue(Linkuino::REQ_ADDR, Linkuino::REQ_REV);
+		setRegisterValue(Linkuino::REQ_ADDR, Linkuino::REQ_NOREPLY);
 		send();
 		send();
 
-		l=0;
-		while( l<R )
-		{
-			if( ((T1.tv_sec-T0.tv_sec)*1.e9+T1.tv_nsec-T0.tv_nsec) > timeoutNanoSecs) { return false;	}
-			int n = read(m_fd,reply+l,R-l);
-			if( n>0 ) l += n;
-		}
 		reply[R-1]='\0';
-
+		//printf("REQ_REV='%s'\n",reply);
 		l=0;
 		while( reply[l]!=Linkuino::REQ_REV && l<R ) ++l;
 		if( l>=(R-2) || reply[l]!=Linkuino::REQ_REV ) { return false; }
