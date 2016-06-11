@@ -9,6 +9,13 @@
 
 #include <Linkuino/Linkuino.h>
 
+// 'old' setting, use led pin to forward commands to slave chip
+#define FWD_SERIAL_PIN 13
+
+// 'new' setting, don't use led pin, so that it's not lit all the time
+//#define FWD_SERIAL_PIN 8
+
+
 using namespace avrtl;
 
 ByteStreamAdapter<HWSerialNoInt,100000UL> serialIO;
@@ -42,8 +49,13 @@ struct LinkuinoUnoTraits
 	static constexpr uint8_t PWMPortMask = 0xFC; // mask of bits accessible for PWM
 	static constexpr uint8_t PWMCount = 6;
 
+#if FWD_SERIAL_PIN==13
+	static constexpr uint8_t DOutPortFirstBit = 0; 
+	static constexpr uint8_t DOutPortMask = 0x1F; // last digital output bit is disabled to be used for message forwarding
+#else
 	static constexpr uint8_t DOutPortFirstBit = 1; 
 	static constexpr uint8_t DOutPortMask = 0x3E; // first digital output bit is disabled to be used for message forwarding
+#endif
 	static constexpr uint8_t DOutCount = 5;
 
 	static constexpr uint8_t DInPortFirstBit = 0;
@@ -62,7 +74,7 @@ static Scheduler ts;
 static Linkuino li;
 
 // One of the digital output pin is reserved for message forwarding, using the FastSerial protocol
-static auto fastSerialPin = StaticPin<8>();
+static auto fastSerialPin = StaticPin<FWD_SERIAL_PIN>();
 static auto fastSerial = make_fastserial(NullPin(),fastSerialPin);
 
 void setup()
