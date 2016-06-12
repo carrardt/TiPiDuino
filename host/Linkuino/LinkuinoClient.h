@@ -124,7 +124,8 @@ struct LinkuinoClient
 			if( ((T1.tv_sec-T0.tv_sec)*1.e9+T1.tv_nsec-T0.tv_nsec) > timeoutNanoSecs)
 			{ 
 				reply[l]='\0';
-				printf("Linkuino client : Timeout, reply='%s'\n",reply);
+				std::cerr<<"Linkuino: client: receive timeout, buffer='";
+				std::cerr<<reply<<"'\n";
 				return false;
 			}
 			int n = read(m_fd,reply+l,R-l);
@@ -142,16 +143,29 @@ struct LinkuinoClient
 		if( l>=(R-2) || reply[l]!=Linkuino::REQ_REV ) { return false; }
 		m_serverMajor = reply[l+1];
 		m_serverMinor = reply[l+2];
-		return true;
+		if( m_serverMajor==Linkuino::REV_MAJOR && m_serverMinor==Linkuino::REV_MINOR )
+		{
+			return true;
+		}
+		else
+		{
+			// version mismatch
+			std::cerr<<"Linkuino: version mismatch: client is ";
+			std::cerr<<(int)Linkuino::REV_MAJOR<<'.'<<(int)Linkuino::REV_MINOR;
+			std::cerr<<", server is "<<m_serverMajor<<'.'<<m_serverMajor<<std::endl;
+			m_serverMajor = 0;
+			m_serverMinor = 0;
+			return false;
+		}
 	}
 
 	inline void printBuffer()
 	{
 		for(int i=0;i<16;i++)
 		{
-			printf("%d|%d ",m_buffer[i]>>6,m_buffer[i]&0x3F);
+			std::cout<<(m_buffer[i]>>6) << '|' << (m_buffer[i]&0x3F)<<' ';
 		}
-		printf("\n");
+		std::cout<<"\n";
 	}
 	
 	inline void send()
