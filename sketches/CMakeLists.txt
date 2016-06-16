@@ -171,6 +171,15 @@ generate_avr_firmware(
     )
 
 #====================================================================#
+# Soft Serial to HW Serial
+#====================================================================#
+generate_avr_firmware(
+	SoftSerial2HWSerial
+    SRCS SoftSerial2HWSerial.cpp
+    LIBS HWSerial SoftSerial BasicIO AvrApp
+    )
+
+#====================================================================#
 # Simple input/output test for HW Serial port not using interrupts
 #====================================================================#
 generate_avr_firmware(
