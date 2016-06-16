@@ -58,7 +58,7 @@ int main(int argc, char* argv[])
 		int p=0;
 		scanf("%d",&p);
 		printf("Disable PWM %d\n",p);
-		link.setRegisterValue(Linkuino::REQ_ADDR, Linkuino::REQ_PWM0_DISABLE+p);
+		link.disablePWM(p);
 		link.send();
 	}
 	else if( cmd=='e' )
@@ -66,7 +66,7 @@ int main(int argc, char* argv[])
 		int p=0;
 		scanf("%d",&p);
 		printf("Enable PWM %d\n",p);
-		link.setRegisterValue(Linkuino::REQ_ADDR, Linkuino::REQ_PWM0_ENABLE+p);
+		link.enablePWM(p);
 		link.send();
 	}
 	else if( cmd=='v' )

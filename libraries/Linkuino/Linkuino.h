@@ -2,52 +2,7 @@
 #define __TiDuino_Linkuino_h
 
 #include <stdint.h>
-
-template<typename ElemT>
-static inline void siftDown(ElemT numbers[], int root, int bottom)
-{
-  int maxChild = root * 2 + 1;
- 
-  // Find the biggest child
-  if(maxChild < bottom) {
-	int otherChild = maxChild + 1;
-	// Reversed for stability
-	maxChild = (numbers[otherChild] > numbers[maxChild])?otherChild:maxChild;
-  } else {
-	// Don't overflow
-	if(maxChild > bottom) return;
-  }
- 
-  // If we have the correct ordering, we are done.
-  if(numbers[root] >= numbers[maxChild]) return;
- 
-  // Swap
-  {
-	ElemT temp = numbers[root];
-	numbers[root] = numbers[maxChild];
-	numbers[maxChild] = temp;
-  }
- 
-  // Tail queue recursion. Will be compiled as a loop with correct compiler switches.
-  siftDown<ElemT>(numbers, maxChild, bottom);
-}
-
-template<typename ElemT, int16_t array_size>
-static inline void heapSort(ElemT numbers[])
-{	 
-  for (int i = (array_size / 2); i >= 0; i--) {
-	siftDown<ElemT>(numbers, i, array_size - 1);
-  }
- 
-  for (int i = array_size-1; i >= 1; i--) {
-	// Swap
-	ElemT temp = numbers[0];
-	numbers[0] = numbers[i];
-	numbers[i] = temp;
- 
-	siftDown<ElemT>(numbers, 0, i-1);
-  }
-}
+#include "Linkuino/heapsort.h"
 
 struct LkNullPinGroup
 {
@@ -116,7 +71,7 @@ struct LinkuinoT /* Server */
 
 	/*************** Server version ********************/
 	static constexpr uint8_t REV_MAJOR = 1;
-	static constexpr uint8_t REV_MINOR = 2;
+	static constexpr uint8_t REV_MINOR = 3;
 
 	/**************** Communication settings ***********/
 	static constexpr uint8_t PWM_COUNT   			= 6;
@@ -141,7 +96,7 @@ struct LinkuinoT /* Server */
 	static constexpr uint8_t PWM4L_ADDR 	= 0x0A;
 	static constexpr uint8_t PWM5H_ADDR 	= 0x0B;
 	static constexpr uint8_t PWM5L_ADDR 	= 0x0C;
-	static constexpr uint8_t PWMSMTH_ADDR 	= 0x0D; // smoothing factor : [0;3] 0 means no smoothing (not implemented)
+	static constexpr uint8_t PWMEN_ADDR 	= 0x0D; // PWM enable bits
 	static constexpr uint8_t DOUT_ADDR 	 	= 0x0E;
 	static constexpr uint8_t REQ_ADDR	 	= 0x0F;
 	static constexpr uint8_t REQ_DATA0_ADDR	= 0x10;
@@ -150,43 +105,25 @@ struct LinkuinoT /* Server */
 	static constexpr uint8_t REQ_DATA3_ADDR	= 0x13;
 
 	/************** Request messages ****************/
-	static constexpr uint8_t REQ_PWM0_DISABLE 	= 0x00;
-	static constexpr uint8_t REQ_PWM1_DISABLE 	= 0x01;
-	static constexpr uint8_t REQ_PWM2_DISABLE 	= 0x02;
-	static constexpr uint8_t REQ_PWM3_DISABLE 	= 0x03;
-	static constexpr uint8_t REQ_PWM4_DISABLE 	= 0x04;
-	static constexpr uint8_t REQ_PWM5_DISABLE 	= 0x05;
-	static constexpr uint8_t REQ_PWM0_ENABLE 	= 0x08;
-	static constexpr uint8_t REQ_PWM1_ENABLE 	= 0x09;
-	static constexpr uint8_t REQ_PWM2_ENABLE 	= 0x0A;
-	static constexpr uint8_t REQ_PWM3_ENABLE 	= 0x0B;
-	static constexpr uint8_t REQ_PWM4_ENABLE 	= 0x0C;
-	static constexpr uint8_t REQ_PWM5_ENABLE 	= 0x0D;
+	static constexpr uint8_t REQ_ANALOG0H_READ 	= 0x00; // not implemented
+	static constexpr uint8_t REQ_ANALOG0L_READ 	= 0x01; // not implemented
+	static constexpr uint8_t REQ_ANALOG1H_READ 	= 0x02; // not implemented
+	static constexpr uint8_t REQ_ANALOG1L_READ 	= 0x03; // not implemented
+	static constexpr uint8_t REQ_ANALOG2H_READ 	= 0x04; // not implemented
+	static constexpr uint8_t REQ_ANALOG2L_READ 	= 0x05; // not implemented
+	static constexpr uint8_t REQ_ANALOG3H_READ 	= 0x06; // not implemented
+	static constexpr uint8_t REQ_ANALOG3L_READ 	= 0x07; // not implemented
+	static constexpr uint8_t REQ_ANALOG4H_READ 	= 0x08; // not implemented
+	static constexpr uint8_t REQ_ANALOG4L_READ 	= 0x09; // not implemented
+	static constexpr uint8_t REQ_ANALOG5H_READ 	= 0x0A; // not implemented
+	static constexpr uint8_t REQ_ANALOG5L_READ 	= 0x0B; // not implemented
 
-	static constexpr uint8_t REQ_ANALOG0H_READ 	= 0x10;
-	static constexpr uint8_t REQ_ANALOG0L_READ 	= 0x11;
-	static constexpr uint8_t REQ_ANALOG1H_READ 	= 0x12;
-	static constexpr uint8_t REQ_ANALOG1L_READ 	= 0x13;
-	static constexpr uint8_t REQ_ANALOG2H_READ 	= 0x14;
-	static constexpr uint8_t REQ_ANALOG2L_READ 	= 0x15;
-	static constexpr uint8_t REQ_ANALOG3H_READ 	= 0x16;
-	static constexpr uint8_t REQ_ANALOG3L_READ 	= 0x17;
-	static constexpr uint8_t REQ_ANALOG4H_READ 	= 0x18;
-	static constexpr uint8_t REQ_ANALOG4L_READ 	= 0x19;
-	static constexpr uint8_t REQ_ANALOG5H_READ 	= 0x1A;
-	static constexpr uint8_t REQ_ANALOG5L_READ 	= 0x1B;
-
-	static constexpr uint8_t REQ_DIGITAL_READ 	= 0x20;
-	static constexpr uint8_t REQ_DBG0_READ 		= 0x21;
-	static constexpr uint8_t REQ_DBG1_READ 		= 0x22;
-	static constexpr uint8_t REQ_DBG2_READ 		= 0x23;
-	static constexpr uint8_t REQ_DBG3_READ 		= 0x24;
-	static constexpr uint8_t REQ_DBG4_READ 		= 0x25;
-	static constexpr uint8_t REQ_DBG5_READ 		= 0x26;
-	static constexpr uint8_t REQ_FWD_SERIAL	    = 0x27;
+	static constexpr uint8_t REQ_DIGITAL_READ 	= 0x10;
+	static constexpr uint8_t REQ_FWD_SERIAL	    = 0x11;
 	
-	static constexpr uint8_t REQ_RESET		  	= 0x30; // not implemented
-	static constexpr uint8_t REQ_REV		  	= 0x31; // sends REQ_REV, version major, version minor
+	static constexpr uint8_t REQ_RESET		  	= 0x20; // not implemented
+	static constexpr uint8_t REQ_REV		  	= 0x21; // sends REQ_REV, version major, version minor
+	
 	static constexpr uint8_t REQ_NOREPLY		= 0x3E; // stop sending reply
 	static constexpr uint8_t REQ_NOOP		  	= 0x3F; // i.e. ACKnowledge => sends 'Ok\n'
 	static constexpr uint8_t REQ_NULL		  	= 0xFF; // no request received
@@ -224,7 +161,7 @@ struct LinkuinoT /* Server */
 		}
 		m_buffer[DOUT_ADDR] = 0;
 		m_buffer[REQ_ADDR] = REQ_NULL;
-		m_buffer[PWMSMTH_ADDR] = 0;
+		m_buffer[PWMEN_ADDR] = 0;
 		
 		m_replyEnable = false;
 		m_reply[0] = 'O';
@@ -332,6 +269,12 @@ struct LinkuinoT /* Server */
 		}
 
 		// process PWM commands, sort values, prepare next cycle pulses sequence
+		
+		// copy pwm enable mask to pwm port mask
+		uint8_t pwmMaskReg = m_buffer[PWMEN_ADDR] & 0x3F ;
+		m_pwmPortMask = pwmMaskReg << PWMPortFirstBit;
+		
+		// sort pwm values to lower in-cycle processing time
 		for(uint8_t i=0;i<PWM_COUNT;i++) { m_pwm[i] = makePwmDesc(i); }
 		heapSort<uint16_t,PWM_COUNT>( m_pwm );
 		m_pwmSeqLen = 0;
@@ -360,21 +303,11 @@ struct LinkuinoT /* Server */
 		// read digital input state
 		m_din = ( m_digitalInput.Get() >> DInPortFirstBit ) & m_dinMask;
 
+		// processs request, if any
 		uint8_t req = m_buffer[REQ_ADDR];
 		m_fwdEnable = false;
 		//m_replyEnable = true;
-		if( req <= REQ_PWM5_DISABLE )
-		{
-			uint8_t pwmi = req;
-			m_pwmPortMask &= ~ (1<<(pwmi+PWMPortFirstBit));
-		}
-		else if( req <= REQ_PWM5_ENABLE)
-		{
-			uint8_t pwmi = req - REQ_PWM0_ENABLE;
-			m_pwmPortMask |= 1<<(pwmi+PWMPortFirstBit);
-			m_pwmPortMask &= PWMPortMask;
-		}
-		else if( req == REQ_DIGITAL_READ )
+		if( req == REQ_DIGITAL_READ )
 		{
 			m_reply[0] = REQ_DIGITAL_READ;
 			m_reply[1] = m_din;

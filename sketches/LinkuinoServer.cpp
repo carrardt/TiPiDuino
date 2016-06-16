@@ -10,10 +10,10 @@
 #include <Linkuino/Linkuino.h>
 
 // 'old' setting, use led pin to forward commands to slave chip
-#define FWD_SERIAL_PIN 13
+//#define FWD_SERIAL_PIN 13
 
 // 'new' setting, don't use led pin, so that it's not lit all the time
-//#define FWD_SERIAL_PIN 8
+#define FWD_SERIAL_PIN 8
 
 
 using namespace avrtl;
