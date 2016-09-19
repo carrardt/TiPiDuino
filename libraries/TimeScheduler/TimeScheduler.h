@@ -15,6 +15,7 @@ struct AvrTimer0
 	static constexpr uint32_t ClockMhz = F_CPU / 1000000UL;
 	static constexpr uint32_t NanoSecPerTick = ( 1000UL * TimerPrescaler ) / ClockMhz;
 	static constexpr uint32_t TicksPerMilliSec = ( F_CPU / TimerPrescaler ) / 1000UL;
+	static constexpr uint32_t TicksPerSecond = F_CPU / TimerPrescaler;
 	static constexpr uint32_t MaxExecMicroSec = ( TimerCounterMax * NanoSecPerTick ) / 1000UL;
 
 	inline TimerCounterType start()
@@ -27,6 +28,48 @@ struct AvrTimer0
 #endif
 		TCCR0A = 0;
 		TCCR0B = 0b00000010 ; // this set prescaler to 8
+		return TCNT0;
+	}
+	
+	inline void stop()
+	{
+		TCCR0A = saved_TCCR0A;
+		TCCR0B = saved_TCCR0B;
+#ifdef TIMSK0
+		TIMSK0 = saved_TIMSK0;
+#endif
+	}
+	
+	static inline TimerCounterType counter() { return TCNT0; }
+	
+	uint8_t saved_TCCR0A, saved_TCCR0B, saved_TIMSK0;
+};
+
+struct AvrTimer0NoPrescaler
+{
+	static constexpr uint32_t TimerCounterResolution = 256;
+	static constexpr uint32_t TimerCounterMax = TimerCounterResolution - 1;
+	using TimerCounterType = uint8_t;
+	
+	// the only usable value
+	static constexpr uint32_t TimerPrescaler = 1;
+	
+	static constexpr uint32_t ClockMhz = F_CPU / 1000000UL;
+	static constexpr uint32_t NanoSecPerTick = ( 1000UL * TimerPrescaler ) / ClockMhz;
+	static constexpr uint32_t TicksPerMilliSec = ( F_CPU / TimerPrescaler ) / 1000UL;
+	static constexpr uint32_t TicksPerSecond = F_CPU / TimerPrescaler;
+	static constexpr uint32_t MaxExecMicroSec = ( TimerCounterMax * NanoSecPerTick ) / 1000UL;
+
+	inline TimerCounterType start()
+	{
+		saved_TCCR0A = TCCR0A;
+		saved_TCCR0B = TCCR0B;
+#ifdef TIMSK0
+		saved_TIMSK0 = TIMSK0;
+		TIMSK0 = 0;
+#endif
+		TCCR0A = 0;
+		TCCR0B = 0b00000001 ; // this set prescaler to 1
 		return TCNT0;
 	}
 	
@@ -58,6 +101,7 @@ struct AvrTimer1
 	static constexpr uint32_t ClockMhz = F_CPU / 1000000UL;
 	static constexpr uint32_t NanoSecPerTick = ( 1000UL * TimerPrescaler ) / ClockMhz;
 	static constexpr uint32_t TicksPerMilliSec = ( F_CPU / TimerPrescaler ) / 1000UL;
+	static constexpr uint32_t TicksPerSecond = F_CPU / TimerPrescaler;
 	static constexpr uint32_t MaxExecMicroSec = ( TimerCounterMax * NanoSecPerTick ) / 1000UL;
 
 	inline TimerCounterType start()
@@ -194,7 +238,23 @@ struct TimeSchedulerT
 		m_t = t2;
 		return m_wallclock;
 	}
-		
+	
+	template<typename FuncT>
+	inline void execFast( WallClockT t, FuncT f )
+	{
+		f();
+		while( wallclock() < t );
+		m_wallclock -= t;
+	}
+
+	template<typename FuncT>
+	inline void loopFast( WallClockT t, FuncT f )
+	{
+		WallClockT w;
+		while( (w=wallclock()) < t ) { f( w ); }
+		m_wallclock -= t;
+	}
+
 	template<typename FuncT>
 	inline void exec( WallClockT t, FuncT f )
 	{
@@ -203,7 +263,7 @@ struct TimeSchedulerT
 		m_debugger.setTiming(wallclock());
 		m_debugger.next();
 		while( wallclock() < t );
-		m_wallclock -= t;				
+		m_wallclock -= t;
 	}
 
 	template<typename FuncT>
@@ -217,7 +277,7 @@ struct TimeSchedulerT
 			f( usec );
 			if(DebugMode) {	WallClockT w2 = wallclock(); m_debugger.updateTiming(w2-w); }
 		}
-		m_wallclock -= t;				
+		m_wallclock -= t;
 		m_debugger.next();
 	}
 

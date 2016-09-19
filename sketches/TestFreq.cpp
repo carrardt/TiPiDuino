@@ -16,6 +16,10 @@ void setup() {
   //pinMode(CLK_PIN, OUTPUT);
   //pinMode(LED_PIN, OUTPUT);
   DDRB |= 0x03;
+  
+  TCCR0A = 0; // normal mode
+  TCCR0B = 0b00000001 ; // this set prescaler to 1
+
   cli();
 }
 

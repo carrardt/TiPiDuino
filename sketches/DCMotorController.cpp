@@ -1,41 +1,47 @@
-#define DCMOTOR_SERIAL_DEBUG 1
+//#define DCMOTOR_SERIAL_DEBUG 1
 #define DCMOTOR_ATTINY_PINS 1
 
 #include <AvrTL.h>
 #include <AvrTLPin.h>
-#include <SoftSerial/SoftSerial.h>
 #include <avr/interrupt.h>
 #include <TimeScheduler/TimeScheduler.h>
 
+#include <FastSerial/FastSerial.h>
+
 #ifdef DCMOTOR_SERIAL_DEBUG
+#include <SoftSerial/SoftSerial.h>
 #include <BasicIO/ByteStream.h>
 #include <BasicIO/PrintStream.h>
 #endif
 
 /*
  * to send a command :
- * echo "S0060R00500E" > /dev/ttyUSB0 
+ * echo "7 50 7 50" | ./testdcmotorcontroller /dev/ttyUSB1
+ * values are : (TR-40)/8 , RR/4 , (TL-40)/8 and RL/4
+ * TR = target tick count between 2 rotation steps (right)
+ * RR = target rotation (right)
+ * TL = target tick count (left)
+ * RL = target rotation (left)
  * targetTickCount, similar to 1/speed, must be in the range [40;160] (the bigger the slower)
+ * minimum targetTuickCount must be 50 for precise stop
  * 
- * deceleration :
- * step period		steps to stop
- * 40 				18
- * 50				12
- * 70				8
- * 140+				2
+ *   ATtiny85 wiring
+ *   ___    ___
+ *   RST ->| v |-- VCC
+ * R PWM <-|   |<- Right speed encoder
+ * L PWM <-|   |<- Left speed encoder
+ *   GND --|___|<- RX 
  * 
- * i = max( rotation-targetRotation+20 , 0 )
- * minimum step period is : 32+64*i
 */
 
 using namespace avrtl;
 
 #ifdef DCMOTOR_ATTINY_PINS
+#define RX_PIN 		    		0
+#define motorLeft_SPEED_PIN 	1
+#define motorRight_SPEED_PIN 	2
 #define motorRight_PWM_PIN  	3
 #define motorLeft_PWM_PIN  		4
-#define motorRight_SPEED_PIN 	1
-#define motorLeft_SPEED_PIN 	2
-#define RX_PIN 		    		0
 #else
 #define motorRight_PWM_PIN  8
 #define motorLeft_PWM_PIN  9
@@ -50,9 +56,11 @@ static auto motorRightSpeed = StaticPin<motorRight_SPEED_PIN>();
 static auto motorLeftPWM = StaticPin<motorLeft_PWM_PIN>();
 static auto motorLeftSpeed = StaticPin<motorLeft_SPEED_PIN>();
 static auto rx = StaticPin<RX_PIN>();
-static auto serialIO = make_softserial<38400>(rx,motorLeftPWM); // we'll use the same pin for debug output
+
+static auto fastSerial = make_fastserial(rx,NullPin());
 
 #ifdef DCMOTOR_SERIAL_DEBUG
+static auto serialIO = make_softserial<38400>(NullPin(),motorLeftPWM); // we'll use the same pin for debug output
 static ByteStreamAdapter<decltype(serialIO),100000UL> serialAdapter = { serialIO };
 static PrintStream cout;
 #endif
@@ -71,9 +79,8 @@ void setup()
 #ifdef DCMOTOR_SERIAL_DEBUG
   serialAdapter.m_rawIO.begin();
   cout.begin( &serialAdapter );
-#else
-  serialIO.begin();
 #endif
+	fastSerial.begin();
 
 	motorRightPWM = LOW;
 	motorLeftPWM = LOW;
@@ -83,6 +90,8 @@ void setup()
 void loop()
 {
 	static constexpr uint8_t pwmCycleTicks = 64;
+	static constexpr uint8_t startUpPWMDuty = 20;
+	static constexpr uint16_t warmUpTicks = 4;
 	
 	uint16_t rotationR=0, rotationL=0;
 	int16_t tickCountR=0, tickCountL=0;
@@ -93,16 +102,34 @@ void loop()
 
 	uint8_t ticks = 0;
 	uint8_t digit = 0;
-	uint8_t pwmDutyR = pwmCycleTicks/4;
-	uint8_t pwmDutyL = pwmCycleTicks/4;
+	uint8_t pwmDutyR = startUpPWMDuty;
+	uint8_t pwmDutyL = startUpPWMDuty;
 
-	while( serialIO.readByte() != 'R' ) ;
-	while( (digit=serialIO.readByte()) != 'r' ) { targetTickCountR=targetTickCountR*10+digit-'0'; }
-	while( (digit=serialIO.readByte()) != 'L' ) { targetRotationR=targetRotationR*10+digit-'0'; }
-	while( (digit=serialIO.readByte()) != 'l' ) { targetTickCountL=targetTickCountL*10+digit-'0'; }
-	while( (digit=serialIO.readByte()) != '\n' ) { targetRotationL=targetRotationL*10+digit-'0'; }
+	// read command from RX pin, using FastSerial protocol
+	uint32_t command = fastSerial.read<24>();
+	uint16_t commandTR = (command>>20) & 0x0F;
+	uint16_t commandRR = (command>>12) & 0xFF;
+	uint16_t commandTL = (command>>8) & 0x0F;
+	uint16_t commandRL = command & 0xFF;
+
+	targetTickCountR = 40 + commandTR * 8;
+	targetRotationR = commandRR * 4;
+	targetTickCountL = 40 + commandTL * 8;
+	targetRotationL = commandRL * 4;
 
 	TimeScheduler ts;
+
+	if( targetTickCountR<40 || targetTickCountR>200 || targetTickCountL<40 || targetTickCountL>200 || (targetRotationR<4 && targetRotationL<4) )
+	{
+#ifdef DCMOTOR_SERIAL_DEBUG
+		motorLeftPWM = HIGH;
+		ts.start();	ts.exec( 10000, [&](){} ); ts.stop();
+		cout<<"Error: R:"<<targetTickCountR<<'/'<<targetRotationR<<", L:"<<targetTickCountL<<'/'<<targetRotationL;
+		ts.start();	ts.exec( 10000, [&](){} ); ts.stop();
+		motorLeftPWM = LOW;
+#endif
+		return;
+	}
 
 	bool rightEncoder = motorRightSpeed.Get();
 	bool leftEncoder = motorLeftSpeed.Get();
@@ -127,10 +154,9 @@ void loop()
 			else
 			{ 
 				++tickCountR;
-				if( tickCountR >= 4096 ) { turnWheels = false; }
 			}
 			rightEncoder = encR;
-			bool warmR = ( rotationR >= 4 ) ;
+			bool warmR = ( rotationR >= warmUpTicks ) ;
 
 			if( encL && !leftEncoder )
 			{ 
@@ -142,13 +168,29 @@ void loop()
 			else
 			{ 
 				++tickCountL;
-				if( tickCountL >= 4096 ) { turnWheels = false; }
 			}
 			leftEncoder = encL;
-			bool warmL = ( rotationL >= 4 ) ;
-			
+			bool warmL = ( rotationL >= warmUpTicks ) ;
+
+			// speed limitation when close to target rotation
+			int16_t stepsBeforeEndL = targetRotationL - rotationL;
+			if( stepsBeforeEndL <= 32 )
+			{
+				int16_t i = 32 - stepsBeforeEndL;
+				int16_t minTicksL = 64+4*i;
+				if( minTicksL > targetTickCountL ) targetTickCountL = minTicksL;
+			}
+			int16_t stepsBeforeEndR = targetRotationR - rotationR;
+			if( stepsBeforeEndR <= 32 )
+			{
+				int16_t i = 32 - stepsBeforeEndR;
+				int16_t minTicksR = 64+4*i;
+				if( minTicksR > targetTickCountR ) targetTickCountR = minTicksR;
+			}
+
 			motorRightPWM.Set( ticks<pwmDutyR && rotationR<targetRotationR );
 			motorLeftPWM.Set( ticks<pwmDutyL && rotationL<targetRotationL );
+
 			++ticks;
 			if( ticks == pwmCycleTicks )
 			{
@@ -166,7 +208,17 @@ void loop()
 				}
 				ticks = 0;
 			}
-			//if( r>=rotationR && l>=rotationL ) { turnWheels = false; }
+
+			if( tickCountL >= 4096 ) tickCountL=4096;
+			if( tickCountR >= 4096 ) tickCountR=4096;
+
+#ifdef DCMOTOR_SERIAL_DEBUG
+			if( tickCountL >= 4096 && tickCountR >= 4096 ) { turnWheels = false; }
+#else
+			if( tickCountL >= 4096  ) {	rotationL = targetRotationL; }
+			if( tickCountR >= 4096  ) {	rotationR = targetRotationR; }
+			if( rotationR>=targetRotationR && rotationL>=targetRotationL ) { turnWheels = false; }
+#endif
 		} );
 	}
 	motorRightPWM.Set( LOW );
@@ -176,8 +228,9 @@ void loop()
 #ifdef DCMOTOR_SERIAL_DEBUG
 	motorLeftPWM = HIGH;
 	ts.start();	ts.exec( 10000, [&](){} ); ts.stop();
-	cout<<"R:"<<targetTickCountR<<'/'<<targetRotationR<<", L:"<<targetTickCountL<<'/'<<targetRotationL<<endl;
-	cout<<"r="<<rotationR<<", l="<<rotationL<<endl;
+	cout<<"R:"<<targetTickCountR<<'/'<<targetRotationR<<", L:"<<targetTickCountL<<'/'<<targetRotationL;
+	cout<<", tc="<<tickCountR<<'/'<<tickCountL;
+	cout<<", rot="<<rotationR<<'/'<<rotationL<<endl;
 	ts.start();	ts.exec( 10000, [&](){} ); ts.stop();
 	motorLeftPWM = LOW;
 #endif

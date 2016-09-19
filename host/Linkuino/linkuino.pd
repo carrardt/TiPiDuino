@@ -1,47 +1,70 @@
-#N canvas 134 187 816 538 10;
-#X obj 121 325 linkuino, f 79;
-#X obj 41 310 bng 15 250 50 0 empty empty update 17 7 0 10 -262144
+#N canvas -86 195 1345 691 10;
+#X obj 144 477 linkuino, f 114;
+#X obj 36 463 bng 15 250 50 0 empty empty update 17 7 0 10 -262144
 -1 -1;
-#X floatatom 37 274 5 0 10 2 Serial_port - -, f 5;
-#X floatatom 75 374 5 0 0 0 Version - -, f 5;
-#X floatatom 120 374 5 0 0 0 - - -, f 5;
-#X obj 144 118 vsl 15 100 0 100 0 0 empty empty empty 0 -9 0 10 -262144
--1 -1 7300 1;
-#X obj 144 250 t b f;
-#X floatatom 144 90 5 0 0 2 PWM0 - -, f 5;
-#X obj 193 119 vsl 15 100 0 100 0 0 empty empty empty 0 -9 0 10 -262144
--1 -1 7500 1;
-#X obj 193 251 t b f;
-#X floatatom 193 90 5 0 0 2 PWM1 - -, f 5;
-#X obj 243 119 vsl 15 100 0 100 0 0 empty empty empty 0 -9 0 10 -262144
--1 -1 4200 1;
-#X obj 243 251 t b f;
-#X floatatom 243 91 5 0 0 2 PWM2 - -, f 5;
-#X obj 298 119 vsl 15 100 0 100 0 0 empty empty empty 0 -9 0 10 -262144
--1 -1 4800 1;
-#X obj 298 251 t b f;
-#X floatatom 298 91 5 0 0 2 PWM3 - -, f 5;
-#X obj 351 119 vsl 15 100 0 100 0 0 empty empty empty 0 -9 0 10 -262144
--1 -1 5900 1;
-#X obj 351 251 t b f;
-#X floatatom 351 91 5 0 0 2 PWM4 - -, f 5;
-#X obj 403 119 vsl 15 100 0 100 0 0 empty empty empty 0 -9 0 10 -262144
--1 -1 5900 1;
-#X obj 403 251 t b f;
-#X floatatom 403 91 5 0 0 2 PWM5 - -, f 5;
-#X obj 586 109 vradio 15 1 0 2 empty empty PWM3_Mode -16 -8 0 10 -262144
+#X floatatom 37 427 5 0 10 2 Serial_port - -, f 5;
+#X floatatom 75 527 5 0 0 0 Version - -, f 5;
+#X floatatom 120 527 5 0 0 0 - - -, f 5;
+#X obj 144 270 vsl 15 100 0 100 0 0 empty empty empty 0 -9 0 10 -262144
+-1 -1 3600 1;
+#X obj 144 403 t b f;
+#X floatatom 144 243 5 0 0 2 Pin_2 - -, f 5;
+#X obj 193 272 vsl 15 100 0 100 0 0 empty empty empty 0 -9 0 10 -262144
+-1 -1 3300 1;
+#X obj 193 404 t b f;
+#X floatatom 193 243 5 0 0 2 Pin_3 - -, f 5;
+#X obj 243 272 vsl 15 100 0 100 0 0 empty empty empty 0 -9 0 10 -262144
+-1 -1 0 1;
+#X obj 243 404 t b f;
+#X floatatom 243 244 5 0 0 2 Pin_4 - -, f 5;
+#X obj 298 272 vsl 15 100 0 100 0 0 empty empty empty 0 -9 0 10 -262144
+-1 -1 0 1;
+#X obj 298 404 t b f;
+#X floatatom 298 244 5 0 0 2 Pin_5 - -, f 5;
+#X obj 351 272 vsl 15 100 0 100 0 0 empty empty empty 0 -9 0 10 -262144
+-1 -1 0 1;
+#X obj 351 404 t b f;
+#X floatatom 351 244 5 0 0 2 Pin_6 - -, f 5;
+#X obj 403 272 vsl 15 100 0 100 0 0 empty empty empty 0 -9 0 10 -262144
+-1 -1 0 1;
+#X obj 403 404 t b f;
+#X floatatom 403 244 5 0 0 2 Pin_7 - -, f 5;
+#X obj 591 249 vradio 15 1 0 2 empty empty Pin_5 -4 -8 0 10 -262144
 -1 -1 0;
-#X obj 501 111 vradio 15 1 0 2 empty empty PWM1_Mode -16 -8 0 10 -262144
--1 -1 1;
-#X obj 628 119 vradio 15 1 0 2 empty empty PWM4_Mode -16 -8 0 10 -262144
+#X obj 511 249 vradio 15 1 0 2 empty empty Pin_3 -4 -8 0 10 -262144
 -1 -1 0;
-#X obj 544 125 vradio 15 1 0 2 empty empty PWM2_Mode -16 -8 0 10 -262144
+#X obj 630 249 vradio 15 1 0 2 empty empty Pin_6 -4 -8 0 10 -262144
 -1 -1 0;
-#X obj 671 105 vradio 15 1 0 2 empty empty PWM5_Mode -16 -8 0 10 -262144
+#X obj 552 249 vradio 15 1 0 2 empty empty Pin_4 -4 -8 0 10 -262144
 -1 -1 0;
-#X obj 459 126 vradio 15 1 0 2 empty empty PWM0_Mode -16 -8 0 10 -262144
--1 -1 1;
-#X text 145 24 pd-linkuino v0.9;
+#X obj 669 250 vradio 15 1 0 2 empty empty Pin_7 -4 -8 0 10 -262144
+-1 -1 0;
+#X obj 470 247 vradio 15 1 0 2 empty empty Pin_2 -4 -8 0 10 -262144
+-1 -1 0;
+#X obj 713 227 tgl 15 0 empty empty Pin_9 -4 -8 0 10 -262144 -1 -1
+0 1;
+#X obj 757 227 tgl 15 0 empty empty Pin_10 -4 -8 0 10 -262144 -1 -1
+0 1;
+#X obj 805 227 tgl 15 0 empty empty Pin_11 -4 -8 0 10 -262144 -1 -1
+0 1;
+#X obj 848 227 tgl 15 0 empty empty Pin_12 -4 -8 0 10 -262144 -1 -1
+0 1;
+#X obj 894 227 tgl 15 0 empty empty Pin_13_(led) -4 -8 0 10 -262144
+-1 -1 0 1;
+#X obj 923 323 tgl 15 0 empty empty XXX 17 7 0 10 -262144 -1 -1 0 1
+;
+#X obj 700 364 t b f;
+#X obj 744 376 t b f;
+#X obj 787 389 t b f;
+#X obj 834 399 t b f;
+#X obj 880 408 t b f;
+#X obj 923 428 t b f;
+#X text 218 195 PWM Outputs;
+#X text 771 168 Digital Outputs;
+#X text 480 178 Up = DC Motor / full range;
+#X text 479 156 PWM Configuration;
+#X text 480 199 Down = Servo;
+#X text 141 101 Linkuino v1.2 (c) B.A.T. Cave 2016;
 #X connect 0 0 3 0;
 #X connect 0 1 4 0;
 #X connect 1 0 0 0;
@@ -76,4 +99,22 @@
 #X connect 26 0 0 10;
 #X connect 27 0 0 13;
 #X connect 28 0 0 8;
-#X coords 0 538 1 537 0 0 0;
+#X connect 29 0 35 0;
+#X connect 30 0 36 0;
+#X connect 31 0 37 0;
+#X connect 32 0 38 0;
+#X connect 33 0 39 0;
+#X connect 34 0 40 0;
+#X connect 35 0 0 0;
+#X connect 35 1 0 14;
+#X connect 36 0 0 0;
+#X connect 36 1 0 15;
+#X connect 37 0 0 0;
+#X connect 37 1 0 16;
+#X connect 38 0 0 0;
+#X connect 38 1 0 17;
+#X connect 39 0 0 0;
+#X connect 39 1 0 18;
+#X connect 40 0 0 0;
+#X connect 40 1 0 19;
+#X coords 0 691 1 690 0 0 0;

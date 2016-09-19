@@ -1,4 +1,5 @@
 #include <SoftSerial.h>
+#include <FastSerial.h>
 #include <BasicIO/ByteStream.h>
 #include <BasicIO/PrintStream.h>
 #include <AvrTL.h>
@@ -42,7 +43,9 @@ static auto tx = StaticPin<TX_PIN>();
  */
 
 using SerialScheduler = TimeSchedulerT<AvrTimer0NoPrescaler>;
-static auto rawSerialIO = make_softserial_hr<57600,SerialScheduler>(rx,tx);
+static auto rawSerialIO = make_softserial_hr<57600,SerialScheduler>(NullPin(),tx);
+
+static auto fastSerial = make_fastserial(rx,NullPin());
 
 static ByteStreamAdapter<decltype(rawSerialIO),100000UL> serialIO = { rawSerialIO };
 static PrintStream cout;
@@ -55,29 +58,14 @@ void setup()
 	cout.begin( &serialIO );
 	cout<<"F_CPU="<<F_CPU<<endl;
 	cout<<"Ready"<<endl;
+	fastSerial.begin();
 	serialIO.m_rawIO.ts.start();
 }
 
-static uint32_t counter = 0;
 void loop()
 {
+	constexpr uint8_t NBits = 24;
 	led = !led;
-	/*
-	cout<<"Counter = "<<counter<<endl;
-	avrtl::DelayMicroseconds( 10000UL );
-	++ counter;
-	*/
-	
-	char buf[64];
-	uint8_t i=0;
-//	while( ( buf[i]=serialIO.readByte() ) != '\n' && i<63 ) ++i;
-	for(uint8_t i=0;i<64;i++) { buf[i]=serialIO.m_rawIO.readByteFast(); }
-	buf[63]='\0';
-	cout<<counter<<':'<<buf<<endl;
-	++ counter;
-	
-	/*
-	serialIO.writeByte('X');
-	avrtl::DelayMicroseconds( 100000UL );
-	*/
+	uint32_t n = fastSerial.read<NBits>();
+	cout<<"N="<<n<<endl;
 }

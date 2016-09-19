@@ -1,0 +1,30 @@
+in case you want to manually upload a .hex to an avr, using an ArduinoAsISP, you can use these 
+ shell functions :
+
+tn85upload()
+{
+        avrdude -v -pattiny85 -cstk500v1 -P/dev/tty$1 -b19200 -Uflash:w:$2:i
+}
+
+
+tn85i8fuse()
+{
+	avrdude -v -pattiny85 -cstk500v1 -P/dev/tty$1 -b19200 -U lfuse:w:0xe2:m -U hfuse:w:0xdf:m -U efuse:w:0xff:m
+}
+
+m328upload()
+{
+        avrdude -v -pm328p -cstk500v1 -P/dev/tty$1 -b19200 -Uflash:w:$2:i
+}
+
+
+attiny 85 considerations :
+prefered option is to burn the desired bootloader with arduino IDE, using a recent version.
+
+otherwise, try these FUSE settings :
+ATTiny85 @8Mhz, internal clock
+avrdude: safemode: lfuse reads as E2
+avrdude: safemode: hfuse reads as DF
+avrdude: safemode: efuse reads as FF
+avrdude: safemode: Fuses OK (E:FF, H:DF, L:E2)
+

@@ -4,6 +4,7 @@
 add_subdirectory(AvrTL)
 add_subdirectory(TimeScheduler)
 add_subdirectory(SoftSerial)
+add_subdirectory(FastSerial)
 if(NOT "${ARDUINO_DEFAULT_BOARD}" MATCHES "attiny85.*" )
 	add_subdirectory(HWSerial) # to be removed once port to noint version is done
 	add_subdirectory(HWSerialNoInt)

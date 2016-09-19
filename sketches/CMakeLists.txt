@@ -26,6 +26,24 @@ generate_avr_firmware(
 	)
 
 #====================================================================#
+# FastSerial test
+#====================================================================#
+generate_avr_firmware(
+	FastSerialTest
+	SRCS FastSerialTest.cpp
+	LIBS FastSerial AvrTL AvrApp
+	)
+
+#====================================================================#
+# FastSerial receive test
+#====================================================================#
+generate_avr_firmware(
+	FastSerialRead
+	SRCS FastSerialRead.cpp
+	LIBS FastSerial SoftSerial TimeScheduler AvrTL AvrApp
+	)
+
+#====================================================================#
 # Clock test
 #====================================================================#
 generate_avr_firmware(
@@ -44,7 +62,7 @@ generate_avr_firmware(
 	)
 
 #====================================================================#
-# DC motor controller, taking inputs from soft-serial input
+# DC motor controller, taking inputs from soft-serial or fast-serial input
 #====================================================================#
 generate_avr_firmware(
 	DCMotorController
@@ -53,6 +71,15 @@ generate_avr_firmware(
 	)
 
 if(NOT "${ARDUINO_DEFAULT_BOARD}" MATCHES "attiny85.*" )
+#====================================================================#
+# DC motor controller fast-serial input tester
+#====================================================================#
+generate_avr_firmware(
+	DCMotorInputTester
+	SRCS DCMotorInputTester.cpp
+	LIBS FastSerial HWSerial AvrTL AvrApp
+	)
+
 #====================================================================#
 # Keypad test
 #====================================================================#
@@ -122,7 +149,7 @@ generate_avr_firmware(
 generate_avr_firmware(
 	LinkuinoServer
 	SRCS LinkuinoServer.cpp
-	LIBS HWSerialNoInt TimeScheduler Linkuino AvrTL AvrApp
+	LIBS FastSerial HWSerialNoInt TimeScheduler Linkuino AvrTL AvrApp
 	)
 
 #====================================================================#
@@ -141,6 +168,15 @@ generate_avr_firmware(
 	HWSerialTest
     SRCS HWSerialTest.cpp
     LIBS HWSerial BasicIO AvrApp
+    )
+
+#====================================================================#
+# Soft Serial to HW Serial
+#====================================================================#
+generate_avr_firmware(
+	SoftSerial2HWSerial
+    SRCS SoftSerial2HWSerial.cpp
+    LIBS HWSerial SoftSerial BasicIO AvrApp
     )
 
 #====================================================================#
