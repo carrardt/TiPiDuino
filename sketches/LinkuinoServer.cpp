@@ -42,7 +42,7 @@ using Scheduler = TimeSchedulerT<AvrTimer1<>,int16_t > ; // SlotMax=32767uS, res
 struct LinkuinoUnoTraits
 {
 	using PWMPinGroupT = avrtl::StaticPinGroup<0>; // Pins 0-7 (first bit set to 2 to let pins 0 & 1 free for hardware serial)
-	using DOutPinGroupT = avrtl::StaticPinGroup<1>; // Pins 8-13
+	using DOutPinGroupT = avrtl::StaticPinGroup<1>; // Pins 9-13 (pin 8 reserved for link with slave uController)
 	using DInPinGroupT = StaticPinGroup<2>; // Pins 14-19 (a.k.a. A0-A5)
 
 	static constexpr uint8_t PWMPortFirstBit = 2; // first accessible for PWM
@@ -53,6 +53,7 @@ struct LinkuinoUnoTraits
 	static constexpr uint8_t DOutPortFirstBit = 0; 
 	static constexpr uint8_t DOutPortMask = 0x1F; // last digital output bit is disabled to be used for message forwarding
 #else
+	// fast serial link (forward message to slave uController) is on pin 8
 	static constexpr uint8_t DOutPortFirstBit = 1; 
 	static constexpr uint8_t DOutPortMask = 0x3E; // first digital output bit is disabled to be used for message forwarding
 #endif
