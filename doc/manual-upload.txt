@@ -28,3 +28,7 @@ avrdude: safemode: hfuse reads as DF
 avrdude: safemode: efuse reads as FF
 avrdude: safemode: Fuses OK (E:FF, H:DF, L:E2)
 
+
+
+ATMega328PU bootloader
+avrdude -v -patmega328p -cstk500v1 -PCOM3 -b19200 -e -Ulock:w:0x3F:m -Uefuse:w:0x05:m -Uhfuse:w:0xDA:m -Ulfuse:w:0xFF:m
