@@ -9,6 +9,9 @@
 
 #include <Linkuino/Linkuino.h>
 
+// define this to have 100Hz (10ms) cycles. otherwise, standard 50Hz (20ms) cycles are used.
+//#define PWM_FREQ_100HZ 1
+
 // 'old' setting, use led pin to forward commands to slave chip
 //#define FWD_SERIAL_PIN 13
 
@@ -44,6 +47,12 @@ struct LinkuinoUnoTraits
 	using PWMPinGroupT = avrtl::StaticPinGroup<0>; // Pins 0-7 (first bit set to 2 to let pins 0 & 1 free for hardware serial)
 	using DOutPinGroupT = avrtl::StaticPinGroup<1>; // Pins 9-13 (pin 8 reserved for link with slave uController)
 	using DInPinGroupT = StaticPinGroup<2>; // Pins 14-19 (a.k.a. A0-A5)
+
+#ifdef PWM_FREQ_100HZ
+	static constexpr uint8_t CyclePeriodScale = 1; // period is CyclePeriodScale x 10ms . should be 1 (100Hz) or 2 (50Hz)
+#else
+	static constexpr uint8_t CyclePeriodScale = 2; // period is CyclePeriodScale x 10ms . should be 1 (100Hz) or 2 (50Hz)
+#endif
 
 	static constexpr uint8_t PWMPortFirstBit = 2; // first accessible for PWM
 	static constexpr uint8_t PWMPortMask = 0xFC; // mask of bits accessible for PWM
@@ -103,33 +112,49 @@ void setup()
 	ts.start();
 }
 
+#ifdef PWM_FREQ_100HZ
+#define LOOP_STARTUP_TIME	50
+#define ALL_HIGH_TIME		400
+#define FAST_SHUTDOWN_TIME	1600
+#define RECV_SHUTDOWN_TIME	7500
+#define END_PROCESS_TIME	450
+//      TOTAL				10000
+#else
+#define LOOP_STARTUP_TIME	50
+#define ALL_HIGH_TIME		800
+#define FAST_SHUTDOWN_TIME	3200
+#define RECV_SHUTDOWN_TIME	15000
+#define END_PROCESS_TIME	950
+//      TOTAL				20000
+#endif
+
 void loop()
 {
 	// for phase correctness, absorb loop latency here
-	ts.exec( 50, [](){} );			// 9950 uS -> 10000 uS (begining of next cycle)
+	ts.exec( LOOP_STARTUP_TIME, [](){} );			// 9950 uS -> 10000 uS (begining of next cycle)
 
-	ts.exec( 400, []()				// 0 -> 400 uS
+	ts.exec( ALL_HIGH_TIME, []()				// 0 -> 400 uS
 		{
 			li.allPwmHigh();
 		} );
 
 	// no communications for the first 2mS to ensure
 	// maximum precision of servo compatible PWM pulses
-	ts.loop( 1600, [](WallClock t) 	// 400 uS -> 2000 uS
+	ts.loop( FAST_SHUTDOWN_TIME, [](WallClock t) 	// 400 uS -> 2000 uS
 		{
-			li.shutDownPWM( 400+t );
+			li.shutDownPWM( ALL_HIGH_TIME + t );
 		} );
 
 	// during the second period, pulse length values and update frequencies are
 	// less precise, but we can receive command packet at the same time
 	// so we have 7.61 milliseconds to listen for serial commands
-	ts.loop( 7500, [](WallClock t)	// 2000 uS -> 9500 uS
+	ts.loop( RECV_SHUTDOWN_TIME, [](WallClock t)	// 2000 uS -> 9500 uS
 		{
 			li.receive( serialIO.m_rawIO );
-			li.shutDownPWM( 2000+t );
+			li.shutDownPWM( ALL_HIGH_TIME + FAST_SHUTDOWN_TIME + t );
 		} );
 
-	ts.exec( 450, []()				// 9500 uS -> 9950 uS
+	ts.exec( END_PROCESS_TIME, []()				// 9500 uS -> 9950 uS
 		{
 			li.process();
 			li.reply( serialIO.m_rawIO, fastSerial );

@@ -17,13 +17,12 @@ using Linkuino = LinkuinoT<>;
 
 struct LinkuinoClient
 {
-	static constexpr int PacketRepeatCount = Linkuino::MESSAGE_REPEATS ;
-	
 	inline LinkuinoClient(int fd)
 		: m_fd(fd)
 		, m_timeStamp(0)
 		, m_serverMajor(0)
 		, m_serverMinor(0)
+		, m_messageRepeats(24);
 	{
 		setRegisterValue(Linkuino::TSTMP_ADDR, 0);
 		for(int i=0;i<Linkuino::PWM_COUNT;i++) { setPWMValue(i, 1250); }
@@ -140,13 +139,20 @@ struct LinkuinoClient
 		send();
 		send();
 
+		// flush input buffer
+		{
+			uint8_t tmp;
+			while (read(m_fd, &tmp, 1) == 1);
+		}
+
 		reply[R-1]='\0';
 		//printf("REQ_REV='%s'\n",reply);
 		l=0;
-		while( reply[l]!=Linkuino::REQ_REV && l<R ) ++l;
-		if( l>=(R-2) || reply[l]!=Linkuino::REQ_REV ) { return false; }
-		m_serverMajor = reply[l+1];
-		m_serverMinor = reply[l+2];
+		while( reply[l]!=0x00 && l<R ) ++l;
+		if( l>=(R-2) || reply[l]!=0x00 || reply[l+1]==0 || reply[l+2]==0 ) { return false; }
+		m_serverMajor = ( reply[l+1] & 0x03 ) + 1;
+		m_messageRepeats = reply[l+1] >> 2
+		m_serverMinor = reply[l+2] - 1;
 		if( m_serverMajor==Linkuino::REV_MAJOR && m_serverMinor==Linkuino::REV_MINOR )
 		{
 			return true;
@@ -165,7 +171,7 @@ struct LinkuinoClient
 
 	inline void printBuffer()
 	{
-		for(int i=0;i<16;i++)
+		for(int i=0;i<Linkuino::CMD_COUNT;i++)
 		{
 			std::cout<<(m_buffer[i]>>6) << '|' << (m_buffer[i]&0x3F)<<' ';
 		}
@@ -178,7 +184,7 @@ struct LinkuinoClient
 		struct timespec st = { 0 , 10000000UL }; // 10 milliseconds delay
 		struct timespec rem = { 0 , 0 };
 		int r = 0;
-		for(int i=0;i<PacketRepeatCount;i++)
+		for(int i=0;i<m_messageRepeats;i++)
 		{
 			write(m_fd,m_buffer,Linkuino::CMD_COUNT);
 		}
@@ -204,6 +210,7 @@ struct LinkuinoClient
 	int m_fd;
 	int m_serverMajor;
 	int m_serverMinor;
+	int m_messageRepeats;
 	uint8_t m_buffer[Linkuino::CMD_COUNT];
 	uint8_t m_timeStamp;
 	uint8_t m_pwmEnable;

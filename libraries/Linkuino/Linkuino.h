@@ -35,6 +35,8 @@ struct LinkuinoNullTraits
 	using DInPinGroupT = LkNullPinGroup;
 	using ForwardSerialPinT = LkNullPin;
 	
+	static constexpr uint8_t CyclePeriodScale = 1; // period is CyclePeriodScale x 10ms . should be 1 (100Hz) or 2 (50Hz)
+
 	static constexpr uint8_t PWMPortFirstBit = 0;
 	static constexpr uint8_t PWMPortMask = 0x3F;
 
@@ -67,11 +69,13 @@ struct LinkuinoT /* Server */
 	static constexpr uint8_t DInPortMask = LinkuinoTraits::DInPortMask;
 	static constexpr uint8_t DInPortFirstBit = LinkuinoTraits::DInPortFirstBit;
 
+	static constexpr uint8_t CYCLE_PERIOD_SCALE = LinkuinoTraits::CyclePeriodScale;
+
 	static constexpr uint16_t PWM_UNREACHABLE_VALUE = 16383;
 
 	/*************** Server version ********************/
 	static constexpr uint8_t REV_MAJOR = 1;
-	static constexpr uint8_t REV_MINOR = 3;
+	static constexpr uint8_t REV_MINOR = 4;
 
 	/**************** Communication settings ***********/
 	static constexpr uint8_t PWM_COUNT   			= 6;
@@ -79,8 +83,8 @@ struct LinkuinoT /* Server */
 	static constexpr uint8_t CMD_COUNT 	 			= 20;
 	static constexpr uint8_t REPLY_BUFFER_SIZE 		= 2;
 	static constexpr uint32_t SERIAL_SPEED 			= 115200;
-	static constexpr uint32_t PACKET_BYTES      	= SERIAL_SPEED/1000; //SERIAL_SPEED/1000; // 8+2 bits / byte, @ 57600 Bauds, to cover 10ms => 57.6 bytes
-	static constexpr uint32_t MESSAGE_REPEATS      	= (PACKET_BYTES+CMD_COUNT-1)/CMD_COUNT; //SERIAL_SPEED/1000; // 8+2 bits / byte, @ 57600 Bauds, to cover 10ms => 57.6 bytes
+	static constexpr uint32_t PACKET_BYTES      	= (CYCLE_PERIOD_SCALE*SERIAL_SPEED)/1000; //SERIAL_SPEED/1000; // 8+2 bits / byte, @ 57600 Bauds, to cover 10ms => 57.6 bytes
+	static constexpr uint32_t MESSAGE_REPEATS		= (PACKET_BYTES+CMD_COUNT-1)/CMD_COUNT; //SERIAL_SPEED/1000; // 8+2 bits / byte, @ 57600 Bauds, to cover 10ms => 57.6 bytes
 
 	/******** Input register addresses **********/
 	static constexpr uint8_t TSTMP_ADDR 	= 0x00;
@@ -122,7 +126,7 @@ struct LinkuinoT /* Server */
 	static constexpr uint8_t REQ_FWD_SERIAL	    = 0x11;
 	
 	static constexpr uint8_t REQ_RESET		  	= 0x20; // not implemented
-	static constexpr uint8_t REQ_REV		  	= 0x21; // sends REQ_REV, version major, version minor
+	static constexpr uint8_t REQ_REV		  	= 0x21; // sends 0x00, version major-1 | message repeats<<2 (!=0) , version minor+1 (>=1)
 	
 	static constexpr uint8_t REQ_NOREPLY		= 0x3E; // stop sending reply
 	static constexpr uint8_t REQ_NOOP		  	= 0x3F; // i.e. ACKnowledge => sends 'Ok\n'
@@ -289,7 +293,7 @@ struct LinkuinoT /* Server */
 			{
 				++m_pwmSeqLen;
 				m_pwmShutDown[m_pwmSeqLen] = m_pwmShutDown[m_pwmSeqLen-1];
-				m_pwm[m_pwmSeqLen] = value;
+				m_pwm[m_pwmSeqLen] = value*CYCLE_PERIOD_SCALE;
 			}
 			m_pwmShutDown[m_pwmSeqLen] |= mask;
 		}
@@ -316,9 +320,9 @@ struct LinkuinoT /* Server */
 		}
 		else if( req == REQ_REV )
 		{
-			m_reply[0] = REQ_REV;
-			m_reply[1] = REV_MAJOR;
-			m_reply[2] = REV_MINOR;
+			m_reply[0] = 0x00;
+			m_reply[1] = ( (REV_MAJOR-1) & 0x03 ) | ( (MESSAGE_REPEATS<<2) & 0xFC );
+			m_reply[2] = REV_MINOR + 1;
 			m_replyEnable = true;
 		}
 		else if( req == REQ_NOOP )
