@@ -22,7 +22,7 @@ struct LinkuinoClient
 		, m_timeStamp(0)
 		, m_serverMajor(0)
 		, m_serverMinor(0)
-		, m_messageRepeats(24);
+		, m_messageRepeats(24)
 	{
 		setRegisterValue(Linkuino::TSTMP_ADDR, 0);
 		for(int i=0;i<Linkuino::PWM_COUNT;i++) { setPWMValue(i, 1250); }
@@ -55,6 +55,8 @@ struct LinkuinoClient
 		tcsetattr(serial_fd,TCSANOW,&serialConfig);
 		return serial_fd;
 	}
+
+	inline int getMessageRepeats() const { return m_messageRepeats; }
 
 	void setRegisterValue(uint8_t i, uint8_t value)
 	{
@@ -151,7 +153,7 @@ struct LinkuinoClient
 		while( reply[l]!=0x00 && l<R ) ++l;
 		if( l>=(R-2) || reply[l]!=0x00 || reply[l+1]==0 || reply[l+2]==0 ) { return false; }
 		m_serverMajor = ( reply[l+1] & 0x03 ) + 1;
-		m_messageRepeats = reply[l+1] >> 2
+		m_messageRepeats = reply[l+1] >> 2 ;
 		m_serverMinor = reply[l+2] - 1;
 		if( m_serverMajor==Linkuino::REV_MAJOR && m_serverMinor==Linkuino::REV_MINOR )
 		{

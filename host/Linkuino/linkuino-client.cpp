@@ -17,7 +17,7 @@ int main(int argc, char* argv[])
 {
 	if(argc<2) { fprintf(stderr,"Usage: %s /dev/ttySomething\n",argv[0]); return 1; }
 
-	std::cout<<"Speed="<<Linkuino::SERIAL_SPEED<<", repeats="<<LinkuinoClient::PacketRepeatCount<<'\n';
+	std::cout<<"Speed="<<Linkuino::SERIAL_SPEED<<'\n';
 
 	int serial_fd = LinkuinoClient::openSerialDevice( argv[1] );
 	if( serial_fd < 0 ) { fprintf(stderr,"can't open device '%s'\n",argv[1]); return 1; }
@@ -28,7 +28,7 @@ int main(int argc, char* argv[])
 		return 1;
 	}
 	std::cout<<"Connected to Linkuino server v"<<link.getServerVersionMajor()<<'.'<<link.getServerVersionMinor()<<'\n';
-		
+	std::cout<<"message repeats = "<<link.getMessageRepeats()<<'\n';
 	char cmd=' ';
 	scanf("%c",&cmd);
 
@@ -77,6 +77,7 @@ int main(int argc, char* argv[])
 		printf("set PWM %d to %d\n",p,v);
 		link.setPWMValue( p , v );
 		link.send();
+		link.send(); // ??
 	}
 	else if( cmd=='t' )
 	{

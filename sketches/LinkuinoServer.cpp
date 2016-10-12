@@ -9,9 +9,6 @@
 
 #include <Linkuino/Linkuino.h>
 
-// define this to have 100Hz (10ms) cycles. otherwise, standard 50Hz (20ms) cycles are used.
-//#define PWM_FREQ_100HZ 1
-
 // 'old' setting, use led pin to forward commands to slave chip
 //#define FWD_SERIAL_PIN 13
 
@@ -47,12 +44,6 @@ struct LinkuinoUnoTraits
 	using PWMPinGroupT = avrtl::StaticPinGroup<0>; // Pins 0-7 (first bit set to 2 to let pins 0 & 1 free for hardware serial)
 	using DOutPinGroupT = avrtl::StaticPinGroup<1>; // Pins 9-13 (pin 8 reserved for link with slave uController)
 	using DInPinGroupT = StaticPinGroup<2>; // Pins 14-19 (a.k.a. A0-A5)
-
-#ifdef PWM_FREQ_100HZ
-	static constexpr uint8_t CyclePeriodScale = 1; // period is CyclePeriodScale x 10ms . should be 1 (100Hz) or 2 (50Hz)
-#else
-	static constexpr uint8_t CyclePeriodScale = 2; // period is CyclePeriodScale x 10ms . should be 1 (100Hz) or 2 (50Hz)
-#endif
 
 	static constexpr uint8_t PWMPortFirstBit = 2; // first accessible for PWM
 	static constexpr uint8_t PWMPortMask = 0xFC; // mask of bits accessible for PWM
@@ -112,7 +103,7 @@ void setup()
 	ts.start();
 }
 
-#ifdef PWM_FREQ_100HZ
+#ifdef LINKUINO_FREQ_100HZ
 #define LOOP_STARTUP_TIME	50
 #define ALL_HIGH_TIME		400
 #define FAST_SHUTDOWN_TIME	1600

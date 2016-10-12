@@ -4,6 +4,9 @@
 #include <stdint.h>
 #include "Linkuino/heapsort.h"
 
+// define this to have 100Hz (10ms) cycles. otherwise, standard 50Hz (20ms) cycles are used.
+//#define LINKUINO_FREQ_100HZ 1
+
 struct LkNullPinGroup
 {
 	static void SetOutput(uint8_t mask) { }
@@ -34,8 +37,6 @@ struct LinkuinoNullTraits
 	using DOutPinGroupT = LkNullPinGroup;
 	using DInPinGroupT = LkNullPinGroup;
 	using ForwardSerialPinT = LkNullPin;
-	
-	static constexpr uint8_t CyclePeriodScale = 1; // period is CyclePeriodScale x 10ms . should be 1 (100Hz) or 2 (50Hz)
 
 	static constexpr uint8_t PWMPortFirstBit = 0;
 	static constexpr uint8_t PWMPortMask = 0x3F;
@@ -69,9 +70,14 @@ struct LinkuinoT /* Server */
 	static constexpr uint8_t DInPortMask = LinkuinoTraits::DInPortMask;
 	static constexpr uint8_t DInPortFirstBit = LinkuinoTraits::DInPortFirstBit;
 
-	static constexpr uint8_t CYCLE_PERIOD_SCALE = LinkuinoTraits::CyclePeriodScale;
+#ifdef LINKUINO_FREQ_100HZ
+	static constexpr uint8_t CYCLE_PERIOD_SCALE = 1; // period is CyclePeriodScale x 10ms . should be 1 (100Hz) or 2 (50Hz)
+#else
+	static constexpr uint8_t CYCLE_PERIOD_SCALE = 2; // period is CyclePeriodScale x 10ms . should be 1 (100Hz) or 2 (50Hz)
+#endif
 
-	static constexpr uint16_t PWM_UNREACHABLE_VALUE = 16383;
+	static constexpr uint16_t PWM_DEFAULT_VALUE     = 1500;
+	static constexpr uint16_t PWM_UNREACHABLE_VALUE = 65535;
 
 	/*************** Server version ********************/
 	static constexpr uint8_t REV_MAJOR = 1;
@@ -161,7 +167,7 @@ struct LinkuinoT /* Server */
 		{
 			m_buffer[2*i+1] = 0x08;
 			m_buffer[2*i+2] = 0x00;
-			m_pwm[i] = 1250;
+			m_pwm[i] = PWM_DEFAULT_VALUE;
 		}
 		m_buffer[DOUT_ADDR] = 0;
 		m_buffer[REQ_ADDR] = REQ_NULL;
@@ -284,16 +290,16 @@ struct LinkuinoT /* Server */
 		m_pwmSeqLen = 0;
 		m_pwmShutDown[0] = ~m_pwmPortMask;
 		m_pwmShutDown[0] |= 1 << ( ( m_pwm[0] & 0x07 ) + PWMPortFirstBit );
-		m_pwm[0] = decodePulseLength( m_pwm[0] >> 3 );
+		m_pwm[0] = decodePulseLength( m_pwm[0] >> 3 ) * CYCLE_PERIOD_SCALE;
 		for(int i=1;i<PWM_COUNT;i++)
 		{
-			uint16_t value = decodePulseLength( m_pwm[i] >> 3 );
+			uint16_t value = decodePulseLength( m_pwm[i] >> 3 ) * CYCLE_PERIOD_SCALE;
 			uint8_t mask = 1 << ( (m_pwm[i] & 0x07) + PWMPortFirstBit );
 			if( value > m_pwm[m_pwmSeqLen] )
 			{
 				++m_pwmSeqLen;
 				m_pwmShutDown[m_pwmSeqLen] = m_pwmShutDown[m_pwmSeqLen-1];
-				m_pwm[m_pwmSeqLen] = value*CYCLE_PERIOD_SCALE;
+				m_pwm[m_pwmSeqLen] = value;
 			}
 			m_pwmShutDown[m_pwmSeqLen] |= mask;
 		}
