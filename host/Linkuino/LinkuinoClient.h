@@ -33,6 +33,7 @@ struct LinkuinoClient
 		setRegisterValue(Linkuino::REQ_DATA1_ADDR, 0);
 		setRegisterValue(Linkuino::REQ_DATA2_ADDR, 0);
 		setRegisterValue(Linkuino::REQ_DATA3_ADDR, 0);
+		updateSendTime();
 	}
 	
 	inline ~LinkuinoClient()
@@ -180,35 +181,41 @@ struct LinkuinoClient
 		std::cout<<"\n";
 	}
 	
+	inline void updateSendTime()
+	{
+		clock_gettime(CLOCK_REALTIME, & m_sendTime);
+	}
+
+	inline int64_t timeSinceLastSend()
+	{
+		struct timespec T2;
+		clock_gettime(CLOCK_REALTIME, & T2);
+		int64_t t = ( T2.tv_sec - m_sendTime.tv_sec ) * static_cast<int64_t>(1000000000);
+		t += T2.tv_nsec - m_sendTime.tv_nsec;
+		return t;
+	}
+	
 	inline void send()
 	{
-		// TODO: rather than waiting for 10mS, we should just check that last send terminated at least 10mS earlier and wait just enough
-		struct timespec st = { 0 , 10000000UL }; // 10 milliseconds delay
-		struct timespec rem = { 0 , 0 };
-		int r = 0;
+		while( timeSinceLastSend() < 20000000ULL ) ;
 		for(int i=0;i<m_messageRepeats;i++)
 		{
 			write(m_fd,m_buffer,Linkuino::CMD_COUNT);
 		}
 		write(m_fd,m_buffer,1); // finish with a timestamp marker
 		fsync(m_fd);
-		r = nanosleep( &st , &rem );
-		while( r == EINTR )
-		{
-			st = rem;
-			rem = {0,0};
-			fprintf(stderr,"Warning: nanosleep interrupted\n");
-			r = nanosleep( &st , &rem );
-		}
-		if( r==EFAULT || r==EINVAL)
-		{
-			fprintf(stderr,"ERROR: nanosleep failed\n");
-		}
+		updateSendTime();
 		updateTimeStamp();
+	}
+
+	inline void forceMessageRepeats(int m)
+	{
+		m_messageRepeats = m;
 	}
 
   private:
 
+	struct timespec m_sendTime;
 	int m_fd;
 	int m_serverMajor;
 	int m_serverMinor;

@@ -2,6 +2,7 @@
 #include <cstdint>
 #include <cmath>
 #include <iostream>
+#include <string>
 
 #include "LinkuinoClient.h"
 
@@ -29,6 +30,21 @@ int main(int argc, char* argv[])
 	}
 	std::cout<<"Connected to Linkuino server v"<<link.getServerVersionMajor()<<'.'<<link.getServerVersionMinor()<<'\n';
 	std::cout<<"message repeats = "<<link.getMessageRepeats()<<'\n';
+
+	for(int i=1;i<argc;i++)
+	{
+		if( std::string(argv[i])=="-mr" )
+		{
+			++i;
+			if(i<argc)
+			{
+				int mr = atoi(argv[i]);
+				std::cout<<"force repeats to "<<mr<<'\n';
+				link.forceMessageRepeats(mr);
+			}
+		}
+	}
+
 	char cmd=' ';
 	scanf("%c",&cmd);
 
@@ -53,6 +69,28 @@ int main(int argc, char* argv[])
 			t+=0.01;
 		}
 	}
+
+	if(cmd=='S')
+	{
+		int m=1250;
+		int a=350;
+		int p=0;
+		int uS=0;
+		scanf("%d %d %d %d",&p,&uS,&m,&a);
+		printf("Sinus wave : PWM=%d interval=%duS, avg=%d, amp=%d\n",p,m,a);
+		double t=0.0;
+		while( true )
+		{
+			uint32_t x = sin(t) * a + m;
+			link.setPWMValue( p , x );
+			link.send();
+			//link.printBuffer();
+			//link.send();
+			usleep(uS);
+			t+=0.1;
+		}
+	}
+
 	else if( cmd=='d' )
 	{
 		int p=0;
