@@ -197,7 +197,7 @@ struct LinkuinoClient
 	
 	inline void send()
 	{
-		while( timeSinceLastSend() < 20000000ULL ) ;
+		while( timeSinceLastSend() < 15000000ULL ) ;
 		for(int i=0;i<m_messageRepeats;i++)
 		{
 			write(m_fd,m_buffer,Linkuino::CMD_COUNT);
