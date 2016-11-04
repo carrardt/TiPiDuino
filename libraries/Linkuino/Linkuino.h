@@ -52,7 +52,7 @@ struct LinkuinoNullTraits
 	static inline uint16_t analogRead() { return 0; }
 };
 
-template<typename _LinkuinoTraits=LinkuinoNullTraits>
+template<typename _LinkuinoTraits=LinkuinoNullTraits, uint8_t _CyclePeriodScale=2>
 struct LinkuinoT /* Server */
 {
 	/******** Hardware ports configuration **********/
@@ -70,14 +70,14 @@ struct LinkuinoT /* Server */
 	static constexpr uint8_t DInPortMask = LinkuinoTraits::DInPortMask;
 	static constexpr uint8_t DInPortFirstBit = LinkuinoTraits::DInPortFirstBit;
 
-#ifdef LINKUINO_FREQ_100HZ
-	static constexpr uint8_t CYCLE_PERIOD_SCALE = 1; // period is CyclePeriodScale x 10ms . should be 1 (100Hz) or 2 (50Hz)
-#else
-	static constexpr uint8_t CYCLE_PERIOD_SCALE = 2; // period is CyclePeriodScale x 10ms . should be 1 (100Hz) or 2 (50Hz)
-#endif
+	static constexpr uint8_t CYCLE_PERIOD_SCALE = _CyclePeriodScale; // period is CyclePeriodScale x 10ms . should be 1 (100Hz) or 2 (50Hz)
 
 	static constexpr uint16_t PWM_DEFAULT_VALUE     = 1500;
 	static constexpr uint16_t PWM_UNREACHABLE_VALUE = 65535;
+
+	static constexpr uint8_t NO_RESET = 0;
+	static constexpr uint8_t RESET_TO_50Hz = 1;
+	static constexpr uint8_t RESET_TO_100Hz = 2;
 
 	/*************** Server version ********************/
 	static constexpr uint8_t REV_MAJOR = 1;
@@ -131,7 +131,7 @@ struct LinkuinoT /* Server */
 	static constexpr uint8_t REQ_DIGITAL_READ 	= 0x10;
 	static constexpr uint8_t REQ_FWD_SERIAL	    = 0x11;
 	
-	static constexpr uint8_t REQ_RESET		  	= 0x20; // not implemented
+	static constexpr uint8_t REQ_RESET		  	= 0x20; // reset to 50Hz or 100Hz mode depending on code stored at REQ_DATA0_ADDR
 	static constexpr uint8_t REQ_REV		  	= 0x21; // sends 0x00, version major-1 | message repeats<<2 (!=0) , version minor+1 (>=1)
 	
 	static constexpr uint8_t REQ_NOREPLY		= 0x3E; // stop sending reply
@@ -180,6 +180,8 @@ struct LinkuinoT /* Server */
 
 		m_fwdEnable = false;
 		m_fwd = 0;
+		
+		m_resetRequest = NO_RESET;
 	}
 
 	inline void prepareToReceive()
@@ -354,6 +356,10 @@ struct LinkuinoT /* Server */
 		{
 			m_replyEnable = false;
 		}
+		else if( req == REQ_RESET )
+		{
+			m_resetRequest = m_buffer[REQ_DATA0_ADDR] & 0x3F;
+		}
 	}
 
 	inline void allPwmHigh()
@@ -388,6 +394,11 @@ struct LinkuinoT /* Server */
 		return v;
 	}
 
+	inline uint8_t resetRequest() const
+	{
+		return m_resetRequest;
+	}
+
 	// PWM state
 	uint16_t m_pwm[PWM_COUNT+1];
 	uint8_t m_pwmShutDown[PWM_COUNT];
@@ -414,6 +425,9 @@ struct LinkuinoT /* Server */
 	// forward buffer
 	bool m_fwdEnable;
 	uint32_t m_fwd;
+	
+	// reset requested
+	uint8_t m_resetRequest;
 
 	// hardware pins accessors
 	PWMPinGroupT m_pwmOutput;

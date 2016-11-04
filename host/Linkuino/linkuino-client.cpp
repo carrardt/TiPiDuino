@@ -22,13 +22,18 @@ int main(int argc, char* argv[])
 
 	int serial_fd = LinkuinoClient::openSerialDevice( argv[1] );
 	if( serial_fd < 0 ) { fprintf(stderr,"can't open device '%s'\n",argv[1]); return 1; }
-	LinkuinoClient link( serial_fd );
+
+	bool freq100Hz = false;
+	if( argc>=3 ) { freq100Hz=atoi(argv[2]); }
+
+	LinkuinoClient link( serial_fd , freq100Hz );
 	if( ! link.testConnection() )
 	{
 		std::cerr<<"No valid Linkuino server on "<<argv[1]<<'\n';
 		return 1;
 	}
 	std::cout<<"Connected to Linkuino server v"<<link.getServerVersionMajor()<<'.'<<link.getServerVersionMinor()<<'\n';
+	std::cout<<"Operation frequency is "<< ( freq100Hz ? "100Hz" : "50Hz") << "\n";
 	std::cout<<"message repeats = "<<link.getMessageRepeats()<<'\n';
 
 	for(int i=1;i<argc;i++)
@@ -152,6 +157,22 @@ int main(int argc, char* argv[])
 		link.setRegisterValue(Linkuino::REQ_DATA1_ADDR, d1);
 		link.setRegisterValue(Linkuino::REQ_DATA2_ADDR, d2);
 		link.setRegisterValue(Linkuino::REQ_DATA3_ADDR, d3);
+		link.send();
+	}
+	else if( cmd=='r' )
+	{
+		std::cout<<"reset to 50Hz mode\n";
+		link.setRegisterValue(Linkuino::REQ_ADDR, Linkuino::REQ_RESET);
+		link.setRegisterValue(Linkuino::REQ_DATA0_ADDR,Linkuino::RESET_TO_50Hz);
+		link.send();
+		link.send();
+	}
+	else if( cmd=='R' )
+	{
+		std::cout<<"reset to 100Hz mode\n";
+		link.setRegisterValue(Linkuino::REQ_ADDR, Linkuino::REQ_RESET);
+		link.setRegisterValue(Linkuino::REQ_DATA0_ADDR,Linkuino::RESET_TO_100Hz);
+		link.send();
 		link.send();
 	}
 	//sleep(1);

@@ -17,12 +17,13 @@ using Linkuino = LinkuinoT<>;
 
 struct LinkuinoClient
 {
-	inline LinkuinoClient(int fd)
+	inline LinkuinoClient(int fd, bool updateFreq100Hz=false)
 		: m_fd(fd)
 		, m_timeStamp(0)
 		, m_serverMajor(0)
 		, m_serverMinor(0)
 		, m_messageRepeats(24)
+		, m_operationFreq100Hz(updateFreq100Hz)
 	{
 		setRegisterValue(Linkuino::TSTMP_ADDR, 0);
 		for(int i=0;i<Linkuino::PWM_COUNT;i++) { setPWMValue(i, 1250); }
@@ -110,10 +111,18 @@ struct LinkuinoClient
 		setRegisterValue( Linkuino::TSTMP_ADDR, m_timeStamp );
 	}
 	
+	
 	bool testConnection()
 	{
 		const double timeoutNanoSecs = 1.e9;
-		
+
+		// reboot the controller in desired mode
+		setRegisterValue(Linkuino::REQ_ADDR, Linkuino::REQ_RESET);
+		setRegisterValue(Linkuino::REQ_DATA0_ADDR, m_operationFreq100Hz ? Linkuino::RESET_TO_100Hz : Linkuino::RESET_TO_50Hz );
+		send();
+		send();
+
+		// request the controller to introduce itself
 		setRegisterValue(Linkuino::REQ_ADDR, Linkuino::REQ_REV);
 		send();
 		send();
@@ -223,6 +232,7 @@ struct LinkuinoClient
 	uint8_t m_buffer[Linkuino::CMD_COUNT];
 	uint8_t m_timeStamp;
 	uint8_t m_pwmEnable;
+	bool m_operationFreq100Hz;
 };
 
 #endif

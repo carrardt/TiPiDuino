@@ -187,4 +187,5 @@ generate_avr_firmware(
     SRCS HWSerialNoIntTest.cpp
     LIBS HWSerialNoInt BasicIO AvrApp
     )
+
 endif()
