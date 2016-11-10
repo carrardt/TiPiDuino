@@ -135,6 +135,15 @@ generate_avr_firmware(
     )
 
 #====================================================================#
+# Print fast-serial 24bits input values to a LCD1602 screen
+#====================================================================#
+generate_avr_firmware(
+    FastSerialLCD1602
+    SRCS FastSerialLCD1602.cpp
+    LIBS FastSerial LCD1602 BasicIO AvrTL AvrApp
+    NO_AUTOLIBS)
+
+#====================================================================#
 # Print an incresaing counter on a LCD1602 screen
 #====================================================================#
 generate_avr_firmware(
