@@ -4,6 +4,9 @@
 #include <stdint.h>
 #include "Linkuino/heapsort.h"
 
+// define this to have 100Hz (10ms) cycles. otherwise, standard 50Hz (20ms) cycles are used.
+//#define LINKUINO_FREQ_100HZ 1
+
 struct LkNullPinGroup
 {
 	static void SetOutput(uint8_t mask) { }
@@ -34,7 +37,7 @@ struct LinkuinoNullTraits
 	using DOutPinGroupT = LkNullPinGroup;
 	using DInPinGroupT = LkNullPinGroup;
 	using ForwardSerialPinT = LkNullPin;
-	
+
 	static constexpr uint8_t PWMPortFirstBit = 0;
 	static constexpr uint8_t PWMPortMask = 0x3F;
 
@@ -49,7 +52,7 @@ struct LinkuinoNullTraits
 	static inline uint16_t analogRead() { return 0; }
 };
 
-template<typename _LinkuinoTraits=LinkuinoNullTraits>
+template<typename _LinkuinoTraits=LinkuinoNullTraits, uint8_t _CyclePeriodScale=2>
 struct LinkuinoT /* Server */
 {
 	/******** Hardware ports configuration **********/
@@ -67,11 +70,18 @@ struct LinkuinoT /* Server */
 	static constexpr uint8_t DInPortMask = LinkuinoTraits::DInPortMask;
 	static constexpr uint8_t DInPortFirstBit = LinkuinoTraits::DInPortFirstBit;
 
-	static constexpr uint16_t PWM_UNREACHABLE_VALUE = 16383;
+	static constexpr uint8_t CYCLE_PERIOD_SCALE = _CyclePeriodScale; // period is CyclePeriodScale x 10ms . should be 1 (100Hz) or 2 (50Hz)
+
+	static constexpr uint16_t PWM_DEFAULT_VALUE     = 1500;
+	static constexpr uint16_t PWM_UNREACHABLE_VALUE = 65535;
+
+	static constexpr uint8_t NO_RESET = 0;
+	static constexpr uint8_t RESET_TO_50Hz = 1;
+	static constexpr uint8_t RESET_TO_100Hz = 2;
 
 	/*************** Server version ********************/
 	static constexpr uint8_t REV_MAJOR = 1;
-	static constexpr uint8_t REV_MINOR = 3;
+	static constexpr uint8_t REV_MINOR = 4;
 
 	/**************** Communication settings ***********/
 	static constexpr uint8_t PWM_COUNT   			= 6;
@@ -79,8 +89,8 @@ struct LinkuinoT /* Server */
 	static constexpr uint8_t CMD_COUNT 	 			= 20;
 	static constexpr uint8_t REPLY_BUFFER_SIZE 		= 2;
 	static constexpr uint32_t SERIAL_SPEED 			= 115200;
-	static constexpr uint32_t PACKET_BYTES      	= SERIAL_SPEED/1000; //SERIAL_SPEED/1000; // 8+2 bits / byte, @ 57600 Bauds, to cover 10ms => 57.6 bytes
-	static constexpr uint32_t MESSAGE_REPEATS      	= (PACKET_BYTES+CMD_COUNT-1)/CMD_COUNT; //SERIAL_SPEED/1000; // 8+2 bits / byte, @ 57600 Bauds, to cover 10ms => 57.6 bytes
+	static constexpr uint32_t PACKET_BYTES      	= (CYCLE_PERIOD_SCALE*SERIAL_SPEED)/1000; //SERIAL_SPEED/1000; // 8+2 bits / byte, @ 57600 Bauds, to cover 10ms => 57.6 bytes
+	static constexpr uint32_t MESSAGE_REPEATS		= (PACKET_BYTES+CMD_COUNT-1)/CMD_COUNT; //SERIAL_SPEED/1000; // 8+2 bits / byte, @ 57600 Bauds, to cover 10ms => 57.6 bytes
 
 	/******** Input register addresses **********/
 	static constexpr uint8_t TSTMP_ADDR 	= 0x00;
@@ -121,8 +131,8 @@ struct LinkuinoT /* Server */
 	static constexpr uint8_t REQ_DIGITAL_READ 	= 0x10;
 	static constexpr uint8_t REQ_FWD_SERIAL	    = 0x11;
 	
-	static constexpr uint8_t REQ_RESET		  	= 0x20; // not implemented
-	static constexpr uint8_t REQ_REV		  	= 0x21; // sends REQ_REV, version major, version minor
+	static constexpr uint8_t REQ_RESET		  	= 0x20; // reset to 50Hz or 100Hz mode depending on code stored at REQ_DATA0_ADDR
+	static constexpr uint8_t REQ_REV		  	= 0x21; // sends 0x00, version major-1 | message repeats<<2 (!=0) , version minor+1 (>=1)
 	
 	static constexpr uint8_t REQ_NOREPLY		= 0x3E; // stop sending reply
 	static constexpr uint8_t REQ_NOOP		  	= 0x3F; // i.e. ACKnowledge => sends 'Ok\n'
@@ -157,7 +167,7 @@ struct LinkuinoT /* Server */
 		{
 			m_buffer[2*i+1] = 0x08;
 			m_buffer[2*i+2] = 0x00;
-			m_pwm[i] = 1250;
+			m_pwm[i] = PWM_DEFAULT_VALUE;
 		}
 		m_buffer[DOUT_ADDR] = 0;
 		m_buffer[REQ_ADDR] = REQ_NULL;
@@ -170,6 +180,8 @@ struct LinkuinoT /* Server */
 
 		m_fwdEnable = false;
 		m_fwd = 0;
+		
+		m_resetRequest = NO_RESET;
 	}
 
 	inline void prepareToReceive()
@@ -280,10 +292,10 @@ struct LinkuinoT /* Server */
 		m_pwmSeqLen = 0;
 		m_pwmShutDown[0] = ~m_pwmPortMask;
 		m_pwmShutDown[0] |= 1 << ( ( m_pwm[0] & 0x07 ) + PWMPortFirstBit );
-		m_pwm[0] = decodePulseLength( m_pwm[0] >> 3 );
+		m_pwm[0] = decodePulseLength( m_pwm[0] >> 3 ) * CYCLE_PERIOD_SCALE;
 		for(int i=1;i<PWM_COUNT;i++)
 		{
-			uint16_t value = decodePulseLength( m_pwm[i] >> 3 );
+			uint16_t value = decodePulseLength( m_pwm[i] >> 3 ) * CYCLE_PERIOD_SCALE;
 			uint8_t mask = 1 << ( (m_pwm[i] & 0x07) + PWMPortFirstBit );
 			if( value > m_pwm[m_pwmSeqLen] )
 			{
@@ -316,9 +328,9 @@ struct LinkuinoT /* Server */
 		}
 		else if( req == REQ_REV )
 		{
-			m_reply[0] = REQ_REV;
-			m_reply[1] = REV_MAJOR;
-			m_reply[2] = REV_MINOR;
+			m_reply[0] = 0x00;
+			m_reply[1] = ( (REV_MAJOR-1) & 0x03 ) | ( (MESSAGE_REPEATS<<2) & 0xFC );
+			m_reply[2] = REV_MINOR + 1;
 			m_replyEnable = true;
 		}
 		else if( req == REQ_NOOP )
@@ -343,6 +355,10 @@ struct LinkuinoT /* Server */
 		else if( req == REQ_NOREPLY )
 		{
 			m_replyEnable = false;
+		}
+		else if( req == REQ_RESET )
+		{
+			m_resetRequest = m_buffer[REQ_DATA0_ADDR] & 0x3F;
 		}
 	}
 
@@ -378,6 +394,11 @@ struct LinkuinoT /* Server */
 		return v;
 	}
 
+	inline uint8_t resetRequest() const
+	{
+		return m_resetRequest;
+	}
+
 	// PWM state
 	uint16_t m_pwm[PWM_COUNT+1];
 	uint8_t m_pwmShutDown[PWM_COUNT];
@@ -404,6 +425,9 @@ struct LinkuinoT /* Server */
 	// forward buffer
 	bool m_fwdEnable;
 	uint32_t m_fwd;
+	
+	// reset requested
+	uint8_t m_resetRequest;
 
 	// hardware pins accessors
 	PWMPinGroupT m_pwmOutput;

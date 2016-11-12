@@ -15,7 +15,6 @@
 // 'new' setting, don't use led pin, so that it's not lit all the time
 #define FWD_SERIAL_PIN 8
 
-
 using namespace avrtl;
 
 ByteStreamAdapter<HWSerialNoInt,100000UL> serialIO;
@@ -69,12 +68,13 @@ struct LinkuinoUnoTraits
 };
 
 using WallClock = typename Scheduler::WallClockT;
-using Linkuino = LinkuinoT< LinkuinoUnoTraits >;
+using Linkuino100Hz = LinkuinoT< LinkuinoUnoTraits , 1 >;
+using Linkuino50Hz = LinkuinoT< LinkuinoUnoTraits , 2 >;
 
 static Scheduler ts;
-static Linkuino li;
 
 // One of the digital output pin is reserved for message forwarding, using the FastSerial protocol
+//static auto ledPin = StaticPin<13>();
 static auto fastSerialPin = StaticPin<FWD_SERIAL_PIN>();
 static auto fastSerial = make_fastserial(NullPin(),fastSerialPin);
 
@@ -82,7 +82,7 @@ void setup()
 {
 	cli();
 
-	serialIO.m_rawIO.begin(Linkuino::SERIAL_SPEED);
+	serialIO.m_rawIO.begin(Linkuino50Hz::SERIAL_SPEED);
 
 #ifdef DEBUG_TIMINGS
 	cout.begin(&serialIO);
@@ -92,53 +92,133 @@ void setup()
 	cout<<"Tc="<<ts.maxCycleTime()<<"mS"<<endl;
 #endif
 
-	li.begin();
+	ts.start();
 
 	// last bit of digital output will be used 
 	// fastSerialPin.SetOutput();
 	// fastSerialPin = HIGH;
 	fastSerial.begin();
 	fastSerial.write<24>(0);
-
-	ts.start();
 }
+
+// 100 Hz timings
+#define LOOP_STARTUP_TIME_100Hz		   50
+#define ALL_HIGH_TIME_100Hz			  400
+#define FAST_SHUTDOWN_TIME_100Hz	 1600
+#define RECV_SHUTDOWN_TIME_100Hz	 7500
+#define END_PROCESS_TIME_100Hz		  450
+//      TOTAL						10000
+
+// 50 Hz timings
+#define LOOP_STARTUP_TIME_50Hz		   50
+#define ALL_HIGH_TIME_50Hz			  800
+#define FAST_SHUTDOWN_TIME_50Hz		 3200
+#define RECV_SHUTDOWN_TIME_50Hz		15000
+#define END_PROCESS_TIME_50Hz		  950
+//      TOTAL						20000
+
+static bool g_updateFreq100Hz = false;
 
 void loop()
 {
-	// for phase correctness, absorb loop latency here
-	ts.exec( 50, [](){} );			// 9950 uS -> 10000 uS (begining of next cycle)
-
-	ts.exec( 400, []()				// 0 -> 400 uS
+	bool resetReq = false;
+	if( g_updateFreq100Hz )
+	{
+//		avrtl::blink(ledPin);
+		Linkuino100Hz li;
+		li.begin();
+		ts.reset();
+		while( ! resetReq )
 		{
-			li.allPwmHigh();
-		} );
+			// for phase correctness, absorb loop latency here
+			ts.exec( LOOP_STARTUP_TIME_100Hz, [](){} );			// 9950 uS -> 10000 uS (begining of next cycle)
 
-	// no communications for the first 2mS to ensure
-	// maximum precision of servo compatible PWM pulses
-	ts.loop( 1600, [](WallClock t) 	// 400 uS -> 2000 uS
+			ts.exec( ALL_HIGH_TIME_100Hz, [&li]()				// 0 -> 400 uS
+			{
+				li.allPwmHigh();
+			} );
+
+			// no communications for the first 2mS to ensure
+			// maximum precision of servo compatible PWM pulses
+			ts.loop( FAST_SHUTDOWN_TIME_100Hz, [&li](WallClock t) 	// 400 uS -> 2000 uS
+			{
+				li.shutDownPWM( ALL_HIGH_TIME_100Hz + t );
+			} );
+
+			// during the second period, pulse length values and update frequencies are
+			// less precise, but we can receive command packet at the same time
+			// so we have 7.61 milliseconds to listen for serial commands
+			ts.loop( RECV_SHUTDOWN_TIME_100Hz, [&li](WallClock t)	// 2000 uS -> 9500 uS
+			{
+				li.receive( serialIO.m_rawIO );
+				li.shutDownPWM( ALL_HIGH_TIME_100Hz + FAST_SHUTDOWN_TIME_100Hz + t );
+			} );
+
+			ts.exec( END_PROCESS_TIME_100Hz, [&li]()				// 9500 uS -> 9950 uS
+			{
+				li.process();
+				li.reply( serialIO.m_rawIO, fastSerial );
+				li.prepareToReceive();
+			} );
+
+#			ifdef DEBUG_TIMINGS
+				ts.printDebugInfo( cout );
+#			endif
+			ts.endCycle();
+			
+			resetReq = ( li.resetRequest() != Linkuino100Hz::NO_RESET );
+			g_updateFreq100Hz = ( li.resetRequest() == Linkuino100Hz::RESET_TO_100Hz );
+		}
+	}
+	else
+	{
+//		avrtl::blink(ledPin);
+//		avrtl::DelayMicroseconds(1000000UL);
+//		avrtl::blink(ledPin);
+		Linkuino50Hz li;
+		li.begin();
+		ts.reset();
+		while( ! resetReq )
 		{
-			li.shutDownPWM( 400+t );
-		} );
+			// for phase correctness, absorb loop latency here
+			ts.exec( LOOP_STARTUP_TIME_50Hz, [&li](){} );			// 9950 uS -> 10000 uS (begining of next cycle)
 
-	// during the second period, pulse length values and update frequencies are
-	// less precise, but we can receive command packet at the same time
-	// so we have 7.61 milliseconds to listen for serial commands
-	ts.loop( 7500, [](WallClock t)	// 2000 uS -> 9500 uS
-		{
-			li.receive( serialIO.m_rawIO );
-			li.shutDownPWM( 2000+t );
-		} );
+			ts.exec( ALL_HIGH_TIME_50Hz, [&li]()				// 0 -> 400 uS
+			{
+				li.allPwmHigh();
+			} );
 
-	ts.exec( 450, []()				// 9500 uS -> 9950 uS
-		{
-			li.process();
-			li.reply( serialIO.m_rawIO, fastSerial );
-			li.prepareToReceive();
-		} );
+			// no communications for the first 2mS to ensure
+			// maximum precision of servo compatible PWM pulses
+			ts.loop( FAST_SHUTDOWN_TIME_50Hz, [&li](WallClock t) 	// 400 uS -> 2000 uS
+			{
+				li.shutDownPWM( ALL_HIGH_TIME_50Hz + t );
+			} );
 
-#ifdef DEBUG_TIMINGS
-	ts.printDebugInfo( cout );
-#endif
-	ts.endCycle();
+			// during the second period, pulse length values and update frequencies are
+			// less precise, but we can receive command packet at the same time
+			// so we have 7.61 milliseconds to listen for serial commands
+			ts.loop( RECV_SHUTDOWN_TIME_50Hz, [&li](WallClock t)	// 2000 uS -> 9500 uS
+			{
+				li.receive( serialIO.m_rawIO );
+				li.shutDownPWM( ALL_HIGH_TIME_50Hz + FAST_SHUTDOWN_TIME_50Hz + t );
+			} );
+
+			ts.exec( END_PROCESS_TIME_50Hz, [&li]()				// 9500 uS -> 9950 uS
+			{
+				li.process();
+				li.reply( serialIO.m_rawIO, fastSerial );
+				li.prepareToReceive();
+			} );
+
+#			ifdef DEBUG_TIMINGS
+				ts.printDebugInfo( cout );
+#			endif
+			ts.endCycle();
+
+			resetReq = ( li.resetRequest() != Linkuino50Hz::NO_RESET );
+			g_updateFreq100Hz = ( li.resetRequest() == Linkuino50Hz::RESET_TO_100Hz );
+		}
+	}
 }
 

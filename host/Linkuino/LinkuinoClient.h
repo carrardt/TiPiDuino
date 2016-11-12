@@ -17,13 +17,13 @@ using Linkuino = LinkuinoT<>;
 
 struct LinkuinoClient
 {
-	static constexpr int PacketRepeatCount = Linkuino::MESSAGE_REPEATS ;
-	
-	inline LinkuinoClient(int fd)
+	inline LinkuinoClient(int fd, bool updateFreq100Hz=false)
 		: m_fd(fd)
 		, m_timeStamp(0)
 		, m_serverMajor(0)
 		, m_serverMinor(0)
+		, m_messageRepeats(24)
+		, m_operationFreq100Hz(updateFreq100Hz)
 	{
 		setRegisterValue(Linkuino::TSTMP_ADDR, 0);
 		for(int i=0;i<Linkuino::PWM_COUNT;i++) { setPWMValue(i, 1250); }
@@ -34,6 +34,7 @@ struct LinkuinoClient
 		setRegisterValue(Linkuino::REQ_DATA1_ADDR, 0);
 		setRegisterValue(Linkuino::REQ_DATA2_ADDR, 0);
 		setRegisterValue(Linkuino::REQ_DATA3_ADDR, 0);
+		updateSendTime();
 	}
 	
 	inline ~LinkuinoClient()
@@ -56,6 +57,8 @@ struct LinkuinoClient
 		tcsetattr(serial_fd,TCSANOW,&serialConfig);
 		return serial_fd;
 	}
+
+	inline int getMessageRepeats() const { return m_messageRepeats; }
 
 	void setRegisterValue(uint8_t i, uint8_t value)
 	{
@@ -108,10 +111,18 @@ struct LinkuinoClient
 		setRegisterValue( Linkuino::TSTMP_ADDR, m_timeStamp );
 	}
 	
+	
 	bool testConnection()
 	{
 		const double timeoutNanoSecs = 1.e9;
-		
+
+		// reboot the controller in desired mode
+		setRegisterValue(Linkuino::REQ_ADDR, Linkuino::REQ_RESET);
+		setRegisterValue(Linkuino::REQ_DATA0_ADDR, m_operationFreq100Hz ? Linkuino::RESET_TO_100Hz : Linkuino::RESET_TO_50Hz );
+		send();
+		send();
+
+		// request the controller to introduce itself
 		setRegisterValue(Linkuino::REQ_ADDR, Linkuino::REQ_REV);
 		send();
 		send();
@@ -140,13 +151,20 @@ struct LinkuinoClient
 		send();
 		send();
 
+		// flush input buffer
+		{
+			uint8_t tmp;
+			while (read(m_fd, &tmp, 1) == 1);
+		}
+
 		reply[R-1]='\0';
 		//printf("REQ_REV='%s'\n",reply);
 		l=0;
-		while( reply[l]!=Linkuino::REQ_REV && l<R ) ++l;
-		if( l>=(R-2) || reply[l]!=Linkuino::REQ_REV ) { return false; }
-		m_serverMajor = reply[l+1];
-		m_serverMinor = reply[l+2];
+		while( reply[l]!=0x00 && l<R ) ++l;
+		if( l>=(R-2) || reply[l]!=0x00 || reply[l+1]==0 || reply[l+2]==0 ) { return false; }
+		m_serverMajor = ( reply[l+1] & 0x03 ) + 1;
+		m_messageRepeats = reply[l+1] >> 2 ;
+		m_serverMinor = reply[l+2] - 1;
 		if( m_serverMajor==Linkuino::REV_MAJOR && m_serverMinor==Linkuino::REV_MINOR )
 		{
 			return true;
@@ -165,48 +183,56 @@ struct LinkuinoClient
 
 	inline void printBuffer()
 	{
-		for(int i=0;i<16;i++)
+		for(int i=0;i<Linkuino::CMD_COUNT;i++)
 		{
 			std::cout<<(m_buffer[i]>>6) << '|' << (m_buffer[i]&0x3F)<<' ';
 		}
 		std::cout<<"\n";
 	}
 	
+	inline void updateSendTime()
+	{
+		clock_gettime(CLOCK_REALTIME, & m_sendTime);
+	}
+
+	inline int64_t timeSinceLastSend()
+	{
+		struct timespec T2;
+		clock_gettime(CLOCK_REALTIME, & T2);
+		int64_t t = ( T2.tv_sec - m_sendTime.tv_sec ) * static_cast<int64_t>(1000000000);
+		t += T2.tv_nsec - m_sendTime.tv_nsec;
+		return t;
+	}
+	
 	inline void send()
 	{
-		// TODO: rather than waiting for 10mS, we should just check that last send terminated at least 10mS earlier and wait just enough
-		struct timespec st = { 0 , 10000000UL }; // 10 milliseconds delay
-		struct timespec rem = { 0 , 0 };
-		int r = 0;
-		for(int i=0;i<PacketRepeatCount;i++)
+		while( timeSinceLastSend() < 15000000ULL ) ;
+		for(int i=0;i<m_messageRepeats;i++)
 		{
 			write(m_fd,m_buffer,Linkuino::CMD_COUNT);
 		}
 		write(m_fd,m_buffer,1); // finish with a timestamp marker
 		fsync(m_fd);
-		r = nanosleep( &st , &rem );
-		while( r == EINTR )
-		{
-			st = rem;
-			rem = {0,0};
-			fprintf(stderr,"Warning: nanosleep interrupted\n");
-			r = nanosleep( &st , &rem );
-		}
-		if( r==EFAULT || r==EINVAL)
-		{
-			fprintf(stderr,"ERROR: nanosleep failed\n");
-		}
+		updateSendTime();
 		updateTimeStamp();
+	}
+
+	inline void forceMessageRepeats(int m)
+	{
+		m_messageRepeats = m;
 	}
 
   private:
 
+	struct timespec m_sendTime;
 	int m_fd;
 	int m_serverMajor;
 	int m_serverMinor;
+	int m_messageRepeats;
 	uint8_t m_buffer[Linkuino::CMD_COUNT];
 	uint8_t m_timeStamp;
 	uint8_t m_pwmEnable;
+	bool m_operationFreq100Hz;
 };
 
 #endif
