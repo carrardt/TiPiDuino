@@ -17,6 +17,12 @@ m328upload()
         avrdude -v -pm328p -cstk500v1 -P/dev/tty$1 -b19200 -Uflash:w:$2:i
 }
 
+m328e16fuse()
+{
+        avrdude -v -pm328p -cstk500v1 -P/dev/tty$1 -b19200 -e -Ulock:w:0x3F:m -Uefuse:w:0x05:m -Uhfuse:w:0xDA:m -Ulfuse:w:0xFF:m
+}
+
+
 
 attiny 85 considerations :
 prefered option is to burn the desired bootloader with arduino IDE, using a recent version.
