@@ -51,123 +51,99 @@ int main(int argc, char* argv[])
 	}
 
 	char cmd=' ';
-	scanf("%c",&cmd);
-
-	if(cmd=='s')
+	while( cmd != 'q' )
 	{
-		int m=1250;
-		int a=350;
-		scanf("%d %d",&m,&a);
-		printf("Sin : avg=%d, amp=%d\n",m,a);
-		double t=0.0;
-		while( true )
+		scanf("%c",&cmd);
+		if(cmd=='s')
 		{
-			for(int i=0;i<6;i++)
+			int m=1250;
+			int a=350;
+			scanf("%d %d",&m,&a);
+			printf("Sin : avg=%d, amp=%d\n",m,a);
+			double t=0.0;
+			while( true )
 			{
-				uint32_t x = sin(t+0.33*i) * a + m;
-				link.setPWMValue( i , x );
+				for(int i=0;i<6;i++)
+				{
+					uint32_t x = sin(t+0.33*i) * a + m;
+					link.setPWMValue( i , x );
+				}
+				link.send();
+				//link.printBuffer();
+				//link.send();
+				//sleep(1);
+				t+=0.01;
 			}
-			link.send();
-			//link.printBuffer();
-			//link.send();
-			//sleep(1);
-			t+=0.01;
 		}
-	}
 
-	if(cmd=='S')
-	{
-		int m=1250;
-		int a=350;
-		int p=0;
-		int uS=0;
-		scanf("%d %d %d %d",&p,&uS,&m,&a);
-		printf("Sinus wave : PWM=%d interval=%duS, avg=%d, amp=%d\n",p,m,a);
-		double t=0.0;
-		while( true )
+		if(cmd=='S')
 		{
-			uint32_t x = sin(t) * a + m;
-			link.setPWMValue( p , x );
-			link.send();
-			//link.printBuffer();
-			//link.send();
-			usleep(uS);
-			t+=0.1;
+			int m=1250;
+			int a=350;
+			int p=0;
+			int uS=0;
+			scanf("%d %d %d %d",&p,&uS,&m,&a);
+			printf("Sinus wave : PWM=%d interval=%duS, avg=%d, amp=%d\n",p,uS,m,a);
+			double t=0.0;
+			while( true )
+			{
+				uint32_t x = sin(t) * a + m;
+				link.setPWMValue( p , x );
+				link.send();
+				//link.printBuffer();
+				//link.send();
+				usleep(uS);
+				t+=0.1;
+			}
 		}
-	}
 
-	else if( cmd=='d' )
-	{
-		int p=0;
-		scanf("%d",&p);
-		printf("Disable PWM %d\n",p);
-		link.disablePWM(p);
-		link.send();
-	}
-	else if( cmd=='e' )
-	{
-		int p=0;
-		scanf("%d",&p);
-		printf("Enable PWM %d\n",p);
-		link.enablePWM(p);
-		link.send();
-	}
-	else if( cmd=='v' )
-	{
-		int p=0;
-		int v = 1250;
-		scanf("%d %d",&p,&v);
-		printf("set PWM %d to %d\n",p,v);
-		link.setPWMValue( p , v );
-		link.send();
-		link.send(); // ??
-	}
-	else if( cmd=='t' )
-	{
-		int v = 1250;
-		scanf("%d",&v);
-		int ve = Linkuino::encodePulseLength( v );
-		int vd = Linkuino::decodePulseLength ( ve );
-		printf("Encode Test : %d -> %d -> %d\n",v,ve,vd);
-	}
-	else if( cmd=='o' )
-	{
-		uint16_t v=0;
-		scanf("%d",&v);
-		printf("digital out = %d\n",v);
-		link.setRegisterValue(Linkuino::DOUT_ADDR, v);
-		link.send();
-	}
-	else if( cmd=='f' )
-	{
-		uint32_t a=0, b=0, c=0, d=0;
-		scanf("%d %d %d %d",&a,&b,&c,&d);
-		a = clamp(a,0U,15U);
-		b = clamp(b,0U,255U);
-		c = clamp(c,0U,15U);
-		d = clamp(d,0U,255U);
-		uint32_t data = a<<20 | b<<12 | c<<8 | d;
-		uint16_t d0 = (data>>18) & 0x3F;
-		uint16_t d1 = (data>>12) & 0x3F;
-		uint16_t d2 = (data>>6) & 0x3F;
-		uint16_t d3 = data & 0x3F;
-		printf("forward: %d %d %d %d => %d (0x%08X) => %02X %02X %02X %02X\n",a,b,c,d,data,data,d0,d1,d2,d3);
-		link.setRegisterValue(Linkuino::REQ_ADDR, Linkuino::REQ_FWD_SERIAL);
-		link.setRegisterValue(Linkuino::REQ_DATA0_ADDR, d0);
-		link.setRegisterValue(Linkuino::REQ_DATA1_ADDR, d1);
-		link.setRegisterValue(Linkuino::REQ_DATA2_ADDR, d2);
-		link.setRegisterValue(Linkuino::REQ_DATA3_ADDR, d3);
-		link.send();
-	}
-	else if( cmd=='F' )
-	{
-		uint32_t a=0, b=0, c=0, d=0;
-		for(int i=0;i<10;i++)
+		else if( cmd=='d' )
 		{
-			a = lrand48() % 15;
-			b = lrand48() % 255;
-			c = lrand48() % 15;
-			d = lrand48() % 255;
+			int p=0;
+			scanf("%d",&p);
+			printf("Disable PWM %d\n",p);
+			link.disablePWM(p);
+			link.send();
+		}
+		else if( cmd=='e' )
+		{
+			int p=0;
+			scanf("%d",&p);
+			printf("Enable PWM %d\n",p);
+			link.enablePWM(p);
+			link.send();
+		}
+		else if( cmd=='v' )
+		{
+			int p=0;
+			int v = 1250;
+			scanf("%d %d",&p,&v);
+			printf("set PWM %d to %d\n",p,v);
+			link.setPWMValue( p , v );
+			link.send();
+			link.send(); // ??
+		}
+		else if( cmd=='t' )
+		{
+			int v = 1250;
+			scanf("%d",&v);
+			int ve = Linkuino::encodePulseLength( v );
+			int vd = Linkuino::decodePulseLength ( ve );
+			printf("Encode Test : %d -> %d -> %d\n",v,ve,vd);
+		}
+		else if( cmd=='o' )
+		{
+			uint16_t v=0;
+			scanf("%d",&v);
+			printf("digital out = %d\n",v);
+			link.setRegisterValue(Linkuino::DOUT_ADDR, v);
+			link.send();
+			link.send();
+		}
+		else if( cmd=='f' )
+		{
+			uint32_t a=0, b=0, c=0, d=0;
+			scanf("%d %d %d %d",&a,&b,&c,&d);
 			a = clamp(a,0U,15U);
 			b = clamp(b,0U,255U);
 			c = clamp(c,0U,15U);
@@ -184,25 +160,52 @@ int main(int argc, char* argv[])
 			link.setRegisterValue(Linkuino::REQ_DATA2_ADDR, d2);
 			link.setRegisterValue(Linkuino::REQ_DATA3_ADDR, d3);
 			link.send();
-			sleep(1);
+		}
+		else if( cmd=='F' )
+		{
+			uint32_t a=0, b=0, c=0, d=0;
+			for(int i=0;i<10;i++)
+			{
+				a = lrand48() % 15;
+				b = lrand48() % 255;
+				c = lrand48() % 15;
+				d = lrand48() % 255;
+				a = clamp(a,0U,15U);
+				b = clamp(b,0U,255U);
+				c = clamp(c,0U,15U);
+				d = clamp(d,0U,255U);
+				uint32_t data = a<<20 | b<<12 | c<<8 | d;
+				uint16_t d0 = (data>>18) & 0x3F;
+				uint16_t d1 = (data>>12) & 0x3F;
+				uint16_t d2 = (data>>6) & 0x3F;
+				uint16_t d3 = data & 0x3F;
+				printf("forward: %d %d %d %d => %d (0x%08X) => %02X %02X %02X %02X\n",a,b,c,d,data,data,d0,d1,d2,d3);
+				link.setRegisterValue(Linkuino::REQ_ADDR, Linkuino::REQ_FWD_SERIAL);
+				link.setRegisterValue(Linkuino::REQ_DATA0_ADDR, d0);
+				link.setRegisterValue(Linkuino::REQ_DATA1_ADDR, d1);
+				link.setRegisterValue(Linkuino::REQ_DATA2_ADDR, d2);
+				link.setRegisterValue(Linkuino::REQ_DATA3_ADDR, d3);
+				link.send();
+				sleep(1);
+			}
+		}
+		else if( cmd=='r' )
+		{
+			std::cout<<"reset to 50Hz mode\n";
+			link.setRegisterValue(Linkuino::REQ_ADDR, Linkuino::REQ_RESET);
+			link.setRegisterValue(Linkuino::REQ_DATA0_ADDR,Linkuino::RESET_TO_50Hz);
+			link.send();
+			link.send();
+		}
+		else if( cmd=='R' )
+		{
+			std::cout<<"reset to 100Hz mode\n";
+			link.setRegisterValue(Linkuino::REQ_ADDR, Linkuino::REQ_RESET);
+			link.setRegisterValue(Linkuino::REQ_DATA0_ADDR,Linkuino::RESET_TO_100Hz);
+			link.send();
+			link.send();
 		}
 	}
-	else if( cmd=='r' )
-	{
-		std::cout<<"reset to 50Hz mode\n";
-		link.setRegisterValue(Linkuino::REQ_ADDR, Linkuino::REQ_RESET);
-		link.setRegisterValue(Linkuino::REQ_DATA0_ADDR,Linkuino::RESET_TO_50Hz);
-		link.send();
-		link.send();
-	}
-	else if( cmd=='R' )
-	{
-		std::cout<<"reset to 100Hz mode\n";
-		link.setRegisterValue(Linkuino::REQ_ADDR, Linkuino::REQ_RESET);
-		link.setRegisterValue(Linkuino::REQ_DATA0_ADDR,Linkuino::RESET_TO_100Hz);
-		link.send();
-		link.send();
-	}
-	//sleep(1);
+	sleep(1);
 	return 0;
 }
