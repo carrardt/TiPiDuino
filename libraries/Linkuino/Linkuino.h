@@ -153,10 +153,10 @@ struct LinkuinoT /* Server */
 		m_pwmShutDown[0] = 0;
 		m_pwm[PWM_COUNT] = PWM_UNREACHABLE_VALUE;
 		
-		m_digitalOutput.SetOutput( DOutPortMask << DOutPortFirstBit ); // TODO: pre-shift as for PWM
+		m_digitalOutput.SetOutput( DOutPortMask );
 		m_doutMask = DOutPortMask;
 		
-		m_digitalInput.SetInput( DInPortMask << DInPortFirstBit ); // TODO: pre-shift as for PWM
+		m_digitalInput.SetInput( DInPortMask );
 		m_dinMask = DInPortMask;
 		m_din = 0;
 		
@@ -310,7 +310,7 @@ struct LinkuinoT /* Server */
 		for(int i=m_pwmSeqLen;i<=PWM_COUNT;i++) { m_pwm[i] = PWM_UNREACHABLE_VALUE; }
 
 		// write Digital output updated values
-		m_digitalOutput.Set( ( m_buffer[DOUT_ADDR] & m_doutMask ) << DOutPortFirstBit , DOutPortMask << DOutPortFirstBit );
+		m_digitalOutput.Set( ( m_buffer[DOUT_ADDR] << DOutPortFirstBit ) & m_doutMask , m_doutMask );
 
 		// read digital input state
 		m_din = ( m_digitalInput.Get() >> DInPortFirstBit ) & m_dinMask;
