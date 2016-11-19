@@ -90,14 +90,14 @@ struct AvrTimer0NoPrescaler
 
 // Warning! : it seems it doesn't work on ATtiny85, needs investigation. for ATtiny, use only Timer0.
 #if defined(TCCR1A) && defined(TCCR1B) && defined(TCCR1C) && defined(TIMSK1) 
-template<bool _Prescaler8 = true>
+template< uint32_t _TimerPrescaler = 8 >
 struct AvrTimer1
 {
 	using TimerCounterType = uint16_t;
 	static constexpr uint32_t TimerCounterResolution = 65536;
 	static constexpr uint32_t TimerCounterMax = TimerCounterResolution - 1;
 
-	static constexpr uint32_t TimerPrescaler = _Prescaler8 ? 8 : 1;
+	static constexpr uint32_t TimerPrescaler = _TimerPrescaler;
 	static constexpr uint32_t ClockMhz = F_CPU / 1000000UL;
 	static constexpr uint32_t NanoSecPerTick = ( 1000UL * TimerPrescaler ) / ClockMhz;
 	static constexpr uint32_t TicksPerMilliSec = ( F_CPU / TimerPrescaler ) / 1000UL;
@@ -113,7 +113,15 @@ struct AvrTimer1
 		TIMSK1 = 0;
 		TCCR1A = 0;
 		TCCR1C = 0;
-		TCCR1B = (TimerPrescaler==8) ? 0b00000010 : 0b00000001;
+		switch( TimerPrescaler )
+		{
+			case 1    : TCCR1B = 0b00000001; break;
+			case 8    : TCCR1B = 0b00000010; break;
+			case 64   : TCCR1B = 0b00000011; break;
+			case 256  : TCCR1B = 0b00000100; break;
+			case 1024 : TCCR1B = 0b00000101; break;
+			default   : TCCR1B = 0b00000010; break; // default to prescaler = 8
+		}
 		return TCNT1;
 	}
 
