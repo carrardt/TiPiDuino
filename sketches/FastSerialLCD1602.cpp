@@ -5,6 +5,7 @@
 #include <FastSerial.h>
 #include <BasicIO/PrintStream.h>
 
+// this wiring between arduino and LCD1602 is compatible with the circuit in pcb/LCD1602.fzz
 /*
  * LCD1602	Arduino
  * VSS		GND
