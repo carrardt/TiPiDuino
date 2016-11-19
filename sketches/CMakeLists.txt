@@ -144,6 +144,15 @@ generate_avr_firmware(
     NO_AUTOLIBS)
 
 #====================================================================#
+# Programmable timer wich triggers a relay, with an LCD1602 screen
+#====================================================================#
+generate_avr_firmware(
+    TimerRelayLCD1602
+    SRCS TimerRelayLCD1602.cpp
+    LIBS LCD1602 BasicIO AvrTL AvrApp
+    NO_AUTOLIBS)
+
+#====================================================================#
 # Print an incresaing counter on a LCD1602 screen
 #====================================================================#
 generate_avr_firmware(
