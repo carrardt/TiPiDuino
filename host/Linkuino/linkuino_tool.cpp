@@ -131,6 +131,7 @@ int main(int argc, char* argv[])
 			printf("forward: %d %d %d %d => %d (0x%08X) => %02X %02X %02X %02X\n",a,b,c,d,data,data,d0,d1,d2,d3);
 			link.forwardMessage( d0, d1, d2, d3 );
 		}
+#ifndef _WIN32
 		else if( cmd=='F' )
 		{
 			uint32_t a=0, b=0, c=0, d=0;
@@ -153,6 +154,7 @@ int main(int argc, char* argv[])
 				link.forwardMessage( d0, d1, d2, d3 );
 			}
 		}
+#endif
 		else if( cmd=='r' )
 		{
 			std::cout<<"reset to 50Hz mode\n";

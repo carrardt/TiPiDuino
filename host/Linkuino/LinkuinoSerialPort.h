@@ -1,5 +1,9 @@
 #pragma once
 
+#ifdef _WIN32
+#include <Windows.h>
+#endif
+
 #include <string>
 #include <cstdint>
 
@@ -18,5 +22,9 @@ public:
 	void flush();
 
 private:
+#ifdef _WIN32
+	HANDLE m_serialPort = INVALID_HANDLE_VALUE;
+#else
 	int m_fd = -1;
+#endif
 };

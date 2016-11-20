@@ -6,8 +6,9 @@
 using Linkuino = LinkuinoT<>;
 
 #include <cstdint>
+#include <time.h>
 
-class LinkuinoClient
+struct LinkuinoClient
 {
   public:
 

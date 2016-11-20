@@ -8,7 +8,11 @@
 
 extern "C"
 {
+#ifdef _WIN32
+	#include "m_pd.h"
+#else
 	#include "pd/m_pd.h"
+#endif
 
 	struct LinkuinoClient;
 	struct LinkuinoClient* linkuino_open_device(int);

@@ -179,19 +179,30 @@ bool LinkuinoClient::testConnection()
 	const double timeoutNanoSecs = 1.e9;
 
 	// request the controller to introduce itself
+	std::cout << "Send revision request\n";
 	setRegisterValue(Linkuino::REQ_ADDR, Linkuino::REQ_REV);
 	send();
 	send();
 
 	struct timespec T0, T1;
+#ifdef _WIN32
+	timespec_get(&T0, TIME_UTC);
+#else
 	clock_gettime(CLOCK_REALTIME, &T0);
+#endif // 
+
+	std::cout << "wait for reply\n";
 
 	uint8_t reply[256];
 	int R = 32;
 	int l = 0;
 	while (l<R)
 	{
+#ifdef _WIN32
+		timespec_get(&T1, TIME_UTC);
+#else
 		clock_gettime(CLOCK_REALTIME, &T1);
+#endif // 
 		if (((T1.tv_sec - T0.tv_sec)*1.e9 + T1.tv_nsec - T0.tv_nsec) > timeoutNanoSecs)
 		{
 			reply[l] = '\0';
@@ -248,13 +259,21 @@ void LinkuinoClient::printBuffer()
 
 void LinkuinoClient::updateSendTime()
 {
+#ifdef _WIN32
+	timespec_get(&m_sendTime, TIME_UTC);
+#else
 	clock_gettime(CLOCK_REALTIME, &m_sendTime);
+#endif // 
 }
 
 int64_t LinkuinoClient::timeSinceLastSend()
 {
 	struct timespec T2;
+#ifdef _WIN32
+	timespec_get(&T2, TIME_UTC);
+#else
 	clock_gettime(CLOCK_REALTIME, &T2);
+#endif // 
 	int64_t t = (T2.tv_sec - m_sendTime.tv_sec) * static_cast<int64_t>(1000000000);
 	t += T2.tv_nsec - m_sendTime.tv_nsec;
 	return t;
