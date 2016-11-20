@@ -105,16 +105,16 @@ void setup()
 #define LOOP_STARTUP_TIME_100Hz		   50
 #define ALL_HIGH_TIME_100Hz			  400
 #define FAST_SHUTDOWN_TIME_100Hz	 1600
-#define RECV_SHUTDOWN_TIME_100Hz	 7500
-#define END_PROCESS_TIME_100Hz		  450
+#define RECV_SHUTDOWN_TIME_100Hz	 7525
+#define END_PROCESS_TIME_100Hz		  425
 //      TOTAL						10000
 
 // 50 Hz timings
 #define LOOP_STARTUP_TIME_50Hz		   50
 #define ALL_HIGH_TIME_50Hz			  800
 #define FAST_SHUTDOWN_TIME_50Hz		 3200
-#define RECV_SHUTDOWN_TIME_50Hz		15000
-#define END_PROCESS_TIME_50Hz		  950
+#define RECV_SHUTDOWN_TIME_50Hz		15050
+#define END_PROCESS_TIME_50Hz		  900
 //      TOTAL						20000
 
 static bool g_updateFreq100Hz = false;

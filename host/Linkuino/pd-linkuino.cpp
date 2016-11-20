@@ -11,7 +11,6 @@ extern "C"
 	#include "pd/m_pd.h"
 
 	struct LinkuinoClient;
-	int linkuino_enum_devices();
 	struct LinkuinoClient* linkuino_open_device(int);
 	int linkuino_getversionmajor(struct LinkuinoClient*);
 	int linkuino_getversionminor(struct LinkuinoClient*);
@@ -89,7 +88,6 @@ extern "C"
 
 	void *linkuino_new()  
 	{
-	  linkuino_enum_devices();
 	  t_linkuino *x = (t_linkuino *)pd_new(linkuino_class);  
 	  x->f_serialdev = 0;
 	  x->f_a0 = 0;
@@ -141,42 +139,36 @@ extern "C"
 }
 
 #include "LinkuinoClient.h"
+#include "LinkuinoSerialPort.h"
 #include <vector>
 #include <sstream>
 
-static const char* serial_devices[] = {
-	  "/dev/ttyAMA0"
-	, "/dev/ttyAMA1"
-	, "/dev/ttyUSB0"
-	, "/dev/ttyUSB1"
-	, "/dev/ttyUSB2"
-	, "/dev/ttyUSB3"
-	, "/dev/ttyACM0"
-	, "/dev/ttyACM1"
-	, nullptr
-	};
-
-static std::vector<std::string> linkuino_devices;
-
 LinkuinoClient* linkuino_open_device(int i)
 {
-	const int maxRetry = 3;
-	int retryCount = 0;
+	static LinkuinoSerialPort serial;
+	LinkuinoClient* li = new LinkuinoClient(&serial);
+	
+	const char * * availPorts = LinkuinoSerialPort::availablePorts();
+	int nPorts = 0;
+	while( availPorts[nPorts] != nullptr ) { ++ nPorts; }
+	
 	bool connected = false;
-	int fd = LinkuinoClient::openSerialDevice(linkuino_devices[i]);
-	if(fd<0) return 0;
-	LinkuinoClient* li = new LinkuinoClient(fd);
-	while( !connected && retryCount<maxRetry )
+	if( i>=0 && i<nPorts )
 	{
-		connected = li->testConnection() ;
-		if( ! connected ) { sleep(1); }
-		++ retryCount;
+		serial.open( availPorts[i] );
+		connected = li->testConnection();
 	}
+	else
+	{
+		connected = li->scanSerialPorts();
+	}
+	
 	if( ! connected )
 	{
 		delete li;
-		return 0;
+		return nullptr;
 	}
+	li->printStatus();
 	return li;
 }
 
@@ -194,11 +186,9 @@ int linkuino_getversionminor(struct LinkuinoClient* li)
 
 void linkuino_set_pwm_value(struct LinkuinoClient* li, int pwmI, float pwmValue)
 {
-	int value;
 	if( pwmValue < 0.0f ) pwmValue = 0.0f;
 	if( pwmValue > 1.0f ) pwmValue = 1.0f;
-	value = pwmValue*10000.0f;
-	li->setPWMValue( pwmI, value );
+	li->setPWMValue( pwmI, pwmValue );
 }
 
 void linkuino_set_dout(struct LinkuinoClient* li,int v)
@@ -209,32 +199,4 @@ void linkuino_set_dout(struct LinkuinoClient* li,int v)
 void linkuino_send(struct LinkuinoClient* li)
 {
 	li->send();
-}
-
-int linkuino_enum_devices()
-{
-	if( linkuino_devices.empty() )
-	{
-		post("Linkuino: detect servers");
-		for(int i=0;serial_devices[i]!=0;i++)
-		{
-			std::ostringstream oss;
-			oss<<"Linkuino: Test server on "<<serial_devices[i]<<" ... ";
-			bool devok = false;
-			int fd = LinkuinoClient::openSerialDevice(serial_devices[i]);
-			if( fd >= 0 )
-			{
-				LinkuinoClient li(fd);
-				if( li.testConnection() )
-				{
-					devok = true;
-					linkuino_devices.push_back(serial_devices[i]);
-				}
-			}
-			if(devok) oss<<"Ok";
-			else oss<<"Failed";
-			post( oss.str().c_str() );
-		}
-	}
-	return linkuino_devices.size();
 }
