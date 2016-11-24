@@ -16,7 +16,7 @@ include_directories(../../libraries ${PD_INCLUDE_DIR})
 
 add_library(LinkuinoClient STATIC LinkuinoClient.cpp LinkuinoSerialPort.cpp)
 
-add_library(linkuino SHARED pd-linkuino.cpp )
+add_library(linkuino SHARED pd_linkuino_core.c pd_linkuino_int.cpp)
 target_link_libraries(linkuino LinkuinoClient ${EXTERNAL_LIBS})
 
 add_executable(linkuino_tool linkuino_tool.cpp)

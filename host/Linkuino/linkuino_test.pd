@@ -1,4 +1,4 @@
-#N canvas -86 195 1345 691 10;
+#N canvas 526 13 1345 691 10;
 #X obj 144 477 linkuino, f 114;
 #X obj 36 463 bng 15 250 50 0 empty empty update 17 7 0 10 -262144
 -1 -1;
@@ -6,11 +6,11 @@
 #X floatatom 75 527 5 0 0 0 Version - -, f 5;
 #X floatatom 120 527 5 0 0 0 - - -, f 5;
 #X obj 144 270 vsl 15 100 0 100 0 0 empty empty empty 0 -9 0 10 -262144
--1 -1 3600 1;
+-1 -1 3000 1;
 #X obj 144 403 t b f;
 #X floatatom 144 243 5 0 0 2 Pin_2 - -, f 5;
 #X obj 193 272 vsl 15 100 0 100 0 0 empty empty empty 0 -9 0 10 -262144
--1 -1 3300 1;
+-1 -1 0 1;
 #X obj 193 404 t b f;
 #X floatatom 193 243 5 0 0 2 Pin_3 - -, f 5;
 #X obj 243 272 vsl 15 100 0 100 0 0 empty empty empty 0 -9 0 10 -262144
@@ -18,15 +18,15 @@
 #X obj 243 404 t b f;
 #X floatatom 243 244 5 0 0 2 Pin_4 - -, f 5;
 #X obj 298 272 vsl 15 100 0 100 0 0 empty empty empty 0 -9 0 10 -262144
--1 -1 0 1;
+-1 -1 5600 1;
 #X obj 298 404 t b f;
 #X floatatom 298 244 5 0 0 2 Pin_5 - -, f 5;
 #X obj 351 272 vsl 15 100 0 100 0 0 empty empty empty 0 -9 0 10 -262144
--1 -1 0 1;
+-1 -1 3000 1;
 #X obj 351 404 t b f;
 #X floatatom 351 244 5 0 0 2 Pin_6 - -, f 5;
 #X obj 403 272 vsl 15 100 0 100 0 0 empty empty empty 0 -9 0 10 -262144
--1 -1 0 1;
+-1 -1 6700 1;
 #X obj 403 404 t b f;
 #X floatatom 403 244 5 0 0 2 Pin_7 - -, f 5;
 #X obj 591 249 vradio 15 1 0 2 empty empty Pin_5 -4 -8 0 10 -262144
@@ -64,7 +64,7 @@
 #X text 480 178 Up = DC Motor / full range;
 #X text 479 156 PWM Configuration;
 #X text 480 199 Down = Servo;
-#X text 141 101 Linkuino v1.2 (c) B.A.T. Cave 2016;
+#X text 141 101 Linkuino v1.4 (c) B.A.T. Cave 2016;
 #X connect 0 0 3 0;
 #X connect 0 1 4 0;
 #X connect 1 0 0 0;
