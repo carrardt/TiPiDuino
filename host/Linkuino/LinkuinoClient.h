@@ -6,7 +6,10 @@
 using Linkuino = LinkuinoT<>;
 
 #include <cstdint>
-#include <time.h>
+#include <chrono>
+#include <thread>
+#include <mutex>
+#include <atomic>
 
 struct LinkuinoClient
 {
@@ -45,18 +48,35 @@ struct LinkuinoClient
 	void send();
 
   private:
-	int64_t timeSinceLastSend();
+	  static constexpr std::chrono::duration<int64_t, std::nano> c_minTimeBetwwenSend = std::chrono::duration<int64_t, std::nano>(10000000LL);
+	  static constexpr std::chrono::duration<int64_t, std::nano> c_connectionTimeOut = std::chrono::duration<int64_t, std::nano>(1000000000LL);
+
+	std::chrono::high_resolution_clock::duration timeSinceLastSend();
 	void updateTimeStamp();
 	void updateSendTime();
 
-	struct timespec m_sendTime;
+	void pushDataToDevice(const uint8_t buffer[Linkuino::CMD_COUNT]);
+	void asyncPushDataToDevice();
+
+	// worker thread management
+	void startWorkerThread();
+	static void runWorkerThread(LinkuinoClient* self);
+	void workerThreadMain();
+
+	std::thread* m_workerThread = nullptr;
+	std::mutex m_mutex;
+	std::chrono::high_resolution_clock::time_point m_sendTime;
+
 	LinkuinoSerialPort* m_serial;
 	int m_serverMajor;
 	int m_serverMinor;
 	int m_messageRepeats;
-	uint8_t m_buffer[Linkuino::CMD_COUNT];
 	uint8_t m_timeStamp;
 	uint8_t m_pwmEnable;
+	uint8_t m_buffer[Linkuino::CMD_COUNT];
+	volatile uint8_t m_bufferCopy[Linkuino::CMD_COUNT];
+	std::atomic<bool> m_rts;
+	std::atomic<bool> m_terminate;
 };
 
 #endif

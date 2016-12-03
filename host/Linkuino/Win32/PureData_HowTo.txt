@@ -1,0 +1,4 @@
+for Windows :
+in your pd installation directory, locate the extra directory, go to it.
+make a directory named linkuino and copy the linkuino.dll inside it.
+
