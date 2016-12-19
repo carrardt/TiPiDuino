@@ -4,6 +4,7 @@
 
 //using namespace avrtl;
 
+// 16 bits Fixed point real numbers
 struct FP16
 {
 	static constexpr int ibits = 5;
@@ -301,7 +302,7 @@ void loop()
    cursor = (cursor+1) % BUFSIZE;
 #endif
 
-   uint8_t LEDS = 0; (LOOP_CLK>>6)&1;
+   uint8_t LEDS = 0; //(LOOP_CLK>>6)&1;
    for(int i=0;i<8;i++)
    {
 	  LEDS = LEDS << 1;

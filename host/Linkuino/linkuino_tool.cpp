@@ -19,6 +19,8 @@ int main(int argc, char* argv[])
 	LinkuinoSerialPort serial;
 	LinkuinoClient link( &serial );
 
+	std::cout << "Info: Linkuino size is " << sizeof(Linkuino) << "\n";
+
 	if( argc>=2 )
 	{
 		if( ! serial.open(argv[1]) ) { fprintf(stderr,"can't open device '%s'\n",argv[1]); return 1; }
