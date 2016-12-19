@@ -68,6 +68,8 @@ int main(int argc, char* argv[])
 			{
 				link.setPWMValue( p , sin(t) * a + m );
 				link.send();
+				struct timespec T = {0,10000000};
+				nanosleep( &T, NULL);
 				t+=0.01;
 			}
 		}
