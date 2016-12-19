@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.0)
 
-add_compile_options(-std=c++11) # in cmake 2.8.12 and later
+#add_compile_options(-std=c++11 LANGUAGE C++) # in cmake 2.8.12 and later
+set(CMAKE_CXX_FLAGS -std=c++11)
 
 if( WIN32 OR WIN64 )
 	find_file(PD_HEADER "m_pd.h")
@@ -8,8 +9,8 @@ if( WIN32 OR WIN64 )
 	get_filename_component(PD_INCLUDE_DIR "${PD_HEADER}" DIRECTORY)
 	set(EXTERNAL_LIBS "${PD_LIBRARY}")
 else()
-	add_compile_options(-fPIC) 
-	set(EXTERNAL_LIBS "m")
+	add_compile_options(-fPIC -pthread) 
+	set(EXTERNAL_LIBS m pthread)
 endif()
 
 include_directories(../../libraries ${PD_INCLUDE_DIR})

@@ -4,6 +4,10 @@
 #include <iostream>
 #include <cassert>
 
+#ifndef _WIN32
+#include <time.h>
+#endif
+
 LinkuinoClient::LinkuinoClient(LinkuinoSerialPort* port)
 		: m_serial(port)
 		, m_timeStamp(0)
@@ -311,7 +315,12 @@ void LinkuinoClient::asyncPushDataToDevice()
 	if ( timeToNextSend > std::chrono::duration<int64_t, std::nano>(100) )
 	{
 		//int nMilliSeconds = (timeToNextSend + 999) / 1000;
+#ifdef _WIN32
 		Sleep(1);
+#else
+		static const struct timespec Delay1mS = { 0, 1000000 };
+		nanosleep(&Delay1mS,NULL);
+#endif
 		return;
 	}
 
