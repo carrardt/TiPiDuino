@@ -115,27 +115,23 @@ struct LinkuinoT /* Server */
 	static constexpr uint8_t REQ_DATA3_ADDR	= 0x13;
 
 	/************** Request messages ****************/
-	static constexpr uint8_t REQ_ANALOG0H_READ 	= 0x00; // not implemented
-	static constexpr uint8_t REQ_ANALOG0L_READ 	= 0x01; // not implemented
-	static constexpr uint8_t REQ_ANALOG1H_READ 	= 0x02; // not implemented
-	static constexpr uint8_t REQ_ANALOG1L_READ 	= 0x03; // not implemented
-	static constexpr uint8_t REQ_ANALOG2H_READ 	= 0x04; // not implemented
-	static constexpr uint8_t REQ_ANALOG2L_READ 	= 0x05; // not implemented
-	static constexpr uint8_t REQ_ANALOG3H_READ 	= 0x06; // not implemented
-	static constexpr uint8_t REQ_ANALOG3L_READ 	= 0x07; // not implemented
-	static constexpr uint8_t REQ_ANALOG4H_READ 	= 0x08; // not implemented
-	static constexpr uint8_t REQ_ANALOG4L_READ 	= 0x09; // not implemented
-	static constexpr uint8_t REQ_ANALOG5H_READ 	= 0x0A; // not implemented
-	static constexpr uint8_t REQ_ANALOG5L_READ 	= 0x0B; // not implemented
-
-	static constexpr uint8_t REQ_DIGITAL_READ 	= 0x10;
-	static constexpr uint8_t REQ_FWD_SERIAL	    = 0x11;
-	
-	static constexpr uint8_t REQ_RESET		  	= 0x20; // reset to 50Hz or 100Hz mode depending on code stored at REQ_DATA0_ADDR
-	static constexpr uint8_t REQ_REV		  	= 0x21; // sends 0x00, version major-1 | message repeats<<2 (!=0) , version minor+1 (>=1)
-	
-	static constexpr uint8_t REQ_NOREPLY		= 0x3E; // stop sending reply
-	static constexpr uint8_t REQ_NOOP		  	= 0x3F; // i.e. ACKnowledge => sends 'Ok\n'
+	static constexpr uint8_t REQUEST_COUNT		= 16;
+	static constexpr uint8_t REQ_ANALOG0_READ 	= 0x00; // not implemented
+	static constexpr uint8_t REQ_ANALOG1_READ 	= 0x01; // not implemented
+	static constexpr uint8_t REQ_ANALOG2_READ 	= 0x02; // not implemented
+	static constexpr uint8_t REQ_ANALOG3_READ 	= 0x03; // not implemented
+	static constexpr uint8_t REQ_ANALOG4_READ 	= 0x04; // not implemented
+	static constexpr uint8_t REQ_ANALOG5_READ 	= 0x05; // not implemented
+	static constexpr uint8_t REQ_DIGITAL_READ 	= 0x06;
+	static constexpr uint8_t REQ_FWD_SERIAL	    = 0x07;
+	static constexpr uint8_t REQ_RESET		  	= 0x08; // reset to 50Hz or 100Hz mode depending on code stored at REQ_DATA0_ADDR
+	static constexpr uint8_t REQ_REV		  	= 0x09; // sends 0x00, version major-1 | message repeats<<2 (!=0) , version minor+1 (>=1)
+	static constexpr uint8_t REQ_NOREPLY		= 0x0A; // reserved for future use
+	static constexpr uint8_t REQ_RESERVED0		= 0x0B; // reserved for future use
+	static constexpr uint8_t REQ_RESERVED1		= 0x0C; // reserved for future use
+	static constexpr uint8_t REQ_RESERVED2		= 0x0D; // reserved for future use
+	static constexpr uint8_t REQ_RESERVED3		= 0x0E; // reserved for future use
+	static constexpr uint8_t REQ_NOOP		  	= 0x0F; // i.e. ACKnowledge => sends 'Ok\n'
 	static constexpr uint8_t REQ_NULL		  	= 0xFF; // no request received
 
 	inline LinkuinoT()
@@ -143,7 +139,7 @@ struct LinkuinoT /* Server */
 		, m_digitalOutput()
 		, m_digitalInput()
 	{}
-		
+
 	void begin()
 	{
 		m_pwmPortMask = 0 ;
@@ -398,6 +394,47 @@ struct LinkuinoT /* Server */
 	{
 		return m_resetRequest;
 	}
+
+	/************** functions to process requests *********/
+	static void processRequestAnalogRead0(LinkuinoT* self) {}
+	static void processRequestAnalogRead1(LinkuinoT* self) {}
+	static void processRequestAnalogRead2(LinkuinoT* self) {}
+	static void processRequestAnalogRead3(LinkuinoT* self) {}
+	static void processRequestAnalogRead4(LinkuinoT* self) {}
+	static void processRequestAnalogRead5(LinkuinoT* self) {}
+	static void processRequestDigitalRead(LinkuinoT* self) {}
+	static void processRequestForwardSerial(LinkuinoT* self) {}
+	static void processRequestReset(LinkuinoT* self) {}
+	static void processRequestRevision(LinkuinoT* self) {}
+	static void processRequestNoReply(LinkuinoT* self) {}
+	static void processRequestReserved(LinkuinoT* self) {}
+	static void processRequestAcknowledge(LinkuinoT* self) {}
+
+	/***************** private data members *******/
+
+	// request function type
+	using ProcessRequestFuncT = void(*)(LinkuinoT*);
+
+	// request function dispatch table
+	ProcessRequestFuncT m_requestDispatchTable[REQUEST_COUNT] =
+	{
+		processRequestAnalogRead0,
+		processRequestAnalogRead1,
+		processRequestAnalogRead2,
+		processRequestAnalogRead3,
+		processRequestAnalogRead4,
+		processRequestAnalogRead5,
+		processRequestDigitalRead,
+		processRequestForwardSerial,
+		processRequestReset,
+		processRequestRevision,
+		processRequestNoReply,
+		processRequestReserved,
+		processRequestReserved,
+		processRequestReserved,
+		processRequestReserved,
+		processRequestAcknowledge
+	};
 
 	// PWM state
 	uint16_t m_pwm[PWM_COUNT+1];
