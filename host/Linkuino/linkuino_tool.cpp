@@ -57,8 +57,7 @@ int main(int argc, char* argv[])
 				t+=0.01;
 			}
 		}
-
-		if(cmd=='s')
+		else if(cmd=='s')
 		{
 			int p=0;
 			float m=0.5;
@@ -75,7 +74,6 @@ int main(int argc, char* argv[])
 				t+=0.01;
 			}
 		}
-
 		else if( cmd=='d' )
 		{
 			int p=0;
@@ -170,6 +168,14 @@ int main(int argc, char* argv[])
 			std::cout<<"reset to 100Hz mode\n";
 			link.resetTo100Hz();
 			link.printStatus();
+		}
+		else if( cmd=='a' )
+		{
+			int ch=0;
+			scanf("%d",&ch);
+			std::cout<<"reaquest analog read #"<<ch<<"\n";
+			int v = link.requestAnalogRead( ch );
+			std::cout<<"=> "<<v<<"\n";
 		}
 	}
 

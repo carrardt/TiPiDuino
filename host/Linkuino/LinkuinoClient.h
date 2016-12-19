@@ -34,6 +34,8 @@ struct LinkuinoClient
 
 	void setDigitalOutput(uint8_t mask);
 
+	uint16_t requestAnalogRead(uint8_t channel);
+
 	//! Note: auto send on invocation
 	void forwardMessage( uint8_t d0, uint8_t d1, uint8_t d2, uint8_t d3 );
 
@@ -55,6 +57,7 @@ struct LinkuinoClient
 	void updateTimeStamp();
 	void updateSendTime();
 
+	void flushInput();
 	void pushDataToDevice(const uint8_t buffer[Linkuino::CMD_COUNT]);
 	void asyncPushDataToDevice();
 

@@ -49,6 +49,8 @@ struct LinkuinoNullTraits
 
 	static inline void selectAnalogChannel(uint8_t ch) {}
 	static inline void analogAcquire() {}
+	
+	// 10 bit value is expected
 	static inline uint16_t analogRead() { return 0; }
 };
 
@@ -115,24 +117,21 @@ struct LinkuinoT /* Server */
 	static constexpr uint8_t REQ_DATA3_ADDR	= 0x13;
 
 	/************** Request messages ****************/
-	static constexpr uint8_t REQUEST_COUNT		= 16;
-	static constexpr uint8_t REQ_ANALOG0_READ 	= 0x00; // not implemented
-	static constexpr uint8_t REQ_ANALOG1_READ 	= 0x01; // not implemented
-	static constexpr uint8_t REQ_ANALOG2_READ 	= 0x02; // not implemented
-	static constexpr uint8_t REQ_ANALOG3_READ 	= 0x03; // not implemented
-	static constexpr uint8_t REQ_ANALOG4_READ 	= 0x04; // not implemented
-	static constexpr uint8_t REQ_ANALOG5_READ 	= 0x05; // not implemented
-	static constexpr uint8_t REQ_DIGITAL_READ 	= 0x06;
-	static constexpr uint8_t REQ_FWD_SERIAL	    = 0x07;
-	static constexpr uint8_t REQ_RESET		  	= 0x08; // reset to 50Hz or 100Hz mode depending on code stored at REQ_DATA0_ADDR
-	static constexpr uint8_t REQ_REV		  	= 0x09; // sends 0x00, version major-1 | message repeats<<2 (!=0) , version minor+1 (>=1)
-	static constexpr uint8_t REQ_NOREPLY		= 0x0A; // reserved for future use
-	static constexpr uint8_t REQ_RESERVED0		= 0x0B; // reserved for future use
-	static constexpr uint8_t REQ_RESERVED1		= 0x0C; // reserved for future use
-	static constexpr uint8_t REQ_RESERVED2		= 0x0D; // reserved for future use
-	static constexpr uint8_t REQ_RESERVED3		= 0x0E; // reserved for future use
-	static constexpr uint8_t REQ_NOOP		  	= 0x0F; // i.e. ACKnowledge => sends 'Ok\n'
+	static constexpr uint8_t REQUEST_COUNT		= 8;
+	static constexpr uint8_t REQ_ANALOG_READ 	= 0x00; 
+	static constexpr uint8_t REQ_DIGITAL_READ 	= 0x01;
+	static constexpr uint8_t REQ_FWD_SERIAL	    = 0x02;
+	static constexpr uint8_t REQ_RESET		  	= 0x03; // reset to 50Hz or 100Hz mode depending on code stored at REQ_DATA0_ADDR
+	static constexpr uint8_t REQ_REV		  	= 0x04; // sends 0x00, version major-1 | message repeats<<2 (!=0) , version minor+1 (>=1)
+	static constexpr uint8_t REQ_NOREPLY		= 0x05; // stop replying messages
+	static constexpr uint8_t REQ_NO_OP			= 0x06; // do nothing (don't change reply status)
+	static constexpr uint8_t REQ_ACK		  	= 0x07; // i.e. ACKnowledge => sends 'Ok\n'
 	static constexpr uint8_t REQ_NULL		  	= 0xFF; // no request received
+
+	/* reply signatures */
+	static constexpr uint8_t REPLY_NULL			= 0x00;
+	static constexpr uint8_t REPLY_ANALOG_READ 	= 0xAA;
+	static constexpr uint8_t REPLY_DIGITAL_READ = 0xDD;
 
 	inline LinkuinoT()
 		: m_pwmOutput()
@@ -276,12 +275,18 @@ struct LinkuinoT /* Server */
 			return;
 		}
 
-		// process PWM commands, sort values, prepare next cycle pulses sequence
-		
+		// prepare request processing
+		uint8_t req = m_buffer[REQ_ADDR];
+		if( req >= REQUEST_COUNT ) { req = REQ_NO_OP; }
+		m_fwdEnable = false;
+		((this)->*(m_requestDispatchTable[REQUEST_COUNT+req]))();
+
+		// process PWM commands, sort values, prepare next cycle's pulses sequence
+
 		// copy pwm enable mask to pwm port mask
 		uint8_t pwmMaskReg = m_buffer[PWMEN_ADDR] & 0x3F ;
 		m_pwmPortMask = pwmMaskReg << PWMPortFirstBit;
-		
+
 		// sort pwm values to lower in-cycle processing time
 		for(uint8_t i=0;i<PWM_COUNT;i++) { m_pwm[i] = makePwmDesc(i); }
 		heapSort<uint16_t,PWM_COUNT>( m_pwm );
@@ -312,50 +317,7 @@ struct LinkuinoT /* Server */
 		m_din = ( m_digitalInput.Get() >> DInPortFirstBit ) & m_dinMask;
 
 		// processs request, if any
-		uint8_t req = m_buffer[REQ_ADDR];
-		m_fwdEnable = false;
-		//m_replyEnable = true;
-		if( req == REQ_DIGITAL_READ )
-		{
-			m_reply[0] = REQ_DIGITAL_READ;
-			m_reply[1] = m_din;
-			m_reply[2] = 0;
-			m_replyEnable = true;
-		}
-		else if( req == REQ_REV )
-		{
-			m_reply[0] = 0x00;
-			m_reply[1] = ( (REV_MAJOR-1) & 0x03 ) | ( (MESSAGE_REPEATS<<2) & 0xFC );
-			m_reply[2] = REV_MINOR + 1;
-			m_replyEnable = true;
-		}
-		else if( req == REQ_NOOP )
-		{
-			m_reply[0] = 'O';
-			m_reply[1] = 'k';
-			m_reply[2] = '\n';
-			m_replyEnable = true;
-		}
-		else if( req == REQ_FWD_SERIAL )
-		{
-			m_fwd  = m_buffer[REQ_DATA0_ADDR] & 0x3F;
-			m_fwd <<= 6;
-			m_fwd |= m_buffer[REQ_DATA1_ADDR] & 0x3F;
-			m_fwd <<= 6;
-			m_fwd |= m_buffer[REQ_DATA2_ADDR] & 0x3F;
-			m_fwd <<= 6;
-			m_fwd |= m_buffer[REQ_DATA3_ADDR] & 0x3F;
-			m_fwdEnable = true;
-			m_replyEnable = false;
-		}
-		else if( req == REQ_NOREPLY )
-		{
-			m_replyEnable = false;
-		}
-		else if( req == REQ_RESET )
-		{
-			m_resetRequest = m_buffer[REQ_DATA0_ADDR] & 0x3F;
-		}
+		((this)->*(m_requestDispatchTable[req]))();
 	}
 
 	inline void allPwmHigh()
@@ -396,44 +358,103 @@ struct LinkuinoT /* Server */
 	}
 
 	/************** functions to process requests *********/
-	static void processRequestAnalogRead0(LinkuinoT* self) {}
-	static void processRequestAnalogRead1(LinkuinoT* self) {}
-	static void processRequestAnalogRead2(LinkuinoT* self) {}
-	static void processRequestAnalogRead3(LinkuinoT* self) {}
-	static void processRequestAnalogRead4(LinkuinoT* self) {}
-	static void processRequestAnalogRead5(LinkuinoT* self) {}
-	static void processRequestDigitalRead(LinkuinoT* self) {}
-	static void processRequestForwardSerial(LinkuinoT* self) {}
-	static void processRequestReset(LinkuinoT* self) {}
-	static void processRequestRevision(LinkuinoT* self) {}
-	static void processRequestNoReply(LinkuinoT* self) {}
-	static void processRequestReserved(LinkuinoT* self) {}
-	static void processRequestAcknowledge(LinkuinoT* self) {}
+	void requestPrologAnalogRead()
+	{
+		if( m_analogLastTimeStamp != m_buffer[TSTMP_ADDR] )
+		{
+			m_analogLastTimeStamp = m_buffer[TSTMP_ADDR];
+			uint8_t a  = m_buffer[REQ_DATA0_ADDR] & 0x3F;
+			LinkuinoTraits::selectAnalogChannel( a );
+			LinkuinoTraits::analogAcquire();
+		}
+		else
+		{
+			m_buffer[REQ_ADDR] = REQ_NO_OP;
+		}
+	}
+	void processRequestAnalogRead()
+	{
+		if( m_buffer[REQ_ADDR] != REQ_ANALOG_READ ) { return ; }
+		// 10 bits value is expected
+		uint16_t value = LinkuinoTraits::analogRead() & 0x03FF;
+		value += 1;
+		m_reply[0] = REPLY_ANALOG_READ;
+		m_reply[1] = (value >> 8 ) & 0xFF;
+		m_reply[2] = value & 0xFF;
+		m_buffer[REQ_ADDR] = REQ_NO_OP; // value will not be sampled again, just resent until a new request is made
+		m_replyEnable = true;
+	}
+	void processRequestDigitalRead()
+	{
+		m_reply[0] = REPLY_DIGITAL_READ;
+		m_reply[1] = m_din;
+		m_reply[2] = 0;
+		m_buffer[REQ_ADDR] = REQ_NO_OP; // value will not be sampled again, just resent until a new request is made
+		m_replyEnable = true;
+	}
+	void processRequestForwardSerial()
+	{
+		m_fwd  = m_buffer[REQ_DATA0_ADDR] & 0x3F;
+		m_fwd <<= 6;
+		m_fwd |= m_buffer[REQ_DATA1_ADDR] & 0x3F;
+		m_fwd <<= 6;
+		m_fwd |= m_buffer[REQ_DATA2_ADDR] & 0x3F;
+		m_fwd <<= 6;
+		m_fwd |= m_buffer[REQ_DATA3_ADDR] & 0x3F;
+		m_fwdEnable = true;
+		m_replyEnable = false;
+	}
+	void processRequestReset()
+	{
+		m_resetRequest = m_buffer[REQ_DATA0_ADDR] & 0x3F;
+	}
+	void processRequestRevision()
+	{
+		m_reply[0] = 0x00;
+		m_reply[1] = ( (REV_MAJOR-1) & 0x03 ) | ( (MESSAGE_REPEATS<<2) & 0xFC );
+		m_reply[2] = REV_MINOR + 1;
+		m_replyEnable = true;
+	}
+	void processRequestNoReply()
+	{
+		m_replyEnable = false;
+	}
+	void processRequestNoOp() {}
+	void processRequestAcknowledge()
+	{
+		m_reply[0] = 'O';
+		m_reply[1] = 'k';
+		m_reply[2] = '\n';
+		m_replyEnable = true;
+	}
 
 	/***************** private data members *******/
 
 	// request function type
-	using ProcessRequestFuncT = void(*)(LinkuinoT*);
+	using ProcessRequestFuncT = void(LinkuinoT::*)();
 
 	// request function dispatch table
-	ProcessRequestFuncT m_requestDispatchTable[REQUEST_COUNT] =
+	ProcessRequestFuncT m_requestDispatchTable[REQUEST_COUNT*2] =
 	{
-		processRequestAnalogRead0,
-		processRequestAnalogRead1,
-		processRequestAnalogRead2,
-		processRequestAnalogRead3,
-		processRequestAnalogRead4,
-		processRequestAnalogRead5,
-		processRequestDigitalRead,
-		processRequestForwardSerial,
-		processRequestReset,
-		processRequestRevision,
-		processRequestNoReply,
-		processRequestReserved,
-		processRequestReserved,
-		processRequestReserved,
-		processRequestReserved,
-		processRequestAcknowledge
+		// first sert of functions are processing functions
+		& LinkuinoT::processRequestAnalogRead,
+		& LinkuinoT::processRequestDigitalRead,
+		& LinkuinoT::processRequestForwardSerial,
+		& LinkuinoT::processRequestReset,
+		& LinkuinoT::processRequestRevision,
+		& LinkuinoT::processRequestNoReply,
+		& LinkuinoT::processRequestNoOp,
+		& LinkuinoT::processRequestAcknowledge,
+		
+		// second set of functions are prolog functions
+		& LinkuinoT::requestPrologAnalogRead,
+		& LinkuinoT::processRequestNoOp,
+		& LinkuinoT::processRequestNoOp,
+		& LinkuinoT::processRequestNoOp,
+		& LinkuinoT::processRequestNoOp,
+		& LinkuinoT::processRequestNoOp,
+		& LinkuinoT::processRequestNoOp,
+		& LinkuinoT::processRequestNoOp
 	};
 
 	// PWM state
@@ -465,6 +486,9 @@ struct LinkuinoT /* Server */
 	
 	// reset requested
 	uint8_t m_resetRequest;
+	
+	// analog state machine
+	uint8_t m_analogLastTimeStamp;
 
 	// hardware pins accessors
 	PWMPinGroupT m_pwmOutput;

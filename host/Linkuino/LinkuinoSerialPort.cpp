@@ -149,6 +149,21 @@ int LinkuinoSerialPort::read(uint8_t* buffer, int nBytes)
 #endif
 }
 
+int LinkuinoSerialPort::readSync(uint8_t* buffer, int nBytes)
+{
+	int nRemain = nBytes;
+	while( nRemain > 0 )
+	{
+		int n = this->read(buffer,nRemain);
+		if( n > 0 )
+		{
+			buffer += n;
+			nRemain -= n;
+		}
+	}
+	return nBytes-nRemain;
+}
+
 void LinkuinoSerialPort::flush()
 {
 #ifndef _WIN32

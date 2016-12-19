@@ -117,6 +117,53 @@ void LinkuinoClient::setDigitalOutput(uint8_t mask)
 	setRegisterValue(Linkuino::DOUT_ADDR, mask & 0x3F);
 }
 
+void LinkuinoClient::flushInput()
+{
+	uint8_t tmp;
+	while( m_serial->read( &tmp, 1) == 1);
+}
+
+
+uint16_t LinkuinoClient::requestAnalogRead(uint8_t channel)
+{
+	flushInput();
+	setRegisterValue(Linkuino::REQ_ADDR, Linkuino::REQ_ANALOG_READ );
+	setRegisterValue(Linkuino::REQ_DATA0_ADDR, channel & 0x3F );
+	send();
+	
+	bool ok = false;
+	uint16_t value = 0;
+	uint8_t tmp[6]={Linkuino::REPLY_NULL,0,0,Linkuino::REPLY_NULL,0,0};
+	int n = m_serial->readSync( tmp, 6);
+
+	std::cout<<"n="<<n<<" :";
+	for(int i=0;i<n;i++) std::cout<<" "<<(int)tmp[i];
+	std::cout<<"\n";
+
+	if( n==6 && tmp[0]==Linkuino::REPLY_ANALOG_READ && tmp[3]==Linkuino::REPLY_ANALOG_READ && tmp[1]==tmp[4] && tmp[2]==tmp[5] )
+	{
+		value = tmp[1];
+		value <<= 8;
+		value |= tmp[2];
+		if( value>=1 && value<=1024 )
+		{
+			ok = true;
+			-- value;
+		}
+	}
+	
+	if( ! ok )
+	{
+		return 0;
+	}
+
+	setRegisterValue(Linkuino::REQ_ADDR, Linkuino::REQ_NOREPLY );
+	send();
+	flushInput();
+
+	return value;
+}
+
 void LinkuinoClient::forwardMessage( uint8_t d0, uint8_t d1, uint8_t d2, uint8_t d3 )
 {
 	setRegisterValue(Linkuino::REQ_ADDR, Linkuino::REQ_FWD_SERIAL);

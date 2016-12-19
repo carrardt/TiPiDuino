@@ -24,7 +24,8 @@ struct AvrAnalogDigitalConverter
 		ADCSRA |= (1 << ADSC);
 	}
 
-	inline uint8_t endRead()
+	// could be extended to 16-bits
+	inline uint16_t endRead()
 	{
 		while (ADCSRA & (1 << ADSC));
 		return (ADC);

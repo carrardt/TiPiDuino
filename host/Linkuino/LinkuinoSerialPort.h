@@ -19,6 +19,8 @@ public:
 	void close();
 	bool write(const uint8_t* buffer, int nBytes);
 	int read(uint8_t* buffer, int nBytes);
+	int readSync(uint8_t* buffer, int nBytes);
+
 	void flush();
 
 private:

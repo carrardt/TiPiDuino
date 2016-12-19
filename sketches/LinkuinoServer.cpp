@@ -6,7 +6,7 @@
 #include <BasicIO/ByteStream.h>
 #include <BasicIO/PrintStream.h>
 #include <FastSerial.h>
-
+#include <ADC/adc.h>
 #include <Linkuino/Linkuino.h>
 
 // 'old' setting, use led pin to forward commands to slave chip
@@ -30,6 +30,9 @@ PrintStream cout;
 //using Scheduler = TimeSchedulerT<AvrTimer1<false>,int32_t> ; // SlotMax>1000S, resolution=62nS, 32Bits wallclock
 using Scheduler = TimeSchedulerT<AvrTimer1<>,int16_t > ; // SlotMax=32767uS, resolution=500nS, 16Bits wallclock
 #endif
+
+// AVR Analog acquisition
+AvrAnalogDigitalConverter g_adc;
 
 /*
  * Restrictions :
@@ -62,9 +65,9 @@ struct LinkuinoUnoTraits
 	static constexpr uint8_t DInPortMask = 0x3F;
 	static constexpr uint8_t DInCount = 6;
 
-	static inline void selectAnalogChannel(uint8_t ch) {}
-	static inline void analogAcquire() {}
-	static inline uint16_t analogRead() { return 0; }
+	static inline void selectAnalogChannel(uint8_t ch) { g_adc.setChannel(ch); }
+	static inline void analogAcquire() { g_adc.startRead(); }
+	static inline uint16_t analogRead() { return g_adc.endRead(); }
 };
 
 using WallClock = typename Scheduler::WallClockT;
@@ -99,6 +102,8 @@ void setup()
 	// fastSerialPin = HIGH;
 	fastSerial.begin();
 	fastSerial.write<24>(0);
+	
+	g_adc.begin();
 }
 
 // 100 Hz timings
