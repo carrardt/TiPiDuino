@@ -83,7 +83,7 @@ struct LinkuinoT /* Server */
 
 	/*************** Server version ********************/
 	static constexpr uint8_t REV_MAJOR = 1;
-	static constexpr uint8_t REV_MINOR = 4;
+	static constexpr uint8_t REV_MINOR = 5;
 
 	/**************** Communication settings ***********/
 	static constexpr uint8_t PWM_COUNT   			= 6;
@@ -95,32 +95,32 @@ struct LinkuinoT /* Server */
 	static constexpr uint32_t MESSAGE_REPEATS		= (PACKET_BYTES+CMD_COUNT-1)/CMD_COUNT; //SERIAL_SPEED/1000; // 8+2 bits / byte, @ 57600 Bauds, to cover 10ms => 57.6 bytes
 
 	/******** Input register addresses **********/
-	static constexpr uint8_t TSTMP_ADDR 	= 0x00;
-	static constexpr uint8_t PWM0H_ADDR 	= 0x01;
-	static constexpr uint8_t PWM0L_ADDR 	= 0x02;
-	static constexpr uint8_t PWM1H_ADDR 	= 0x03;
-	static constexpr uint8_t PWM1L_ADDR 	= 0x04;
-	static constexpr uint8_t PWM2H_ADDR 	= 0x05;
-	static constexpr uint8_t PWM2L_ADDR 	= 0x06;
-	static constexpr uint8_t PWM3H_ADDR 	= 0x07;
-	static constexpr uint8_t PWM3L_ADDR 	= 0x08;
-	static constexpr uint8_t PWM4H_ADDR 	= 0x09;
-	static constexpr uint8_t PWM4L_ADDR 	= 0x0A;
-	static constexpr uint8_t PWM5H_ADDR 	= 0x0B;
-	static constexpr uint8_t PWM5L_ADDR 	= 0x0C;
+	static constexpr uint8_t TSTMP_ADDR 	= 0x00; // Timestamp, cyclic in the range [0;63]
+	static constexpr uint8_t PWM0H_ADDR 	= 0x01; // PWM #0, 6 MSB
+	static constexpr uint8_t PWM0L_ADDR 	= 0x02; // PWM #0, 6 LSB
+	static constexpr uint8_t PWM1H_ADDR 	= 0x03; // PWM #1, 6 MSB
+	static constexpr uint8_t PWM1L_ADDR 	= 0x04; // PWM #1, 6 LSB
+	static constexpr uint8_t PWM2H_ADDR 	= 0x05; // PWM #2, 6 MSB
+	static constexpr uint8_t PWM2L_ADDR 	= 0x06; // PWM #2, 6 LSB
+	static constexpr uint8_t PWM3H_ADDR 	= 0x07; // PWM #3, 6 MSB
+	static constexpr uint8_t PWM3L_ADDR 	= 0x08; // PWM #3, 6 LSB
+	static constexpr uint8_t PWM4H_ADDR 	= 0x09; // PWM #4, 6 MSB
+	static constexpr uint8_t PWM4L_ADDR 	= 0x0A; // PWM #4, 6 LSB
+	static constexpr uint8_t PWM5H_ADDR 	= 0x0B; // PWM #5, 6 MSB
+	static constexpr uint8_t PWM5L_ADDR 	= 0x0C; // PWM #5, 6 LSB
 	static constexpr uint8_t PWMEN_ADDR 	= 0x0D; // PWM enable bits
-	static constexpr uint8_t DOUT_ADDR 	 	= 0x0E;
-	static constexpr uint8_t REQ_ADDR	 	= 0x0F;
-	static constexpr uint8_t REQ_DATA0_ADDR	= 0x10;
-	static constexpr uint8_t REQ_DATA1_ADDR	= 0x11;
-	static constexpr uint8_t REQ_DATA2_ADDR	= 0x12;
-	static constexpr uint8_t REQ_DATA3_ADDR	= 0x13;
+	static constexpr uint8_t DOUT_ADDR 	 	= 0x0E; // digital output pins
+	static constexpr uint8_t REQ_ADDR	 	= 0x0F; // Request ID
+	static constexpr uint8_t REQ_DATA0_ADDR	= 0x10; // Request DATA 0
+	static constexpr uint8_t REQ_DATA1_ADDR	= 0x11; // Request DATA 1
+	static constexpr uint8_t REQ_DATA2_ADDR	= 0x12; // Request DATA 2
+	static constexpr uint8_t REQ_DATA3_ADDR	= 0x13; // Request DATA 3
 
 	/************** Request messages ****************/
 	static constexpr uint8_t REQUEST_COUNT		= 8;
-	static constexpr uint8_t REQ_ANALOG_READ 	= 0x00; 
-	static constexpr uint8_t REQ_DIGITAL_READ 	= 0x01;
-	static constexpr uint8_t REQ_FWD_SERIAL	    = 0x02;
+	static constexpr uint8_t REQ_ANALOG_READ 	= 0x00; // read one analog input. input number given in request data
+	static constexpr uint8_t REQ_DIGITAL_READ 	= 0x01; // read digital pins
+	static constexpr uint8_t REQ_FWD_SERIAL	    = 0x02; // forward bits in request data to slave (implementation dependent)
 	static constexpr uint8_t REQ_RESET		  	= 0x03; // reset to 50Hz or 100Hz mode depending on code stored at REQ_DATA0_ADDR
 	static constexpr uint8_t REQ_REV		  	= 0x04; // sends 0x00, version major-1 | message repeats<<2 (!=0) , version minor+1 (>=1)
 	static constexpr uint8_t REQ_NOREPLY		= 0x05; // stop replying messages
@@ -436,7 +436,7 @@ struct LinkuinoT /* Server */
 	// request function dispatch table
 	ProcessRequestFuncT m_requestDispatchTable[REQUEST_COUNT*2] =
 	{
-		// first sert of functions are processing functions
+		// first set of functions are processing functions
 		& LinkuinoT::processRequestAnalogRead,
 		& LinkuinoT::processRequestDigitalRead,
 		& LinkuinoT::processRequestForwardSerial,

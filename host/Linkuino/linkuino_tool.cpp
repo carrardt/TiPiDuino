@@ -177,6 +177,12 @@ int main(int argc, char* argv[])
 			int v = link.requestAnalogRead( ch );
 			std::cout<<"=> "<<v<<"\n";
 		}
+		else if( cmd=='A' )
+		{
+			std::cout<<"reaquest digital read\n";
+			int v = link.requestDigitalRead();
+			std::cout<<"=> "<<v<<"\n";
+		}
 	}
 
 	link.quiet();
