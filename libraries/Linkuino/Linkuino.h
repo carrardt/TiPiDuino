@@ -313,9 +313,6 @@ struct LinkuinoT /* Server */
 		// write Digital output updated values
 		m_digitalOutput.Set( ( m_buffer[DOUT_ADDR] << DOutPortFirstBit ) & m_doutMask , m_doutMask );
 
-		// read digital input state
-		m_din = ( m_digitalInput.Get() >> DInPortFirstBit ) & m_dinMask;
-
 		// processs request, if any
 		((this)->*(m_requestDispatchTable[req]))();
 	}
@@ -377,19 +374,19 @@ struct LinkuinoT /* Server */
 		if( m_buffer[REQ_ADDR] != REQ_ANALOG_READ ) { return ; }
 		// 10 bits value is expected
 		uint16_t value = LinkuinoTraits::analogRead() & 0x03FF;
-		value += 1;
+		// packet will always have the form 0xAA0... where the dots are 12 bits value
 		m_reply[0] = REPLY_ANALOG_READ;
-		m_reply[1] = (value >> 8 ) & 0xFF;
+		m_reply[1] = (value >> 8 ) & 0x03 ;
 		m_reply[2] = value & 0xFF;
-		m_buffer[REQ_ADDR] = REQ_NO_OP; // value will not be sampled again, just resent until a new request is made
 		m_replyEnable = true;
 	}
 	void processRequestDigitalRead()
 	{
+		// read digital input state
+		m_din = ( m_digitalInput.Get() >> DInPortFirstBit ) & m_dinMask;
 		m_reply[0] = REPLY_DIGITAL_READ;
 		m_reply[1] = m_din;
-		m_reply[2] = 0;
-		m_buffer[REQ_ADDR] = REQ_NO_OP; // value will not be sampled again, just resent until a new request is made
+		m_reply[2] = REPLY_DIGITAL_READ;
 		m_replyEnable = true;
 	}
 	void processRequestForwardSerial()

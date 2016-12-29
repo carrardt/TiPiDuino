@@ -34,8 +34,8 @@ struct LinkuinoClient
 
 	void setDigitalOutput(uint8_t mask);
 
-	uint16_t requestAnalogRead(uint8_t channel);
-	int16_t requestDigitalRead();
+	float requestAnalogRead(uint8_t channel, int samples=1);
+	int32_t requestDigitalRead();
 
 	//! Note: auto send on invocation
 	void forwardMessage( uint8_t d0, uint8_t d1, uint8_t d2, uint8_t d3 );

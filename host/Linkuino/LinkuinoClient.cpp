@@ -124,7 +124,7 @@ void LinkuinoClient::flushInput()
 }
 
 
-uint16_t LinkuinoClient::requestAnalogRead(uint8_t channel)
+float LinkuinoClient::requestAnalogRead(uint8_t channel, int nSamples)
 {
 	flushInput();
 	setRegisterValue(Linkuino::REQ_ADDR, Linkuino::REQ_ANALOG_READ );
@@ -134,40 +134,39 @@ uint16_t LinkuinoClient::requestAnalogRead(uint8_t channel)
 	setRegisterValue(Linkuino::REQ_DATA3_ADDR, 0x00 );
 	send();
 
-	bool ok = false;
-	uint16_t value = 0;
-	uint8_t tmp[6]={Linkuino::REPLY_NULL,0,0,Linkuino::REPLY_NULL,0,0};
-	int n = m_serial->readSync( tmp, 6);
-
-	std::cout<<"n="<<n<<" :";
-	for(int i=0;i<n;i++) std::cout<<" "<<(int)tmp[i];
-	std::cout<<"\n";
-
-	if( n==6 && tmp[0]==Linkuino::REPLY_ANALOG_READ && tmp[3]==Linkuino::REPLY_ANALOG_READ && tmp[1]==tmp[4] && tmp[2]==tmp[5] )
+	bool ok = true;
+	uint32_t value = 0;
+	
+	for( int i=0;i<nSamples;i++)
 	{
-		value = tmp[1];
-		value <<= 8;
-		value |= tmp[2];
-		if( value>=1 && value<=1024 )
+		uint8_t tmp[3]={Linkuino::REPLY_NULL,0,0};
+		int n = m_serial->readSync( tmp, 3);
+		if( n==3 && tmp[0]==Linkuino::REPLY_ANALOG_READ && (tmp[1]&0xFC)==0 )
 		{
-			ok = true;
-			-- value;
+			uint32_t sample = tmp[1];
+			sample <<= 8;
+			sample |= tmp[2];
+			value += sample;
+		}
+		else
+		{
+			ok = false;
 		}
 	}
-	
+
 	if( ! ok )
 	{
-		return 0;
+		return -1.0f;
 	}
 
 	setRegisterValue(Linkuino::REQ_ADDR, Linkuino::REQ_NOREPLY );
 	send();
 	flushInput();
 
-	return value;
+	return value/(nSamples*1023.0f);
 }
 
-int16_t LinkuinoClient::requestDigitalRead()
+int32_t LinkuinoClient::requestDigitalRead()
 {
 	flushInput();
 	setRegisterValue(Linkuino::REQ_ADDR, Linkuino::REQ_DIGITAL_READ );
@@ -179,14 +178,14 @@ int16_t LinkuinoClient::requestDigitalRead()
 	
 	bool ok = false;
 	uint16_t value = 0;
-	uint8_t tmp[6]={Linkuino::REPLY_NULL,0,0,Linkuino::REPLY_NULL,0,0};
-	int n = m_serial->readSync( tmp, 6);
+	uint8_t tmp[3]={Linkuino::REPLY_NULL,0xFF,0};
+	int n = m_serial->readSync( tmp, 3);
 
-	std::cout<<"n="<<n<<" :";
+	/*std::cout<<"n="<<n<<" :";
 	for(int i=0;i<n;i++) std::cout<<" "<<(int)tmp[i];
-	std::cout<<"\n";
+	std::cout<<"\n";*/
 
-	if( n==6 && tmp[0]==Linkuino::REPLY_DIGITAL_READ && tmp[3]==Linkuino::REPLY_DIGITAL_READ && tmp[1]==tmp[4] && tmp[2]==0 && tmp[5]==0 )
+	if( n==3 && tmp[0]==Linkuino::REPLY_DIGITAL_READ && tmp[2]==Linkuino::REPLY_DIGITAL_READ && (tmp[1]&0xC0)==0 )
 	{
 		value = tmp[1];
 	}

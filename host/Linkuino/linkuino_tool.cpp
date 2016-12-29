@@ -171,17 +171,17 @@ int main(int argc, char* argv[])
 		}
 		else if( cmd=='a' )
 		{
-			int ch=0;
-			scanf("%d",&ch);
-			std::cout<<"reaquest analog read #"<<ch<<"\n";
-			int v = link.requestAnalogRead( ch );
+			int ch=0, nsamples=1;
+			scanf("%d %d",&ch, &nsamples);
+			std::cout<<"read "<<nsamples<<"samples on channel #"<<ch<<"\n";
+			float v = link.requestAnalogRead( ch, nsamples );
 			std::cout<<"=> "<<v<<"\n";
 		}
-		else if( cmd=='A' )
+		else if( cmd=='i' )
 		{
-			std::cout<<"reaquest digital read\n";
+			std::cout<<"request digital read\n";
 			int v = link.requestDigitalRead();
-			std::cout<<"=> "<<v<<"\n";
+			std::cout<<"=> "<< std::hex << v<<"\n";
 		}
 	}
 
