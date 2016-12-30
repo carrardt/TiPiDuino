@@ -210,6 +210,24 @@ if "-r" in sys.argv:
 	sys.argv.remove("-r")
 	print("Result will be horizontaly flipped")
 
+ApplyYOffset = False
+if "-y" in sys.argv:
+	ApplyYOffset = True
+	sys.argv.remove("-y")
+	print("Result will be offset vertically")
+
+OptimizeWires = False
+if "-o" in sys.argv:
+	OptimizeWires = True
+	sys.argv.remove("-o")
+	print("Result will be optimized")
+
+SeparateFiles = False
+if "-s" in sys.argv:
+	SeparateFiles = True
+	sys.argv.remove("-s")
+	print("Result will be split into several files")
+	
 print( "input : ", sys.argv[2:] )
 print( "output : ", sys.argv[1] )
 	
@@ -230,30 +248,49 @@ for fileName in sys.argv[2:]:
 	else:
 		gcodeList.append( gcode )
 
-output=open(sys.argv[1],"w")
+
 
 xMul = 1.0
 xAdd = - bbox.xMin
 yAdd = - bbox.yMin
+
 if reverse:
 	xMul = -1.0
 	xAdd = bbox.xMax
 
+if ApplyYOffset:
+	yAdd += (bbox.yMax-bbox.yMin)*1.05
+	
 def transformCoord( p ):
 	(x,y,z) = p
 	return (x*xMul+xAdd,y+yAdd,z)
 
+output=None
+if not SeparateFiles:
+	output=open(sys.argv[1],"w")
+
+Fi=0
 for gcode in gcodeList:
+	if SeparateFiles:
+		output=open(sys.argv[1]+".%d"%Fi,"w")
 	gapLength = computeGapDistance(gcode.body)
 	print("Header:",gcode.header)
 	print("Footer:",gcode.footer)
-	print("found %d segments, travel Z=%g, total gaps=%g"%(len(gcode.body),gcode.zMax,gapLength))
-	gcode.body = optimizeSegmentList( gcode.body )
-	gapLength = computeGapDistance(gcode.body)
-	print("after: %d segments, travel Z=%g, total gaps=%g"%(len(gcode.body),gcode.zMax,gapLength))
+	print("before: %d segments, travel Z=%g, total gaps=%g"%(len(gcode.body),gcode.zMax,gapLength))
+	if OptimizeWires:
+		gcode.body = optimizeSegmentList( gcode.body )
+		gapLength = computeGapDistance(gcode.body)
+		print("after: %d segments, travel Z=%g, total gaps=%g"%(len(gcode.body),gcode.zMax,gapLength))
 	gcode.write(output,False,transformCoord)
+	if SeparateFiles:
+		output.write("M05\n")	
+		output.close()
+		output=None
+		Fi=Fi+1
 
-output.write("M05\n")	
-output.close()
-output=None
+if not SeparateFiles:
+	output.write("M05\n")	
+	output.close()
+	output=None
 
+print("Done")
