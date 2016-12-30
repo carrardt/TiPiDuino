@@ -119,20 +119,27 @@ void LinkuinoClient::setDigitalOutput(uint8_t mask)
 
 void LinkuinoClient::flushInput()
 {
+	//auto T1 = std::chrono::high_resolution_clock::now();
 	uint8_t tmp;
 	while( m_serial->read( &tmp, 1) == 1);
+	//auto T2 = std::chrono::high_resolution_clock::now();
+	//std::cout << "flushInput time = " << std::chrono::duration_cast<std::chrono::microseconds>(T2 - T1).count() << "uS\n";
 }
 
 
 float LinkuinoClient::requestAnalogRead(uint8_t channel, int nSamples)
 {
 	flushInput();
+
+	//auto T1 = std::chrono::high_resolution_clock::now();
 	setRegisterValue(Linkuino::REQ_ADDR, Linkuino::REQ_ANALOG_READ );
 	setRegisterValue(Linkuino::REQ_DATA0_ADDR, channel & 0x3F );
 	setRegisterValue(Linkuino::REQ_DATA1_ADDR, 0x00 );
 	setRegisterValue(Linkuino::REQ_DATA2_ADDR, 0x00 );
 	setRegisterValue(Linkuino::REQ_DATA3_ADDR, 0x00 );
 	send();
+	//auto T2 = std::chrono::high_resolution_clock::now();
+	//std::cout << "REQ_ANALOG_READ send time = " << std::chrono::duration_cast<std::chrono::microseconds>(T2 - T1).count() << "uS\n";
 
 	bool ok = true;
 	uint32_t value = 0;
@@ -161,7 +168,6 @@ float LinkuinoClient::requestAnalogRead(uint8_t channel, int nSamples)
 
 	setRegisterValue(Linkuino::REQ_ADDR, Linkuino::REQ_NOREPLY );
 	send();
-	flushInput();
 
 	return value/(nSamples*1023.0f);
 }
@@ -181,10 +187,6 @@ int32_t LinkuinoClient::requestDigitalRead()
 	uint8_t tmp[3]={Linkuino::REPLY_NULL,0xFF,0};
 	int n = m_serial->readSync( tmp, 3);
 
-	/*std::cout<<"n="<<n<<" :";
-	for(int i=0;i<n;i++) std::cout<<" "<<(int)tmp[i];
-	std::cout<<"\n";*/
-
 	if( n==3 && tmp[0]==Linkuino::REPLY_DIGITAL_READ && tmp[2]==Linkuino::REPLY_DIGITAL_READ && (tmp[1]&0xC0)==0 )
 	{
 		value = tmp[1];
@@ -199,7 +201,6 @@ int32_t LinkuinoClient::requestDigitalRead()
 
 	setRegisterValue(Linkuino::REQ_ADDR, Linkuino::REQ_NOREPLY );
 	send();
-	flushInput();
 
 	return value;
 }
@@ -256,7 +257,7 @@ void LinkuinoClient::updateTimeStamp()
 	setRegisterValue(Linkuino::TSTMP_ADDR, m_timeStamp);
 }
 
-bool LinkuinoClient::scanSerialPorts()
+int LinkuinoClient::scanSerialPorts()
 {
 	const char * * availPorts = LinkuinoSerialPort::availablePorts();
 	m_serial->close();
@@ -266,12 +267,12 @@ bool LinkuinoClient::scanSerialPorts()
 		if( m_serial->open(availPorts[p]) )
 		{
 			std::cout<<"testing connection on "<<availPorts[p]<<'\n';
-			if( testConnection() ) { return true; }
+			if( testConnection() ) { return p; }
 			else { m_serial->close(); }
 		}
 		++p;
 	}
-	return false;
+	return -1;
 }
 
 bool LinkuinoClient::testConnection()
@@ -300,7 +301,7 @@ bool LinkuinoClient::testConnection()
 			return false;
 		}
 		int n = m_serial->read( reply + l, R - l);
-		if (n>0) l += n;
+		if (n > 0) { l += n; }
 	}
 
 	setRegisterValue(Linkuino::REQ_ADDR, Linkuino::REQ_NOREPLY);
@@ -308,10 +309,7 @@ bool LinkuinoClient::testConnection()
 	pushDataToDevice(m_buffer);
 
 	// flush input buffer
-	{
-		uint8_t tmp;
-		while( m_serial->read( &tmp, 1) == 1);
-	}
+	flushInput();
 
 	reply[R - 1] = '\0';
 	//printf("REQ_REV='%s'\n",reply);
@@ -399,32 +397,17 @@ void LinkuinoClient::pushDataToDevice(const uint8_t buffer[Linkuino::CMD_COUNT])
 
 void LinkuinoClient::asyncPushDataToDevice()
 {
-	std::chrono::duration<int64_t, std::nano> timeToNextSend = c_minTimeBetwwenSend - timeSinceLastSend();
-	if ( timeToNextSend > std::chrono::duration<int64_t, std::nano>(100) )
-	{
-		//int nMilliSeconds = (timeToNextSend + 999) / 1000;
-#ifdef _WIN32
-		Sleep(1);
-#else
-		static const struct timespec Delay1mS = { 0, 1000000 };
-		nanosleep(&Delay1mS,NULL);
-#endif
-		return;
-	}
-
-	bool rts = false;
+	bool sendBuf = false;
 	uint8_t send_buffer[Linkuino::CMD_COUNT];
-
 	m_mutex.lock();
-	if (m_rts)
+	if (!m_terminate && m_rts)
 	{
 		for (int i = 0; i < Linkuino::CMD_COUNT; i++) { send_buffer[i] = m_bufferCopy[i]; }
 		m_rts = false;
-		rts = true;
+		sendBuf = true;
 	}
 	m_mutex.unlock();
-
-	if (rts)
+	if (sendBuf)
 	{
 		pushDataToDevice(send_buffer);
 	}

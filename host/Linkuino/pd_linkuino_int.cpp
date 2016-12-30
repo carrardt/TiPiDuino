@@ -9,14 +9,55 @@
 #include "LinkuinoClient.h"
 #include "LinkuinoSerialPort.h"
 #include <vector>
+#include <map>
 #include <sstream>
 
 #include "pd_linkuino.h"
 
+static std::map<int, LinkuinoClient*> g_linkuinoInstances;
+
+int linkuino_get_device_id(LinkuinoClient* li)
+{
+	for( auto it : g_linkuinoInstances )
+	{
+		if (it.second == li) { return it.first;  }
+	}
+	return -1;
+}
+
+void linkuino_close_device( LinkuinoClient* li )
+{
+	if (li == nullptr) { return;  }
+	int i = linkuino_get_device_id(li);
+	if (i != -1)
+	{
+		g_linkuinoInstances.erase(i);
+	}
+	LinkuinoSerialPort* s = li->serialPort();
+	delete li;
+	delete s;
+}
+
+LinkuinoClient* linkuino_get_device(int i)
+{
+	auto it = g_linkuinoInstances.find(i);
+	if (it != g_linkuinoInstances.end())
+	{
+		return it->second;
+	}
+	return 0;
+}
+
 LinkuinoClient* linkuino_open_device(int i)
 {
-	static LinkuinoSerialPort serial;
-	LinkuinoClient* li = new LinkuinoClient(&serial);
+	auto it = g_linkuinoInstances.find(i);
+	if (it != g_linkuinoInstances.end())
+	{
+		return it->second;
+	}
+
+	LinkuinoSerialPort* serial = new LinkuinoSerialPort();
+	LinkuinoClient* li = new LinkuinoClient(serial);
 	
 	const char * * availPorts = LinkuinoSerialPort::availablePorts();
 	int nPorts = 0;
@@ -26,21 +67,24 @@ LinkuinoClient* linkuino_open_device(int i)
 	if( i>=0 && i<nPorts )
 	{
 		post("Linkuino: open device");
-		serial.open( availPorts[i] );
+		serial->open( availPorts[i] );
 		connected = li->testConnection();
 	}
 	else
 	{
 		post("Linkuino: scan for device");
-		connected = li->scanSerialPorts();
+		i = li->scanSerialPorts();
+		connected = (i>=0);
 	}
 	
 	if( ! connected )
 	{
 		delete li;
+		delete serial;
 		return nullptr;
 	}
 	li->printStatus();
+	g_linkuinoInstances[i] = li;
 	return li;
 }
 
@@ -66,6 +110,11 @@ void linkuino_set_pwm_value(struct LinkuinoClient* li, int pwmI, float pwmValue)
 void linkuino_set_dout(struct LinkuinoClient* li,int v)
 {
 	li->setRegisterValue(Linkuino::DOUT_ADDR, v);
+}
+
+float linkuino_read_analog(struct LinkuinoClient* li, int ch)
+{
+	return li->requestAnalogRead(ch);
 }
 
 void linkuino_send(struct LinkuinoClient* li)

@@ -1,72 +1,81 @@
-#N canvas 526 13 1345 691 10;
-#X obj 144 477 linkuino, f 114;
-#X obj 36 463 bng 15 250 50 0 empty empty update 17 7 0 10 -262144
+#N canvas 271 35 1511 863 10;
+#X obj 144 649 linkuino, f 114;
+#X obj 36 635 bng 15 250 50 0 empty empty update 17 7 0 10 -262144
 -1 -1;
-#X floatatom 37 427 5 0 10 2 Serial_port - -, f 5;
-#X floatatom 75 527 5 0 0 0 Version - -, f 5;
-#X floatatom 120 527 5 0 0 0 - - -, f 5;
-#X obj 144 270 vsl 15 100 0 100 0 0 empty empty empty 0 -9 0 10 -262144
--1 -1 3000 1;
-#X obj 144 403 t b f;
-#X floatatom 144 243 5 0 0 2 Pin_2 - -, f 5;
-#X obj 193 272 vsl 15 100 0 100 0 0 empty empty empty 0 -9 0 10 -262144
+#X floatatom 37 599 5 0 10 2 Serial_port - -, f 5;
+#X floatatom 75 699 5 0 0 0 Version - -, f 5;
+#X floatatom 120 699 5 0 0 0 - - -, f 5;
+#X obj 144 442 vsl 15 100 0 100 0 0 empty empty empty 0 -9 0 10 -262144
+-1 -1 2970 1;
+#X obj 144 575 t b f;
+#X floatatom 144 415 5 0 0 2 Pin_2 - -, f 5;
+#X obj 193 444 vsl 15 100 0 100 0 0 empty empty empty 0 -9 0 10 -262144
 -1 -1 0 1;
-#X obj 193 404 t b f;
-#X floatatom 193 243 5 0 0 2 Pin_3 - -, f 5;
-#X obj 243 272 vsl 15 100 0 100 0 0 empty empty empty 0 -9 0 10 -262144
+#X obj 193 576 t b f;
+#X floatatom 193 415 5 0 0 2 Pin_3 - -, f 5;
+#X obj 243 444 vsl 15 100 0 100 0 0 empty empty empty 0 -9 0 10 -262144
 -1 -1 0 1;
-#X obj 243 404 t b f;
-#X floatatom 243 244 5 0 0 2 Pin_4 - -, f 5;
-#X obj 298 272 vsl 15 100 0 100 0 0 empty empty empty 0 -9 0 10 -262144
--1 -1 5600 1;
-#X obj 298 404 t b f;
-#X floatatom 298 244 5 0 0 2 Pin_5 - -, f 5;
-#X obj 351 272 vsl 15 100 0 100 0 0 empty empty empty 0 -9 0 10 -262144
--1 -1 3000 1;
-#X obj 351 404 t b f;
-#X floatatom 351 244 5 0 0 2 Pin_6 - -, f 5;
-#X obj 403 272 vsl 15 100 0 100 0 0 empty empty empty 0 -9 0 10 -262144
--1 -1 6700 1;
-#X obj 403 404 t b f;
-#X floatatom 403 244 5 0 0 2 Pin_7 - -, f 5;
-#X obj 591 249 vradio 15 1 0 2 empty empty Pin_5 -4 -8 0 10 -262144
--1 -1 0;
-#X obj 511 249 vradio 15 1 0 2 empty empty Pin_3 -4 -8 0 10 -262144
--1 -1 0;
-#X obj 630 249 vradio 15 1 0 2 empty empty Pin_6 -4 -8 0 10 -262144
--1 -1 0;
-#X obj 552 249 vradio 15 1 0 2 empty empty Pin_4 -4 -8 0 10 -262144
--1 -1 0;
-#X obj 669 250 vradio 15 1 0 2 empty empty Pin_7 -4 -8 0 10 -262144
--1 -1 0;
-#X obj 470 247 vradio 15 1 0 2 empty empty Pin_2 -4 -8 0 10 -262144
--1 -1 0;
-#X obj 713 227 tgl 15 0 empty empty Pin_9 -4 -8 0 10 -262144 -1 -1
-0 1;
-#X obj 757 227 tgl 15 0 empty empty Pin_10 -4 -8 0 10 -262144 -1 -1
-0 1;
-#X obj 805 227 tgl 15 0 empty empty Pin_11 -4 -8 0 10 -262144 -1 -1
-0 1;
-#X obj 848 227 tgl 15 0 empty empty Pin_12 -4 -8 0 10 -262144 -1 -1
-0 1;
-#X obj 894 227 tgl 15 0 empty empty Pin_13_(led) -4 -8 0 10 -262144
+#X obj 243 576 t b f;
+#X floatatom 243 416 5 0 0 2 Pin_4 - -, f 5;
+#X obj 298 444 vsl 15 100 0 100 0 0 empty empty empty 0 -9 0 10 -262144
 -1 -1 0 1;
-#X obj 923 323 tgl 15 0 empty empty XXX 17 7 0 10 -262144 -1 -1 0 1
+#X obj 298 576 t b f;
+#X floatatom 298 416 5 0 0 2 Pin_5 - -, f 5;
+#X obj 351 444 vsl 15 100 0 100 0 0 empty empty empty 0 -9 0 10 -262144
+-1 -1 0 1;
+#X obj 351 576 t b f;
+#X floatatom 351 416 5 0 0 2 Pin_6 - -, f 5;
+#X obj 403 444 vsl 15 100 0 100 0 0 empty empty empty 0 -9 0 10 -262144
+-1 -1 0 1;
+#X obj 403 576 t b f;
+#X floatatom 403 416 5 0 0 2 Pin_7 - -, f 5;
+#X obj 591 421 vradio 15 1 0 2 empty empty Pin_5 -4 -8 0 10 -262144
+-1 -1 0;
+#X obj 511 421 vradio 15 1 0 2 empty empty Pin_3 -4 -8 0 10 -262144
+-1 -1 0;
+#X obj 630 421 vradio 15 1 0 2 empty empty Pin_6 -4 -8 0 10 -262144
+-1 -1 0;
+#X obj 552 421 vradio 15 1 0 2 empty empty Pin_4 -4 -8 0 10 -262144
+-1 -1 0;
+#X obj 669 422 vradio 15 1 0 2 empty empty Pin_7 -4 -8 0 10 -262144
+-1 -1 0;
+#X obj 470 419 vradio 15 1 0 2 empty empty Pin_2 -4 -8 0 10 -262144
+-1 -1 0;
+#X obj 713 399 tgl 15 0 empty empty Pin_9 -4 -8 0 10 -262144 -1 -1
+0 1;
+#X obj 757 399 tgl 15 0 empty empty Pin_10 -4 -8 0 10 -262144 -1 -1
+0 1;
+#X obj 805 399 tgl 15 0 empty empty Pin_11 -4 -8 0 10 -262144 -1 -1
+0 1;
+#X obj 848 399 tgl 15 0 empty empty Pin_12 -4 -8 0 10 -262144 -1 -1
+0 1;
+#X obj 894 399 tgl 15 0 empty empty Pin_13_(led) -4 -8 0 10 -262144
+-1 -1 0 1;
+#X obj 923 495 tgl 15 0 empty empty XXX 17 7 0 10 -262144 -1 -1 0 1
 ;
-#X obj 700 364 t b f;
-#X obj 744 376 t b f;
-#X obj 787 389 t b f;
-#X obj 834 399 t b f;
-#X obj 880 408 t b f;
-#X obj 923 428 t b f;
-#X text 218 195 PWM Outputs;
-#X text 771 168 Digital Outputs;
-#X text 480 178 Up = DC Motor / full range;
-#X text 479 156 PWM Configuration;
-#X text 480 199 Down = Servo;
-#X text 141 101 Linkuino v1.4 (c) B.A.T. Cave 2016;
+#X obj 700 536 t b f;
+#X obj 744 548 t b f;
+#X obj 787 561 t b f;
+#X obj 834 571 t b f;
+#X obj 880 580 t b f;
+#X obj 923 600 t b f;
+#X text 218 367 PWM Outputs;
+#X text 771 340 Digital Outputs;
+#X text 480 350 Up = DC Motor / full range;
+#X text 479 328 PWM Configuration;
+#X text 480 371 Down = Servo;
+#X floatatom 939 697 5 0 0 0 - - -, f 5;
+#X text 858 697 Identifiant;
+#X text 141 273 Linkuino v1.5 (c) B.A.T. Cave 2016;
+#X obj 821 807 lnka, f 17;
+#X obj 820 767 bng 15 250 50 0 empty empty empty 17 7 0 10 -262144
+-1 -1;
+#X floatatom 940 771 5 0 0 0 - - -, f 5;
+#X obj 824 837 hsl 128 15 0 127 0 0 empty empty empty -2 -8 0 10 -262144
+-1 -1 48 1;
 #X connect 0 0 3 0;
 #X connect 0 1 4 0;
+#X connect 0 2 46 0;
 #X connect 1 0 0 0;
 #X connect 2 0 0 1;
 #X connect 5 0 6 0;
@@ -117,4 +126,8 @@
 #X connect 39 1 0 18;
 #X connect 40 0 0 0;
 #X connect 40 1 0 19;
-#X coords 0 691 1 690 0 0 0;
+#X connect 46 0 49 1;
+#X connect 49 0 52 0;
+#X connect 50 0 49 0;
+#X connect 51 0 49 2;
+#X coords 0 863 1 862 0 0 0;

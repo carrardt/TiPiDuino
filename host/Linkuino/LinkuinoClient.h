@@ -18,14 +18,14 @@ struct LinkuinoClient
 	LinkuinoClient(LinkuinoSerialPort* port);
 	~LinkuinoClient();
 
-	bool scanSerialPorts();
+	int scanSerialPorts();
 	bool testConnection();
 
 	int getServerVersionMajor() const;
 	int getServerVersionMinor() const;
 	int getMessageRepeats() const;
 	void setRegisterValue(uint8_t i, uint8_t value);
-	
+
 	//! value is in the range [0;1]. for servos, use values in the range [0.05;0.1]
 	void setPWMValue(int p, float value);
 	void enablePWM(int p);
@@ -47,8 +47,10 @@ struct LinkuinoClient
 
 	void printStatus();
 	void printBuffer();
-	
+
 	void send();
+
+	inline LinkuinoSerialPort* serialPort() { return m_serial;  }
 
   private:
 	  static constexpr std::chrono::duration<int64_t, std::nano> c_minTimeBetwwenSend = std::chrono::duration<int64_t, std::nano>(10000000LL);

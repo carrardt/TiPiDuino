@@ -1,4 +1,3 @@
-#include <stdio.h>
 #include <cstdint>
 #include <cmath>
 #include <iostream>
@@ -23,7 +22,7 @@ int main(int argc, char* argv[])
 
 	if( argc>=2 )
 	{
-		if( ! serial.open(argv[1]) ) { fprintf(stderr,"can't open device '%s'\n",argv[1]); return 1; }
+		if( ! serial.open(argv[1]) ) { std::cerr<<"can't open device '"<< argv[1] <<"'\n"; return 1; }
 		if( ! link.testConnection() )
 		{
 			std::cerr<<"No valid Linkuino server on "<<argv[1]<<'\n';
@@ -39,13 +38,13 @@ int main(int argc, char* argv[])
 	char cmd=' ';
 	while( cmd != 'q' )
 	{
-		scanf("%c",&cmd);
+		std::cin >> cmd;
 		if(cmd=='S')
 		{
 			float m=0.5;
 			float a=0.5;
-			scanf("%f %f",&m,&a);
-			printf("Sin : avg=%g, amp=%g\n",m,a);
+			std::cin >> m >> a;
+			std::cout << "Sin : avg=" << m << ", amp=" << a << "\n";
 			double t=0.0;
 			for( int s=0;s<10000;s++ )
 			{
@@ -62,23 +61,21 @@ int main(int argc, char* argv[])
 			int p=0;
 			float m=0.5;
 			float a=0.5;
-			scanf("%d %f %f",&p,&m,&a);
-			printf("Sinus wave : PWM=%d avg=%g, amp=%g\n",p,m,a);
+			std::cin >> p >> m >> a;
+			std::cout<<"Sinus wave : PWM="<<p<<", avg="<<m<<", amp="<<a<<"\n";
 			double t=0.0;
 			for( int s=0;s<10000;s++ )
 			{
 				link.setPWMValue( p , sin(t) * a + m );
 				link.send();
-				struct timespec T = {0,10000000};
-				nanosleep( &T, NULL);
 				t+=0.01;
 			}
 		}
 		else if( cmd=='d' )
 		{
 			int p=0;
-			scanf("%d",&p);
-			printf("Disable PWM %d\n",p);
+			std::cin >> p;
+			std::cout<<"Disable PWM "<<p<<"\n";
 			link.disablePWM(p);
 			link.send();
 		}
@@ -86,8 +83,8 @@ int main(int argc, char* argv[])
 		else if( cmd=='e' )
 		{
 			int p=0;
-			scanf("%d",&p);
-			printf("Enable PWM %d\n",p);
+			std::cin >> p;
+			std::cout << "Enable PWM " << p << "\n";
 			link.enablePWM(p);
 			link.send();
 		}
@@ -96,31 +93,31 @@ int main(int argc, char* argv[])
 		{
 			int p=0;
 			float v = 0.5;
-			scanf("%d %f",&p,&v);
-			printf("set PWM %d to %f\n",p,v);
+			std::cin >> p >> v;
+			std::cout<<"set PWM "<<p<<" to "<<v<<"\n";
 			link.setPWMValue( p , v );
 			link.send();
 		}
 		else if( cmd=='t' )
 		{
 			int v = 1250;
-			scanf("%d",&v);
+			std::cin >> v;
 			int ve = Linkuino::encodePulseLength( v );
 			int vd = Linkuino::decodePulseLength ( ve );
-			printf("Encode Test : %d -> %d -> %d\n",v,ve,vd);
+			std::cout<<"Encode Test : "<<v<<" -> "<<ve<<"-> "<<vd<<"\n";
 		}
 		else if( cmd=='o' )
 		{
-			uint16_t v=0;
-			scanf("%d",&v);
-			printf("digital out = %d\n",v);
+			int v=0;
+			std::cin >> v;
+			std::cout<<"digital out = "<<v<<"\n";
 			link.setDigitalOutput(v);
 			link.send();
 		}
 		else if( cmd=='f' )
 		{
 			uint32_t a=0, b=0, c=0, d=0;
-			scanf("%d %d %d %d",&a,&b,&c,&d);
+			std::cin >> a >> b >> c >> d;
 			a = clamp(a,0U,15U);
 			b = clamp(b,0U,255U);
 			c = clamp(c,0U,15U);
@@ -130,7 +127,7 @@ int main(int argc, char* argv[])
 			uint16_t d1 = (data>>12) & 0x3F;
 			uint16_t d2 = (data>>6) & 0x3F;
 			uint16_t d3 = data & 0x3F;
-			printf("forward: %d %d %d %d => %d (0x%08X) => %02X %02X %02X %02X\n",a,b,c,d,data,data,d0,d1,d2,d3);
+			std::cout<<"forward: "<<a<<' '<<b<<' '<<c<<' '<<d<<" => "<<data<<'/'<<std::hex<<data<<" => "<<d0<<' '<<d1<<' '<<d2<<' '<<d3<<"\n";
 			link.forwardMessage( d0, d1, d2, d3 );
 		}
 #ifndef _WIN32
@@ -152,7 +149,7 @@ int main(int argc, char* argv[])
 				uint16_t d1 = (data>>12) & 0x3F;
 				uint16_t d2 = (data>>6) & 0x3F;
 				uint16_t d3 = data & 0x3F;
-				printf("forward: %d %d %d %d => %d (0x%08X) => %02X %02X %02X %02X\n",a,b,c,d,data,data,d0,d1,d2,d3);
+				std::cout << "forward: " << a << ' ' << b << ' ' << c << ' ' << d << " => " << data << '/' << std::hex << data << " => " << d0 << ' ' << d1 << ' ' << d2 << ' ' << d3 << "\n";
 				link.forwardMessage( d0, d1, d2, d3 );
 			}
 		}
@@ -172,10 +169,28 @@ int main(int argc, char* argv[])
 		else if( cmd=='a' )
 		{
 			int ch=0, nsamples=1;
-			scanf("%d %d",&ch, &nsamples);
+			std::cin >> ch >> nsamples;
 			std::cout<<"read "<<nsamples<<"samples on channel #"<<ch<<"\n";
 			float v = link.requestAnalogRead( ch, nsamples );
 			std::cout<<"=> "<<v<<"\n";
+		}
+		else if (cmd == 'A')
+		{
+			int ch = 0, nsamples = 1;
+			std::cin >> ch >> nsamples;
+			//
+			//std::cout << "flushInput time = " <<  << "uS\n";
+			std::cout << "benchmark analog channel #" << ch <<", with "<< nsamples<<" samples per read\n";
+			double v = 0.0;
+			uint64_t totalTime = 0;
+			for (int i = 0; i < 100; i++)
+			{
+				auto T1 = std::chrono::high_resolution_clock::now();
+				v += link.requestAnalogRead(ch, nsamples);
+				auto T2 = std::chrono::high_resolution_clock::now();
+				totalTime += std::chrono::duration_cast<std::chrono::microseconds>(T2 - T1).count();
+			}
+			std::cout <<"avg="<< totalTime/100<<" uS, value=" << v << "\n";
 		}
 		else if( cmd=='i' )
 		{

@@ -90,7 +90,7 @@ bool LinkuinoSerialPort::open(const std::string& devpath)
 		return false;
 	}
 	printf("%s State: baud=%d, CS=%d, Parity=%d, StopBits=%g\n", comPortName, dcbSerialParams.BaudRate, dcbSerialParams.ByteSize, dcbSerialParams.Parity, dcbSerialParams.StopBits*0.5f + 1.0f);
-	COMMTIMEOUTS timeOut = { 500, 20, 500, 20, 500 };
+	COMMTIMEOUTS timeOut = { 1, 1, 1, 0, 0 };
 	if( ! SetCommTimeouts(m_serialPort, &timeOut) )
 	{
 		printf("\nError: \ncould not configure %s timer-out !\n", comPortName);
@@ -155,6 +155,7 @@ int LinkuinoSerialPort::readSync(uint8_t* buffer, int nBytes)
 	while( nRemain > 0 )
 	{
 		int n = this->read(buffer,nRemain);
+
 		if( n > 0 )
 		{
 			buffer += n;
