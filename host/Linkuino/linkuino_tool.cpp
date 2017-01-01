@@ -170,33 +170,42 @@ int main(int argc, char* argv[])
 		{
 			int ch=0, nsamples=1;
 			std::cin >> ch >> nsamples;
-			std::cout<<"read "<<nsamples<<"samples on channel #"<<ch<<"\n";
+			std::cout<<"read "<<nsamples<<" samples on channel #"<<ch<<"\n";
 			float v = link.requestAnalogRead( ch, nsamples );
 			std::cout<<"=> "<<v<<"\n";
 		}
 		else if (cmd == 'A')
 		{
-			int ch = 0, nsamples = 1;
-			std::cin >> ch >> nsamples;
+			int ch = 0, nsamples = 1, count=100;
+			std::cin >> ch >> nsamples >> count;
 			//
 			//std::cout << "flushInput time = " <<  << "uS\n";
-			std::cout << "benchmark analog channel #" << ch <<", with "<< nsamples<<" samples per read\n";
+			std::cout << "benchmark analog channel #" << ch <<", with "<< nsamples<<" samples per read, "<<count<<" reads\n";
 			double v = 0.0;
 			uint64_t totalTime = 0;
-			for (int i = 0; i < 100; i++)
+			for (int i = 0; i<count && v>=0.0 ; i++)
 			{
 				auto T1 = std::chrono::high_resolution_clock::now();
-				v += link.requestAnalogRead(ch, nsamples);
+				float s = link.requestAnalogRead(ch, nsamples);
+				if( s != -1.0f ) { v += s; }
+				else { v = -1.0; }
 				auto T2 = std::chrono::high_resolution_clock::now();
 				totalTime += std::chrono::duration_cast<std::chrono::microseconds>(T2 - T1).count();
 			}
-			std::cout <<"avg="<< totalTime/100<<" uS, value=" << v << "\n";
+			std::cout <<"avg="<< totalTime/count<<" uS, value=" << v/count << "\n";
 		}
 		else if( cmd=='i' )
 		{
 			std::cout<<"request digital read\n";
 			int v = link.requestDigitalRead();
-			std::cout<<"=> "<< std::hex << v<<"\n";
+			std::cout<<"=> "<< std::hex << v<< std::dec <<"\n";
+		}
+		else if( cmd=='m' )
+		{
+			int mr=24;
+			std::cin>>mr;
+			std::cout<<"forcing message repeats to "<<std::dec<<mr<<"\n";
+			link.forceMessageRepeats( mr );
 		}
 	}
 

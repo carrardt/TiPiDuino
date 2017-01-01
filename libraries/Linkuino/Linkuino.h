@@ -77,9 +77,11 @@ struct LinkuinoT /* Server */
 	static constexpr uint16_t PWM_DEFAULT_VALUE     = 1500;
 	static constexpr uint16_t PWM_UNREACHABLE_VALUE = 65535;
 
-	static constexpr uint8_t NO_RESET = 0;
-	static constexpr uint8_t RESET_TO_50Hz = 1;
-	static constexpr uint8_t RESET_TO_100Hz = 2;
+	/************* protocol symbolic constants *********/
+	static constexpr uint8_t NO_RESET 		= 0;
+	static constexpr uint8_t RESET_TO_50Hz 	= 1;
+	static constexpr uint8_t RESET_TO_100Hz	= 2;
+	static constexpr uint8_t TSTMP_NULL		= 0xFF;
 
 	/*************** Server version ********************/
 	static constexpr uint8_t REV_MAJOR = 1;
@@ -125,10 +127,10 @@ struct LinkuinoT /* Server */
 	static constexpr uint8_t REQ_REV		  	= 0x04; // sends 0x00, version major-1 | message repeats<<2 (!=0) , version minor+1 (>=1)
 	static constexpr uint8_t REQ_NOREPLY		= 0x05; // stop replying messages
 	static constexpr uint8_t REQ_NO_OP			= 0x06; // do nothing (don't change reply status)
-	static constexpr uint8_t REQ_ACK		  	= 0x07; // i.e. ACKnowledge => sends 'Ok\n'
+	static constexpr uint8_t REQ_ACK		  	= 0x07; // i.e. ACKnowledge => sends 'Ok\n' // TODO: a changer en requete de service
 	static constexpr uint8_t REQ_NULL		  	= 0xFF; // no request received
 
-	/* reply signatures */
+	/*************** reply signatures ***************/
 	static constexpr uint8_t REPLY_NULL			= 0x00;
 	static constexpr uint8_t REPLY_ANALOG_READ 	= 0xAA;
 	static constexpr uint8_t REPLY_DIGITAL_READ = 0xDD;
@@ -155,9 +157,10 @@ struct LinkuinoT /* Server */
 		m_dinMask = DInPortMask;
 		m_din = 0;
 		
-		m_bufferIndex = 0;
+		m_bufferIndex = 1;
 		m_readCycles = 0;
-		m_buffer[TSTMP_ADDR] = 255;
+		m_buffer[TSTMP_ADDR] = TSTMP_NULL;
+		m_writeBufferEnabled = false;
 		for(uint8_t i=0; i<PWM_COUNT; i++)
 		{
 			m_buffer[2*i+1] = 0x08;
@@ -181,15 +184,19 @@ struct LinkuinoT /* Server */
 
 	inline void prepareToReceive()
 	{
-		m_buffer[TSTMP_ADDR] = 255;
+		m_buffer[TSTMP_ADDR] = TSTMP_NULL;
 		// default is to reply to the last request unless NO_REPLY request is received
 		// so we do not overwrite REQ_ADDR until we receive a valid message overwriting it
 		//m_buffer[REQ_ADDR] = REQ_NULL;
 		m_readCycles = 0;
+		m_bufferIndex = 1;
+		m_writeBufferEnabled = false; // will start after the first timestamp is received
 		//m_replyEnable = false;
 		m_fwdEnable = false;
 	}
 
+/*
+ * legacy method
 	template<typename IODeviceT>
 	inline void receive(IODeviceT& io)
 	{
@@ -197,20 +204,47 @@ struct LinkuinoT /* Server */
 		if( x )
 		{
 			uint8_t r = x;
-			uint8_t data = r & 0x3F;
 			uint8_t clk = r >> 6;
 			if( clk == 0 )
 			{
-				if( m_buffer[TSTMP_ADDR] == data ) ++ m_readCycles;
-				else m_readCycles = 0;
-				m_buffer[TSTMP_ADDR] = data;
+				if( m_buffer[TSTMP_ADDR]==r ) { ++ m_readCycles; }
+				else { m_readCycles = 0; }
+				m_buffer[TSTMP_ADDR] = r;
 				m_bufferIndex = 1;
 			}
 			else
 			{
 				m_buffer[m_bufferIndex] = r;
-				m_bufferIndex = (m_bufferIndex+1) % CMD_COUNT;
+				++ m_bufferIndex;
+				if( m_bufferIndex == CMD_COUNT ) m_bufferIndex=1;
+				//m_bufferIndex = (m_bufferIndex+1) % CMD_COUNT;
 			}
+		}
+	}
+*/
+
+	inline void receive(uint8_t r)
+	{
+		uint8_t clk = r >> 6;
+		if( clk == 0 )
+		{
+			if( m_buffer[TSTMP_ADDR]!=r && m_buffer[TSTMP_ADDR]!=TSTMP_NULL )
+			{
+				m_writeBufferEnabled = false;
+			}
+			else
+			{
+				m_buffer[TSTMP_ADDR] = r;
+				++ m_readCycles;
+				m_bufferIndex = 1;
+				m_writeBufferEnabled = true;
+			}
+		}
+		else if( m_writeBufferEnabled )
+		{
+			m_buffer[m_bufferIndex] = r;
+			++ m_bufferIndex;
+			if( m_bufferIndex == CMD_COUNT ) { m_bufferIndex=1; }
 		}
 	}
 
@@ -472,6 +506,7 @@ struct LinkuinoT /* Server */
 	uint8_t m_buffer[CMD_COUNT];
 	uint8_t m_bufferIndex;
 	uint8_t m_readCycles;
+	bool m_writeBufferEnabled;
 	
 	// reply buffer
 	bool m_replyEnable;

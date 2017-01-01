@@ -9,6 +9,7 @@
 #endif
 
 #include <string>
+#include <chrono>
 
 #include "LinkuinoSerialPort.h"
 #include "Linkuino/Linkuino.h"
@@ -149,13 +150,18 @@ int LinkuinoSerialPort::read(uint8_t* buffer, int nBytes)
 #endif
 }
 
-int LinkuinoSerialPort::readSync(uint8_t* buffer, int nBytes)
+/*
+ * buffer : data pointer
+ * nBytes : number of bytes to send from buffer
+ * timeOut : max read time in uS. 0 means no timeout
+ */
+int LinkuinoSerialPort::readSync(uint8_t* buffer, int nBytes, uint64_t timeOut)
 {
+	auto T0 = std::chrono::high_resolution_clock::now();
 	int nRemain = nBytes;
-	while( nRemain > 0 )
+	while( nRemain > 0 && ( timeOut==0 || (std::chrono::high_resolution_clock::now()-T0)<std::chrono::duration<int64_t, std::micro>(timeOut) ) )
 	{
 		int n = this->read(buffer,nRemain);
-
 		if( n > 0 )
 		{
 			buffer += n;

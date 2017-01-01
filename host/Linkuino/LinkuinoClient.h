@@ -10,6 +10,7 @@ using Linkuino = LinkuinoT<>;
 #include <thread>
 #include <mutex>
 #include <atomic>
+#include <condition_variable>
 
 struct LinkuinoClient
 {
@@ -52,15 +53,20 @@ struct LinkuinoClient
 
 	inline LinkuinoSerialPort* serialPort() { return m_serial;  }
 
+	inline void forceMessageRepeats(int mr) { m_messageRepeats=mr; }
+
   private:
-	  static constexpr std::chrono::duration<int64_t, std::nano> c_minTimeBetwwenSend = std::chrono::duration<int64_t, std::nano>(10000000LL);
-	  static constexpr std::chrono::duration<int64_t, std::nano> c_connectionTimeOut = std::chrono::duration<int64_t, std::nano>(1000000000LL);
+	static constexpr std::chrono::duration<int64_t, std::milli> c_minTimeBetwwenSend = std::chrono::duration<int64_t, std::milli>(20);
+	static constexpr std::chrono::duration<int64_t, std::milli> c_connectionTimeOut = std::chrono::duration<int64_t, std::milli>(1000);
 
 	std::chrono::high_resolution_clock::duration timeSinceLastSend();
 	void updateTimeStamp();
 	void updateSendTime();
 
+	void waitClearToSend();
 	void flushInput();
+	void sendReplyRequest(uint8_t req, uint8_t d0=0, uint8_t d1=0, uint8_t d2=0, uint8_t d3=0);
+	void stopServerReply();
 	void pushDataToDevice(const uint8_t buffer[Linkuino::CMD_COUNT]);
 	void asyncPushDataToDevice();
 
@@ -71,7 +77,14 @@ struct LinkuinoClient
 
 	std::thread* m_workerThread = nullptr;
 	std::mutex m_mutex;
+	std::atomic<bool> m_terminate;
+	
+	std::condition_variable m_readyToSendCond;
+	std::atomic<bool> m_readyToSend;
 	std::chrono::high_resolution_clock::time_point m_sendTime;
+
+	std::condition_variable m_clearToSendCond;
+	std::atomic<bool> m_clearToSend;
 
 	LinkuinoSerialPort* m_serial;
 	int m_serverMajor;
@@ -81,8 +94,6 @@ struct LinkuinoClient
 	uint8_t m_pwmEnable;
 	uint8_t m_buffer[Linkuino::CMD_COUNT];
 	volatile uint8_t m_bufferCopy[Linkuino::CMD_COUNT];
-	std::atomic<bool> m_rts;
-	std::atomic<bool> m_terminate;
 };
 
 #endif

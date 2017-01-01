@@ -155,7 +155,8 @@ void loop()
 			// so we have 7.61 milliseconds to listen for serial commands
 			ts.loop( RECV_SHUTDOWN_TIME_100Hz, [&li](WallClock t)	// 2000 uS -> 9500 uS
 			{
-				li.receive( serialIO.m_rawIO );
+				uint16_t x = serialIO.m_rawIO.readByteAsync();
+				if( x ) { li.receive(x); }
 				li.shutDownPWM( ALL_HIGH_TIME_100Hz + FAST_SHUTDOWN_TIME_100Hz + t );
 			} );
 
@@ -205,7 +206,8 @@ void loop()
 			// so we have 7.61 milliseconds to listen for serial commands
 			ts.loop( RECV_SHUTDOWN_TIME_50Hz, [&li](WallClock t)	// 2000 uS -> 9500 uS
 			{
-				li.receive( serialIO.m_rawIO );
+				uint16_t x = serialIO.m_rawIO.readByteAsync();
+				if( x ) { li.receive(x); }
 				li.shutDownPWM( ALL_HIGH_TIME_50Hz + FAST_SHUTDOWN_TIME_50Hz + t );
 			} );
 
