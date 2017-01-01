@@ -129,8 +129,10 @@ void LinkuinoClient::flushInput()
 {
 	//auto T1 = std::chrono::high_resolution_clock::now();
 	uint8_t tmp;
-	int n = m_serial->readSync( &tmp, 1, 20000 );
-	while( n==1 ) { n = m_serial->readSync( &tmp, 1, 1000 ); }
+	int n = 0;
+	do {
+		n = m_serial->readSync( &tmp, 1, 1000 );
+	} while( n==1 );
 	//auto T2 = std::chrono::high_resolution_clock::now();
 	//std::cout << "flushInput time = " << std::chrono::duration_cast<std::chrono::microseconds>(T2 - T1).count() << "uS\n";
 }
@@ -150,7 +152,7 @@ void LinkuinoClient::stopServerReply()
 
 void LinkuinoClient::sendReplyRequest( uint8_t req, uint8_t d0, uint8_t d1, uint8_t d2, uint8_t d3 )
 {
-	flushInput();
+	//flushInput();
 	//auto T1 = std::chrono::high_resolution_clock::now();
 	setRegisterValue(Linkuino::REQ_ADDR, req );
 	setRegisterValue(Linkuino::REQ_DATA0_ADDR, d0 );
