@@ -28,7 +28,6 @@ LinkuinoClient::LinkuinoClient(LinkuinoSerialPort* port)
 	setRegisterValue(Linkuino::REQ_DATA1_ADDR, 0);
 	setRegisterValue(Linkuino::REQ_DATA2_ADDR, 0);
 	setRegisterValue(Linkuino::REQ_DATA3_ADDR, 0);
-	updateSendTime();
 }
 
 LinkuinoClient::~LinkuinoClient()
@@ -127,6 +126,7 @@ void LinkuinoClient::waitClearToSend()
 
 void LinkuinoClient::flushInput()
 {
+	// TODO: could be optimized by measuring the time spent since last read from uController
 	uint8_t tmp;
 	int n = 0;
 	do {
@@ -359,17 +359,6 @@ void LinkuinoClient::printBuffer()
 	std::cout << "\n";
 }
 
-void LinkuinoClient::updateSendTime()
-{
-	m_sendTime = std::chrono::high_resolution_clock::now();
-}
-
-// in uS
-std::chrono::high_resolution_clock::duration LinkuinoClient::timeSinceLastSend()
-{
-	return std::chrono::high_resolution_clock::now() - m_sendTime;
-}
-
 void LinkuinoClient::send()
 {
 	{
@@ -409,7 +398,6 @@ void LinkuinoClient::pushDataToDevice(const uint8_t buffer[Linkuino::CMD_COUNT])
 	send_buffer[ m_messageRepeats*Linkuino::CMD_COUNT ] = buffer[0]; // finish with a timestamp marker
 	m_serial->write(send_buffer, m_messageRepeats*Linkuino::CMD_COUNT+1); 
 	m_serial->flush();
-	updateSendTime();
 	updateTimeStamp();
 }
 

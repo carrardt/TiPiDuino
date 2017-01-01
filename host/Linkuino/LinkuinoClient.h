@@ -56,12 +56,10 @@ struct LinkuinoClient
 	inline void forceMessageRepeats(int mr) { m_messageRepeats=mr; }
 
   private:
-	static constexpr std::chrono::duration<int64_t, std::milli> c_minTimeBetwwenSend = std::chrono::duration<int64_t, std::milli>(20);
+	static constexpr std::chrono::duration<int64_t, std::milli> c_minTimeBetweenSend = std::chrono::duration<int64_t, std::milli>(20);
 	static constexpr std::chrono::duration<int64_t, std::milli> c_connectionTimeOut = std::chrono::duration<int64_t, std::milli>(1000);
 
-	std::chrono::high_resolution_clock::duration timeSinceLastSend();
 	void updateTimeStamp();
-	void updateSendTime();
 
 	void waitClearToSend();
 	void flushInput();

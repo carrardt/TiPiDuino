@@ -187,7 +187,7 @@ int main(int argc, char* argv[])
 			{
 				auto T1 = std::chrono::high_resolution_clock::now();
 				float s = link.requestAnalogRead(ch, nsamples);
-				if( s != -1.0f ) { v += s; }
+				if( v>=0.0 && s!=-1.0f ) { v += s; }
 				else { v = -1.0; }
 				auto T2 = std::chrono::high_resolution_clock::now();
 				totalTime += std::chrono::duration_cast<std::chrono::microseconds>(T2 - T1).count();
