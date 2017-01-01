@@ -127,18 +127,16 @@ void LinkuinoClient::waitClearToSend()
 
 void LinkuinoClient::flushInput()
 {
-	//auto T1 = std::chrono::high_resolution_clock::now();
 	uint8_t tmp;
 	int n = 0;
 	do {
-		n = m_serial->readSync( &tmp, 1, 1000 );
+		n = m_serial->readSync( &tmp, 1, 20000 );
 	} while( n==1 );
-	//auto T2 = std::chrono::high_resolution_clock::now();
-	//std::cout << "flushInput time = " << std::chrono::duration_cast<std::chrono::microseconds>(T2 - T1).count() << "uS\n";
 }
 
 void LinkuinoClient::stopServerReply()
 {
+	//auto T1 = std::chrono::high_resolution_clock::now();
 	waitClearToSend();
 	setRegisterValue(Linkuino::REQ_ADDR, Linkuino::REQ_NOREPLY );
 	setRegisterValue(Linkuino::REQ_DATA0_ADDR, 0x00 );
@@ -146,14 +144,17 @@ void LinkuinoClient::stopServerReply()
 	setRegisterValue(Linkuino::REQ_DATA2_ADDR, 0x00 );
 	setRegisterValue(Linkuino::REQ_DATA3_ADDR, 0x00 );
 	send();
-	waitClearToSend();
-	flushInput();
+	//waitClearToSend();
+	//flushInput();
+	//auto T2 = std::chrono::high_resolution_clock::now();
+	//std::cout << "end request time = " << std::chrono::duration_cast<std::chrono::microseconds>(T2 - T1).count() << "uS\n";
 }
 
 void LinkuinoClient::sendReplyRequest( uint8_t req, uint8_t d0, uint8_t d1, uint8_t d2, uint8_t d3 )
 {
-	//flushInput();
 	//auto T1 = std::chrono::high_resolution_clock::now();
+	flushInput();
+	waitClearToSend();
 	setRegisterValue(Linkuino::REQ_ADDR, req );
 	setRegisterValue(Linkuino::REQ_DATA0_ADDR, d0 );
 	setRegisterValue(Linkuino::REQ_DATA1_ADDR, d1 );
