@@ -117,6 +117,11 @@ float linkuino_read_analog(struct LinkuinoClient* li, int ch)
 	return li->requestAnalogRead(ch);
 }
 
+int linkuino_read_digital(struct LinkuinoClient* li)
+{
+	return li->requestDigitalRead();
+}
+
 void linkuino_send(struct LinkuinoClient* li)
 {
 	li->send();
