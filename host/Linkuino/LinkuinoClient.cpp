@@ -105,7 +105,7 @@ void LinkuinoClient::setPWMValue(int p, float fval)
 	
 	//  encode to 12bits
 	uint16_t valueEnc = Linkuino::encodePulseLength(value);
-	std::cout<<value<<" -> "<<valueEnc<<" -> "<<Linkuino::decodePulseLength(valueEnc)<<"\n";
+	//std::cout<<value<<" -> "<<valueEnc<<" -> "<<Linkuino::decodePulseLength(valueEnc)<<"\n";
 	
 	// write corresponding values to state buffer
 	setRegisterValue(Linkuino::PWMEN_ADDR, m_pwmEnable);
