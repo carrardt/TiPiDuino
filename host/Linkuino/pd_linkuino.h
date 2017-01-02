@@ -26,6 +26,7 @@ void linkuino_close_device(struct LinkuinoClient* li);
 int linkuino_get_device_id(struct LinkuinoClient* li);
 struct LinkuinoClient* linkuino_get_device(int i);
 float linkuino_read_analog(struct LinkuinoClient* li, int ch);
+int linkuino_read_digital(struct LinkuinoClient* li);
 
 #ifdef __cplusplus
 }

@@ -50,6 +50,7 @@ struct LinkuinoClient
 	void printBuffer();
 
 	void send();
+	void waitClearToSend();
 
 	inline LinkuinoSerialPort* serialPort() { return m_serial;  }
 
@@ -61,17 +62,19 @@ struct LinkuinoClient
 
 	void updateTimeStamp();
 
-	void waitClearToSend();
+
 	void flushInput();
-	void sendReplyRequest(uint8_t req, uint8_t d0=0, uint8_t d1=0, uint8_t d2=0, uint8_t d3=0);
-	void stopServerReply();
+	void startReplyRequest(uint8_t req, uint8_t d0=0, uint8_t d1=0, uint8_t d2=0, uint8_t d3=0);
+	bool readReply(uint8_t replyId, uint8_t reply[3]);
+	void endReplyRequest();
 	void pushDataToDevice(const uint8_t buffer[Linkuino::CMD_COUNT]);
-	void asyncPushDataToDevice();
+	void pushDataToDeviceAsync(const uint8_t buffer[Linkuino::CMD_COUNT]);
 
 	// worker thread management
 	void startWorkerThread();
 	static void runWorkerThread(LinkuinoClient* self);
 	void workerThreadMain();
+	void workerLoop();
 
 	std::thread* m_workerThread = nullptr;
 	std::mutex m_mutex;
@@ -84,7 +87,9 @@ struct LinkuinoClient
 	std::condition_variable m_clearToSendCond;
 	std::atomic<bool> m_clearToSend;
 
+	std::mutex m_ioMutex;
 	LinkuinoSerialPort* m_serial;
+
 	int m_serverMajor;
 	int m_serverMinor;
 	int m_messageRepeats;
@@ -92,6 +97,9 @@ struct LinkuinoClient
 	uint8_t m_pwmEnable;
 	uint8_t m_buffer[Linkuino::CMD_COUNT];
 	volatile uint8_t m_bufferCopy[Linkuino::CMD_COUNT];
+
+	uint8_t* m_packetBuffer = nullptr;
+	int m_packetBufferSize = 0;
 };
 
 #endif

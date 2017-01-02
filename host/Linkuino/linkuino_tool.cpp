@@ -1,9 +1,11 @@
+#include "LinkuinoClient.h"
+
 #include <cstdint>
 #include <cmath>
 #include <iostream>
 #include <string>
-
-#include "LinkuinoClient.h"
+#include <thread>
+#include <chrono>
 
 template<typename T>
 static inline T clamp(T x, T l, T h)
@@ -53,8 +55,11 @@ int main(int argc, char* argv[])
 					link.setPWMValue( i , sin(t+0.33*i) * a + m );
 				}
 				link.send();
+				link.waitClearToSend();
+				std::this_thread::sleep_for( std::chrono::duration<int64_t,std::milli>(20) );
 				t+=0.01;
 			}
+			std::cout<<"done\n";
 		}
 		else if(cmd=='s')
 		{

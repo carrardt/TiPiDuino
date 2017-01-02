@@ -56,7 +56,7 @@ bool LinkuinoSerialPort::open(const std::string& devpath)
 	char comPortName[256];
 	sprintf_s<256>(comPortName, "%s", devpath.c_str());
 	//printf("COM port: %s\n", comPortName);
-	m_serialPort = CreateFile(comPortName, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_NO_BUFFERING, NULL);
+	m_serialPort = CreateFile(comPortName, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_NO_BUFFERING | FILE_FLAG_WRITE_THROUGH, NULL);
 	if (m_serialPort == INVALID_HANDLE_VALUE)
 	{
 		DWORD err = GetLastError();
@@ -173,7 +173,9 @@ int LinkuinoSerialPort::readSync(uint8_t* buffer, int nBytes, uint64_t timeOut)
 
 void LinkuinoSerialPort::flush()
 {
-#ifndef _WIN32
+#ifdef _WIN32
+	FlushFileBuffers(m_serialPort);
+#else
 	fsync(m_fd);
 #endif
 }
