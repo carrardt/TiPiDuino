@@ -120,8 +120,10 @@ void LinkuinoClient::setDigitalOutput(uint8_t mask)
 // wait worker thread to be ready to send
 void LinkuinoClient::waitClearToSend()
 {
+	if (m_clearToSend.load()) { return;  }
 	std::unique_lock<std::mutex> lk(m_mutex);
 	m_clearToSendCond.wait( lk, [this](){ return m_clearToSend.load(); } );
+	//assert(m_clearToSend.load());
 }
 
 void LinkuinoClient::flushInput()
@@ -129,54 +131,62 @@ void LinkuinoClient::flushInput()
 	// TODO: could be optimized by measuring the time spent since last read from uController
 	uint8_t tmp;
 	int n = 0;
+	std::lock_guard<std::mutex> lk(m_ioMutex);
 	do {
 		n = m_serial->readSync( &tmp, 1, 20000 );
 	} while( n==1 );
 }
 
-void LinkuinoClient::stopServerReply()
+void LinkuinoClient::startReplyRequest( uint8_t req, uint8_t d0, uint8_t d1, uint8_t d2, uint8_t d3 )
 {
 	//auto T1 = std::chrono::high_resolution_clock::now();
-	waitClearToSend();
-	setRegisterValue(Linkuino::REQ_ADDR, Linkuino::REQ_NOREPLY );
-	setRegisterValue(Linkuino::REQ_DATA0_ADDR, 0x00 );
-	setRegisterValue(Linkuino::REQ_DATA1_ADDR, 0x00 );
-	setRegisterValue(Linkuino::REQ_DATA2_ADDR, 0x00 );
-	setRegisterValue(Linkuino::REQ_DATA3_ADDR, 0x00 );
-	send();
-	//waitClearToSend();
-	//flushInput();
-	//auto T2 = std::chrono::high_resolution_clock::now();
-	//std::cout << "end request time = " << std::chrono::duration_cast<std::chrono::microseconds>(T2 - T1).count() << "uS\n";
-}
-
-void LinkuinoClient::sendReplyRequest( uint8_t req, uint8_t d0, uint8_t d1, uint8_t d2, uint8_t d3 )
-{
-	//auto T1 = std::chrono::high_resolution_clock::now();
+	waitClearToSend(); // avoid worker thread to send a packet in betwwen start and end request
 	flushInput();
-	waitClearToSend();
 	setRegisterValue(Linkuino::REQ_ADDR, req );
 	setRegisterValue(Linkuino::REQ_DATA0_ADDR, d0 );
 	setRegisterValue(Linkuino::REQ_DATA1_ADDR, d1 );
 	setRegisterValue(Linkuino::REQ_DATA2_ADDR, d2 );
 	setRegisterValue(Linkuino::REQ_DATA3_ADDR, d3 );
-	send();
+	pushDataToDevice(m_buffer);
+
 	//auto T2 = std::chrono::high_resolution_clock::now();
 	//std::cout << "Req #"<<req<<" send time = " << std::chrono::duration_cast<std::chrono::microseconds>(T2 - T1).count() << "uS\n";
 }
 
+void LinkuinoClient::endReplyRequest()
+{
+	//auto T1 = std::chrono::high_resolution_clock::now();
+	setRegisterValue(Linkuino::REQ_ADDR, Linkuino::REQ_NOREPLY);
+	setRegisterValue(Linkuino::REQ_DATA0_ADDR, 0x00);
+	setRegisterValue(Linkuino::REQ_DATA1_ADDR, 0x00);
+	setRegisterValue(Linkuino::REQ_DATA2_ADDR, 0x00);
+	setRegisterValue(Linkuino::REQ_DATA3_ADDR, 0x00);
+	pushDataToDevice(m_buffer);
+	//auto T2 = std::chrono::high_resolution_clock::now();
+	//std::cout << "end request time = " << std::chrono::duration_cast<std::chrono::microseconds>(T2 - T1).count() << "uS\n";
+}
+
+bool LinkuinoClient::readReply(uint8_t replyId, uint8_t reply[3])
+{
+	reply[0] = Linkuino::REPLY_NULL;
+	reply[1] = 0xFF;
+	reply[2] = 0x00;
+	std::lock_guard<std::mutex> lk(m_ioMutex);
+	int n = m_serial->readSync(reply, 3, 200000); // 200ms max read time
+	return (n == 3 && reply[0] == replyId);
+}
+
 float LinkuinoClient::requestAnalogRead(uint8_t channel, int nSamples)
 {
-	sendReplyRequest( Linkuino::REQ_ANALOG_READ , channel & 0x3F );
+	startReplyRequest( Linkuino::REQ_ANALOG_READ , channel & 0x3F );
 
 	bool ok = true;
 	uint32_t value = 0;
 	
 	for( int i=0;i<nSamples && ok;i++)
 	{
-		uint8_t tmp[3]={Linkuino::REPLY_NULL,0,0};
-		int n = m_serial->readSync( tmp, 3, 200000); // 200ms max read time
-		if( n==3 && tmp[0]==Linkuino::REPLY_ANALOG_READ && (tmp[1]&0xFC)==0 )
+		uint8_t tmp[3];
+		if( readReply(Linkuino::REPLY_ANALOG_READ, tmp) && (tmp[1]&0xFC)==0)
 		{
 			uint32_t sample = tmp[1];
 			sample <<= 8;
@@ -186,25 +196,25 @@ float LinkuinoClient::requestAnalogRead(uint8_t channel, int nSamples)
 		else
 		{
 			std::cout<< "bad reply : "<< std::hex << (int)tmp[0]<<' '<<(int)tmp[1]<<' '<<(int)tmp[2] << std::dec <<"\n";
+			value = -1.0f;
 			ok = false;
 		}
 	}
 
-	stopServerReply();
+	endReplyRequest();
 
 	return ok ? value/(nSamples*1023.0f) : -1.0f;
 }
 
 int32_t LinkuinoClient::requestDigitalRead()
 {
-	sendReplyRequest( Linkuino::REQ_DIGITAL_READ );
+	startReplyRequest( Linkuino::REQ_DIGITAL_READ );
 	
-	bool ok = false;
 	uint16_t value = 0;
-	uint8_t tmp[3]={Linkuino::REPLY_NULL,0xFF,0};
+	uint8_t tmp[3];
 	int n = m_serial->readSync( tmp, 3, 200000); // 200ms max read time
 
-	if( n==3 && tmp[0]==Linkuino::REPLY_DIGITAL_READ && tmp[2]==Linkuino::REPLY_DIGITAL_READ && (tmp[1]&0xC0)==0 )
+	if( readReply(Linkuino::REPLY_DIGITAL_READ,tmp) && (tmp[1] & 0xC0) == 0 && tmp[2]==Linkuino::REPLY_DIGITAL_READ )
 	{
 		value = tmp[1];
 	}
@@ -214,7 +224,7 @@ int32_t LinkuinoClient::requestDigitalRead()
 		value = -1;
 	}
 
-	stopServerReply();
+	endReplyRequest();
 
 	return value;
 }
@@ -227,15 +237,17 @@ void LinkuinoClient::forwardMessage( uint8_t d0, uint8_t d1, uint8_t d2, uint8_t
 	setRegisterValue(Linkuino::REQ_DATA1_ADDR, d1);
 	setRegisterValue(Linkuino::REQ_DATA2_ADDR, d2);
 	setRegisterValue(Linkuino::REQ_DATA3_ADDR, d3);
-	send();
+	waitClearToSend();
+	pushDataToDevice( m_buffer );
 }
 
 void LinkuinoClient::resetTo50Hz()
 {
 	setRegisterValue(Linkuino::REQ_ADDR, Linkuino::REQ_RESET);
 	setRegisterValue(Linkuino::REQ_DATA0_ADDR,Linkuino::RESET_TO_50Hz);
-	send();
-	send();
+	waitClearToSend();
+	pushDataToDevice(m_buffer);
+	flushInput();
 	testConnection();
 }
 
@@ -243,8 +255,9 @@ void LinkuinoClient::resetTo100Hz()
 {
 	setRegisterValue(Linkuino::REQ_ADDR, Linkuino::REQ_RESET);
 	setRegisterValue(Linkuino::REQ_DATA0_ADDR,Linkuino::RESET_TO_100Hz);
-	send();
-	send();
+	waitClearToSend();
+	pushDataToDevice(m_buffer);
+	flushInput();
 	testConnection();
 }
 
@@ -255,7 +268,9 @@ void LinkuinoClient::quiet()
 	setRegisterValue(Linkuino::REQ_DATA1_ADDR, 0);
 	setRegisterValue(Linkuino::REQ_DATA2_ADDR, 0);
 	setRegisterValue(Linkuino::REQ_DATA3_ADDR, 0);
-	send();
+	waitClearToSend();
+	pushDataToDevice(m_buffer);
+	flushInput();
 }
 
 void LinkuinoClient::printStatus()
@@ -361,9 +376,15 @@ void LinkuinoClient::printBuffer()
 
 void LinkuinoClient::send()
 {
+	pushDataToDeviceAsync(m_buffer);
+}
+
+void LinkuinoClient::pushDataToDeviceAsync(const uint8_t buffer[Linkuino::CMD_COUNT])
+{
 	{
 		std::lock_guard<std::mutex> lk(m_mutex);
-		for (int i = 0; i < Linkuino::CMD_COUNT; i++) { m_bufferCopy[i] = m_buffer[i]; }
+		for (int i = 0; i < Linkuino::CMD_COUNT; i++) { m_bufferCopy[i] = buffer[i]; }
+		m_clearToSend = false;
 		m_readyToSend = true;
 	}
 	m_readyToSendCond.notify_one();
@@ -384,24 +405,32 @@ void LinkuinoClient::workerThreadMain()
 {
 	while (!m_terminate)
 	{
-		asyncPushDataToDevice();
+		workerLoop();
 	}
 }
 
 void LinkuinoClient::pushDataToDevice(const uint8_t buffer[Linkuino::CMD_COUNT])
 {
-	uint8_t send_buffer[m_messageRepeats*Linkuino::CMD_COUNT+1];
+	int packetSize = m_messageRepeats*Linkuino::CMD_COUNT + 1;
+	m_ioMutex.lock();
+	if (m_packetBufferSize < packetSize)
+	{
+		if (m_packetBuffer != nullptr) { delete[] m_packetBuffer; }
+		m_packetBufferSize = packetSize;
+		m_packetBuffer = new uint8_t[m_packetBufferSize];
+	}
 	for (int i = 0; i < m_messageRepeats; i++)
 	{
-		std::memcpy( send_buffer+i*Linkuino::CMD_COUNT, buffer, Linkuino::CMD_COUNT );
+		std::memcpy(m_packetBuffer +i*Linkuino::CMD_COUNT, buffer, Linkuino::CMD_COUNT );
 	}
-	send_buffer[ m_messageRepeats*Linkuino::CMD_COUNT ] = buffer[0]; // finish with a timestamp marker
-	m_serial->write(send_buffer, m_messageRepeats*Linkuino::CMD_COUNT+1); 
+	m_packetBuffer[ m_messageRepeats*Linkuino::CMD_COUNT ] = buffer[0]; // finish with a timestamp marker
+	m_serial->write(m_packetBuffer, m_messageRepeats*Linkuino::CMD_COUNT+1);
 	m_serial->flush();
 	updateTimeStamp();
+	m_ioMutex.unlock();
 }
 
-void LinkuinoClient::asyncPushDataToDevice()
+void LinkuinoClient::workerLoop()
 {
 	bool sendBuf = false;
 	uint8_t send_buffer[Linkuino::CMD_COUNT];
@@ -410,7 +439,7 @@ void LinkuinoClient::asyncPushDataToDevice()
 		m_readyToSendCond.wait( lk, [this](){ return m_terminate.load() || m_readyToSend.load(); } );
 		if ( !m_terminate && m_readyToSend )
 		{
-			m_readyToSend = false;
+			m_readyToSend = false; // indicate bufferCopy content has been used
 			for (int i = 0; i < Linkuino::CMD_COUNT; i++) { send_buffer[i] = m_bufferCopy[i]; }
 			sendBuf = true;
 		}
@@ -419,7 +448,7 @@ void LinkuinoClient::asyncPushDataToDevice()
 	{
 		pushDataToDevice(send_buffer);
 	}
-	m_clearToSend = true;
+	m_clearToSend = true; // indicate bufferCopy content has been sent
 	m_clearToSendCond.notify_one();
 }
 
