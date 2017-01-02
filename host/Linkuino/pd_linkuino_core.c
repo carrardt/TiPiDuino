@@ -70,7 +70,7 @@ typedef struct _lnkd {
 	uint8_t m_value;
 } t_lnkd;
 
-#define PWM_FLOAT_VALUE(x,i) ( (x->f_amode##i==0) ? (x->f_a##i*0.01f) : (0.1f+x->f_a##i*0.001f) )
+#define PWM_FLOAT_VALUE(x,i) ( (x->f_amode##i==0) ? (x->f_a##i*0.01f) : (0.05f+x->f_a##i*0.002f) )
 
 void linkuino_bang(t_linkuino *x)  
 {
@@ -166,10 +166,11 @@ void linkuino_free(t_linkuino *x)
 
 void *lnka_new()
 {
+	int i=0;
 	t_lnka *x = (t_lnka *)pd_new(lnka_class);
 	x->f_ch = 0;
 	x->f_id = -1;
-	for (int i = 0; i < 6; i++) { x->m_value[i] = 50.0f; }
+	for (i = 0; i < 6; i++) { x->m_value[i] = 50.0f; }
 	floatinlet_new(&x->x_obj, &x->f_id);
 	floatinlet_new(&x->x_obj, &x->f_ch);
 	x->f_value = outlet_new(&x->x_obj, &s_float);

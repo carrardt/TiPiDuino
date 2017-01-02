@@ -50,6 +50,7 @@ struct LinkuinoClient
 	void printBuffer();
 
 	void send();
+	void waitClearToSend();
 
 	inline LinkuinoSerialPort* serialPort() { return m_serial;  }
 
@@ -61,7 +62,7 @@ struct LinkuinoClient
 
 	void updateTimeStamp();
 
-	void waitClearToSend();
+
 	void flushInput();
 	void startReplyRequest(uint8_t req, uint8_t d0=0, uint8_t d1=0, uint8_t d2=0, uint8_t d3=0);
 	bool readReply(uint8_t replyId, uint8_t reply[3]);

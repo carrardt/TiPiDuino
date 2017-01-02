@@ -105,6 +105,7 @@ void LinkuinoClient::setPWMValue(int p, float fval)
 	
 	//  encode to 12bits
 	uint16_t valueEnc = Linkuino::encodePulseLength(value);
+	std::cout<<value<<" -> "<<valueEnc<<" -> "<<Linkuino::decodePulseLength(valueEnc)<<"\n";
 	
 	// write corresponding values to state buffer
 	setRegisterValue(Linkuino::PWMEN_ADDR, m_pwmEnable);
@@ -196,7 +197,6 @@ float LinkuinoClient::requestAnalogRead(uint8_t channel, int nSamples)
 		else
 		{
 			std::cout<< "bad reply : "<< std::hex << (int)tmp[0]<<' '<<(int)tmp[1]<<' '<<(int)tmp[2] << std::dec <<"\n";
-			value = -1.0f;
 			ok = false;
 		}
 	}
