@@ -135,6 +135,15 @@ generate_avr_firmware(
     )
 
 #====================================================================#
+# Print input from a PS2 keyboard to LCD1602 screen
+#====================================================================#
+generate_avr_firmware(
+	PS2KbdLCD1602
+    SRCS PSkeyboard_LCD1602.cpp
+    LIBS LCD1602 BasicIO AvrTL AvrApp
+    )
+
+#====================================================================#
 # Print fast-serial 24bits input values to a LCD1602 screen
 #====================================================================#
 generate_avr_firmware(

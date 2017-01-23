@@ -1,6 +1,6 @@
 #include <AvrTL.h>
-#include <LCD.h>
-#include <PrintStream.h>
+#include <LCD1602.h>
+#include <BasicIO/PrintStream.h>
 #include <avr/pgmspace.h>
 
 using namespace avrtl;
@@ -10,25 +10,24 @@ using namespace avrtl;
  * VSS		GND
  * VDD		+5v
  * VO		Pontentiometer(10K)/resistor
- * RS		D7
+ * RS		D2
  * RW		GND
- * EN		D6
- * D4		D5
- * D5		D4
- * D6		D3
- * D7		D2
+ * EN		D3
+ * D4		D9
+ * D5		D10
+ * D6		D11
+ * D7		D12
  * A		+5v
  * K		GND
  */
+#define LCD_PINS 2,3,9,10,11,12 // respectively RS, EN, D4, D5, D6, D7
 
-#define PS1_CLOCK 8
-#define PS1_DATA 9
-
-#define LCD_PINS 7,6,5,4,3,2
+#define PS1_CLOCK 16	// A2
+#define PS1_DATA 14		// A0
 
 auto ps1Clock = StaticPin<PS1_CLOCK>();
 auto ps1Data = StaticPin<PS1_DATA>();
-LCD<LCD_PINS> lcd;
+LCD1602<LCD_PINS> lcd;
 PrintStream cout;
 
 static const char table[128] = 
