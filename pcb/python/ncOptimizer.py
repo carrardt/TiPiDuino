@@ -204,6 +204,17 @@ def optimizeSegmentList( segmentListIn ):
 			segmentList = optList
 	return segmentList
 
+if "-h" in sys.argv:
+	print("""
+Usage: ncOptimizer [-r] [-y] [-o] [-s] <output_file> <input_file1> <input_file2> ...
+Options:
+	-r : flip horizontally
+	-y : offset vertically
+	-o : optimize paths
+	-s : split blocks to separate files
+	""")
+	sys.exit(0)
+	
 reverse=False
 if "-r" in sys.argv:
 	reverse = True
