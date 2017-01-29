@@ -206,26 +206,32 @@ def optimizeSegmentList( segmentListIn ):
 
 if "-h" in sys.argv:
 	print("""
-Usage: ncOptimizer [-r] [-y] [-o] [-s] <output_file> <input_file1> <input_file2> ...
+Usage: ncOptimizer [-transform sx sy ax ay] [-n] [-o] [-s] <output_file> <input_file1> <input_file2> ...
 Options:
-	-r : flip horizontally
-	-y : offset vertically
+	-h : this help
+	-transform sx sy ax ay : multiply X'=X*sx+ax Y'=Y*sy+ay
+	-n : normalize origin, so that bounding box' min is 0,0
 	-o : optimize paths
 	-s : split blocks to separate files
 	""")
 	sys.exit(0)
-	
-reverse=False
-if "-r" in sys.argv:
-	reverse = True
-	sys.argv.remove("-r")
+
+(SX,SY,AX,AY) = (1.,1.,0.,0.)
+if "-transform" in sys.argv:
+	i = sys.argv.index("-transform")
+	sys.argv.pop(i)
+	(SX,SY,AX,AY) = ( float(sys.argv[i]) , float(sys.argv[i+1]) , float(sys.argv[i+2]) , float(sys.argv[i+3]) )
+	sys.argv.pop(i)
+	sys.argv.pop(i)
+	sys.argv.pop(i)
+	sys.argv.pop(i)
 	print("Result will be horizontaly flipped")
 
-ApplyYOffset = False
-if "-y" in sys.argv:
-	ApplyYOffset = True
-	sys.argv.remove("-y")
-	print("Result will be offset vertically")
+OffsetOrigin = False
+if "-n" in sys.argv:
+	OffsetOrigin = True
+	sys.argv.remove("-n")
+	print("Origin wil be normilized to 0,0")
 
 OptimizeWires = False
 if "-o" in sys.argv:
@@ -238,12 +244,12 @@ if "-s" in sys.argv:
 	SeparateFiles = True
 	sys.argv.remove("-s")
 	print("Result will be split into several files")
-	
+
 print( "input : ", sys.argv[2:] )
 print( "output : ", sys.argv[1] )
-	
+
 bbox = AABB()
-	
+
 gcodeList = []
 for fileName in sys.argv[2:]:
 	print("Open %s ..."%fileName)
@@ -260,21 +266,13 @@ for fileName in sys.argv[2:]:
 		gcodeList.append( gcode )
 
 
+if OffsetOrigin:
+	AX -= SX * bbox.xMin
+	AY -= SY * bbox.yMin
 
-xMul = 1.0
-xAdd = - bbox.xMin
-yAdd = - bbox.yMin
-
-if reverse:
-	xMul = -1.0
-	xAdd = bbox.xMax
-
-if ApplyYOffset:
-	yAdd += (bbox.yMax-bbox.yMin)*1.05
-	
 def transformCoord( p ):
 	(x,y,z) = p
-	return (x*xMul+xAdd,y+yAdd,z)
+	return (x*SX+AX,y*SY+AY,z)
 
 output=None
 if not SeparateFiles:
