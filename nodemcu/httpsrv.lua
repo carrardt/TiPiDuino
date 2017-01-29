@@ -1,5 +1,7 @@
 print(wifi.sta.getip())
 srv=net.createServer(net.TCP)
+httpsrvdbg=false
+httpsrvreq=nil
 srv:listen(80,function(conn)
     conn:on("receive", function(client,request)
         local buf = "";
@@ -11,13 +13,14 @@ srv:listen(80,function(conn)
         if (vars ~= nil)then
             for k, v in string.gmatch(vars,"(%w+)=([^&]+)&*") do
                 _GET[k] = string.gsub(v,"(%%[%dA-F][%dA-F])",function(w) n="0x"..string.sub(w,2) return string.char(n) end )
-                print(k.." = "..v)
+                if(httpsrvdbg)then print(k.."=".._GET[k]) end
             end
         end
+        httpsrvreq=request
         if(path=="/index.htm")then
-			file.open("index.htm");
-			buf=file.read();
-			file.close();
+			file.open("index.htm")
+			buf=file.read()
+			file.close()
 			buf=string.format(buf,wifi.sta.getip(),node.heap())
         end
         if(path=="/output.htm")then
@@ -44,13 +47,14 @@ srv:listen(80,function(conn)
 				_rval=nil
 				f()
 				if(_rval ~= nil)then
-					buf=buf.._rval.."<br>"
+					buf=buf..tostring(_rval).."<br>"
 				end
 			end
 			buf=buf.."</body></html>"
         end
-		client:send(buf);
-		client:close();
-        collectgarbage();
+        httpsrvreq=nil
+		client:send(buf)
+		client:close()
+        collectgarbage()
     end)
 end)
