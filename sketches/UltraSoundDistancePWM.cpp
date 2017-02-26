@@ -7,7 +7,7 @@ using namespace avrtl;
 
 #define TRIGGER_PIN 3
 #define ECHO_PIN 2
-#define PWM_PIN 4
+#define PWM_PIN 13
 
 #define SMOOTHING 2 // 0,1,2 or 3 level of input value smoothing
 
@@ -36,7 +36,7 @@ void loop()
 
 	while( true )
 	{
-		ts.exec( 400,
+		ts.exec( 600,
 				[&echo_gap, &echo_length]()
 				{ 
 					pwm = HIGH;
@@ -44,7 +44,7 @@ void loop()
 					echo_length = 0;
 				} );
 
-		ts.loop( 2000, [value](int16_t t){ pwm = (t<value); } );
+		ts.loop( 3400, [value](int16_t t){ pwm = (t<value); } );
 
 		ts.exec( 40, [counter]() { pwm = LOW; } ); // just in case
 
@@ -52,7 +52,7 @@ void loop()
 
 		ts.exec( 50, []() {	trigger = LOW; } );
 
-		ts.loop( 5000, // we have 5 milliseconds to listen for an echo
+		ts.loop( 8000, // we have 5 milliseconds to listen for an echo
 				[&echo_gap,&echo_length](int16_t t)
 				{
 					if( echo.Get() )
@@ -68,19 +68,19 @@ void loop()
 					}
 				} );
 
-		ts.exec( 2500,
+		ts.exec( 7900,
 				[&value,&targetValue,&counter,echo_gap,echo_length]()
 				{
-					if( counter==0 && echo_gap>512 && echo_length>256)
+					if( counter==0 && echo_gap>512 && echo_gap<1536 && echo_length>384 && echo_length<1536)
 					{
-						targetValue = 256 + echo_length;
-						if( targetValue < 500 ) targetValue = 500;
-						if( targetValue > 2400 ) targetValue = 2400;
-						targetValue -= 400;
+						targetValue = 768+echo_length;
+						if( targetValue < 768 ) targetValue = 768;
+						if( targetValue > 2560 ) targetValue = 2560;
+						targetValue -= 600;
 					}
-					value = ( (value<<SMOOTHING)-value+targetValue ) >> SMOOTHING ;
+					value = (targetValue+value)>>1;
 					++ counter;
-					if( counter == 6 ) counter = 0;
+					if( counter == 3 ) { counter = 0; }
 				} );
 	}
 
