@@ -21,3 +21,7 @@ GPIO 15 => 0
 GPIO  2 => 1
 GPIO  0 => 0
 
+
+Note :
+Works with Lua v0.96
+
