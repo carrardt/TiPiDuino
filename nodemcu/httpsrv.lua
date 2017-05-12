@@ -1,4 +1,3 @@
-print(wifi.sta.getip())
 srv=net.createServer(net.TCP)
 httpsrvdbg=false
 httpsrvreq=nil
@@ -21,21 +20,34 @@ srv:listen(80,function(conn)
 			file.open("index.htm")
 			buf=file.read()
 			file.close()
-			buf=string.format(buf,wifi.sta.getip(),node.heap())
         end
         if(path=="/output.htm")then
+			buf="<!DOCTYPE html><html><body>"
+			if(_GET.SwitchState ~= nil)then
+				buf=buf.."OK<br>"
+				v=tonumber(_GET.SwitchState)
+				gpio.mode(7,gpio.OUTPUT)
+				if(v~=0)then gpio.write(7,gpio.HIGH) else gpio.write(7,gpio.LOW) end
+			else
+				buf=buf.."FAILED!<br>"
+			end
+			buf=buf.."</body></html>"
+        end
+        if(path=="/debug.htm" and httpsrvdbg)then
+			file.open("debug.htm")
+			buf=file.read()
+			file.close()
+			buf=string.format(buf,wifi.sta.getip(),node.heap())
+        end
+        if(path=="/dbgconsole.htm" and httpsrvdbg)then
 			buf="<!DOCTYPE html><html><body>"
 			if(_GET.pin ~= nil and _GET.value ~= nil)then
 				  pinNumber=tonumber(_GET.pin)
 				  value=tonumber(_GET.value)
 				  if(pinNumber ~= nil and pinNumber>=0 and value ~= nil)then
 					buf=buf.."pin #"..pinNumber.." -> "..value.."<br>"
-					gpio.mode(pinNumber, gpio.OUTPUT)
-					if(value ~= 0)then
-						gpio.write(pinNumber, gpio.HIGH)
-					else
-						gpio.write(pinNumber, gpio.LOW)
-					end
+					gpio.mode(pinNumber,gpio.OUTPUT)
+					if(value~=0)then gpio.write(pinNumber,gpio.HIGH) else gpio.write(pinNumber,gpio.LOW) end
 				  end
 			end
 			if(_GET.command ~= nil)then

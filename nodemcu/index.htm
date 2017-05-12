@@ -1,33 +1,20 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>LUA Web Server on ESP8266</title>
+<title>AC power switch control</title>
 </head>
 <body>
-<h1>Control panel</h1>
-<br>
-IP=%s
-<br>
-Mem=%d
-<br>
-<image src="http://bit.ly/2kBQWkw" alt="NodeMCU pins" width="512">
+<h1>Power Switch</h1>
+<image src="http://bit.ly/2pGJ6ar" alt="NodeMCU Switch Control" width="128">
 <form action="output.htm" target="Console">
   <fieldset>
-    <legend>GPIO</legend>
-    GPIO# <input type="number" name="pin" value="-1"><br>
-    Value <input type="number" name="value" value="0" min="0" max="1"><br>
+    <legend>Switch copntrol</legend>
+    <input type="radio" name="SwitchState" value="1">On<br>
+    <input type="radio" name="SwitchState" value="0">Off<br>
     <input type="submit" value="Submit" target="">
   </fieldset>
 </form> 
-<form action="output.htm" target="Console">
-  <fieldset>
-    <legend>Interpreter</legend>
-    LUA <input type="text" name="command" value=""><br>
-	<input type="submit" value="Submit" target="">
-  </fieldset>
-</form> 
 <br>
-<h1>Console</h1>
-<iframe name="Console" src="output.htm" width="100%%"></iframe> 
+<iframe name="Console" src="output.htm" width="100%%" height="5%%"></iframe> 
 </body>
 </html>

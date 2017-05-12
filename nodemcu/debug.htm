@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>LUA Debug Interface on ESP8266</title>
+</head>
+<body>
+<h1>Control panel</h1>
+<br>
+IP = %s
+<br>
+Mem = %d
+<br>
+<image src="http://bit.ly/2qBaRq5" alt="Debug Interface" width="128">
+<form action="dbgconsole.htm" target="Console">
+  <fieldset>
+    <legend>GPIO</legend>
+    GPIO# <input type="number" name="pin" value="-1"><br>
+    Value <input type="number" name="value" value="0" min="0" max="1"><br>
+    <input type="submit" value="Submit" target="">
+  </fieldset>
+</form> 
+<form action="dbgconsole.htm" target="Console">
+  <fieldset>
+    <legend>Interpreter</legend>
+    LUA <input type="text" name="command" value=""><br>
+	<input type="submit" value="Submit" target="">
+  </fieldset>
+</form> 
+<br>
+<h1>Console</h1>
+<iframe name="Console" src="dbgconsole.htm" width="100%%"></iframe> 
+</body>
+</html>
