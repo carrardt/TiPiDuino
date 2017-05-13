@@ -4,16 +4,25 @@
 <title>AC power switch control</title>
 </head>
 <body>
-<h1>Power Switch</h1>
-<image src="http://bit.ly/2pGJ6ar" alt="NodeMCU Switch Control" width="128">
-<form action="output.htm" target="Console">
+<h1>Smart Power Switch</h1>
+<image src="http://bit.ly/2pGJ6ar" alt="Smart Power Switch" width="128">
+<form action="switch-action.htm" target="Console">
   <fieldset>
-    <legend>Switch copntrol</legend>
+    <legend>Switch control</legend>
     <input type="radio" name="SwitchState" value="1">On<br>
     <input type="radio" name="SwitchState" value="0">Off<br>
-    <input type="submit" value="Submit" target="">
+    <input type="submit" value="Ok" target="">
+  </fieldset>
+</form>
+<br>
+<form action="switch-prog.htm" target="Console">
+  <fieldset>
+    <legend>Weekly program</legend>
+    %s
+    <input type="submit" value="Ok" target="">
   </fieldset>
 </form> 
+
 <br>
 <iframe name="Console" src="output.htm" width="100%%" height="5%%"></iframe> 
 </body>

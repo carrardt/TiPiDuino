@@ -1,3 +1,13 @@
+htmlformat="<!DOCTYPE html><html><body>%s</body></html>"
+function MakeWeekHTMLForm(wd,wp)
+	local s='<table>'
+	for i,k in ipairs(wd) do
+		v=wp[k]
+		s=s..string.format('<tr><td>%s</td><td><input type="text" name="%s" value="%s"></td></tr>',k,k,v)
+	end
+	s=s..'</table><br>'
+	return s
+end
 srv=net.createServer(net.TCP)
 httpsrvdbg=false
 httpsrvreq=nil
@@ -18,20 +28,35 @@ srv:listen(80,function(conn)
         httpsrvreq=request
         if(path=="/index.htm")then
 			file.open("index.htm")
-			buf=file.read()
+			buf=string.format(file.read(),MakeWeekHTMLForm(weekdays,weekprog))
 			file.close()
         end
-        if(path=="/output.htm")then
-			buf="<!DOCTYPE html><html><body>"
+        if(path=="/switch-action.htm")then
+			buf=""
 			if(_GET.SwitchState ~= nil)then
-				buf=buf.."OK<br>"
+				buf=""
 				v=tonumber(_GET.SwitchState)
 				gpio.mode(7,gpio.OUTPUT)
-				if(v~=0)then gpio.write(7,gpio.HIGH) else gpio.write(7,gpio.LOW) end
+				if(v~=0)then
+					buf="&gt On &lt<br>"
+					gpio.write(7,gpio.HIGH)
+				else
+					buf="&gt Off &lt<br>"
+					gpio.write(7,gpio.LOW)
+				end
 			else
-				buf=buf.."FAILED!<br>"
+				buf="FAILED"
 			end
-			buf=buf.."</body></html>"
+			buf=string.format(htmlformat,buf)
+        end
+        if(path=="/switch-prog.htm")then
+			local f=file.open("weekprog.txt","w")
+			for d,l in pairs(_GET) do
+				weekprog[d]=l
+				f:write(d.." "..l.."\n")
+			end
+			f:close()
+			buf=string.format(htmlformat,"Prog updated<br>")
         end
         if(path=="/debug.htm" and httpsrvdbg)then
 			file.open("debug.htm")
@@ -40,7 +65,7 @@ srv:listen(80,function(conn)
 			buf=string.format(buf,wifi.sta.getip(),node.heap())
         end
         if(path=="/dbgconsole.htm" and httpsrvdbg)then
-			buf="<!DOCTYPE html><html><body>"
+			buf=""
 			if(_GET.pin ~= nil and _GET.value ~= nil)then
 				  pinNumber=tonumber(_GET.pin)
 				  value=tonumber(_GET.value)
@@ -62,7 +87,7 @@ srv:listen(80,function(conn)
 					buf=buf..tostring(_rval).."<br>"
 				end
 			end
-			buf=buf.."</body></html>"
+			buf=string.format(htmlformat,buf)
         end
         httpsrvreq=nil
 		client:send(buf)
