@@ -37,6 +37,7 @@ struct InputStream
 			*(str++)=x;
 			x=stream->readByte();
 		}
+		*str='\0';
 		return *this;
 	}
 

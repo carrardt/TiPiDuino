@@ -72,7 +72,8 @@ struct ByteStreamAdapter : public ByteStream
 	inline ByteStreamAdapter(RawIOType io) : m_rawIO(io) {}
 	inline ByteStreamAdapter(const ByteStreamAdapter& bsa) : m_rawIO(bsa.m_rawIO) {}
 
-	virtual const char* endline() const { return "\n"; }
+	virtual void setEndLine(const char* el) { m_endl=el; }
+	virtual const char* endline() const { return m_endl; }
 	virtual bool writeByte( uint8_t x )
 	{
 		bool r = m_rawIO.writeByte(x);
@@ -82,6 +83,7 @@ struct ByteStreamAdapter : public ByteStream
 	virtual uint8_t readByte() { return m_rawIO.readByte(); }
 
 	RawIOType m_rawIO;
+	const char* m_endl = "\n";
 };
 
 #endif

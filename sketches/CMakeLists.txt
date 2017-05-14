@@ -1,4 +1,22 @@
 #====================================================================#
+# Pin test through serial port
+#====================================================================#
+generate_avr_firmware(
+	SerialPinTest
+	SRCS SerialPinTest.cpp
+	LIBS BasicIO AvrTL AvrApp
+	)
+
+#====================================================================#
+# Step motor test
+#====================================================================#
+generate_avr_firmware(
+	StepMotorTest
+	SRCS StepMotorTest.cpp
+	LIBS BasicIO AvrTL AvrApp
+	)
+
+#====================================================================#
 # RF remote controlled car (from a DI-O/Chacon remote)
 #====================================================================#
 generate_avr_firmware(
