@@ -1,12 +1,13 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>AC power switch control</title>
+<meta http-equiv="refresh" content="30;url=index.htm">
+<title>Smart Power Switch</title>
 </head>
 <body>
-<h1>Smart Power Switch</h1>
-<image src="http://bit.ly/2pGJ6ar" alt="Smart Power Switch" width="128">
-<form action="switch-action.htm" target="Console">
+%s<br>
+<iframe name="sf" src="su.htm" width="100%%" height="5%%"></iframe> 
+<form action="sa.htm" target="sf">
   <fieldset>
     <legend>Switch control</legend>
     <input type="radio" name="SwitchState" value="1">On<br>
@@ -15,15 +16,13 @@
   </fieldset>
 </form>
 <br>
-<form action="switch-prog.htm" target="Console">
+<form action="sp.htm" target="sf">
   <fieldset>
     <legend>Weekly program</legend>
     %s
     <input type="submit" value="Ok" target="">
   </fieldset>
 </form> 
-
 <br>
-<iframe name="Console" src="output.htm" width="100%%" height="5%%"></iframe> 
 </body>
 </html>

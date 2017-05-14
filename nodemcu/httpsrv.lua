@@ -28,35 +28,40 @@ srv:listen(80,function(conn)
         httpsrvreq=request
         if(path=="/index.htm")then
 			file.open("index.htm")
-			buf=string.format(file.read(),MakeWeekHTMLForm(weekdays,weekprog))
+			local h,m,s,mo,d,y,wd=getRTCtime(2)
+			wd=weekdays[wd]
+			dt=string.format("%s %02d/%02d/%02d %02dh%02d",wd,d,mo,y,h,m)
+			buf=string.format(file.read(),dt,MakeWeekHTMLForm(weekdays,weekprog))
 			file.close()
         end
-        if(path=="/switch-action.htm")then
-			buf=""
+        if(path=="/sa.htm")then
 			if(_GET.SwitchState ~= nil)then
-				buf=""
 				v=tonumber(_GET.SwitchState)
 				gpio.mode(7,gpio.OUTPUT)
 				if(v~=0)then
-					buf="&gt On &lt<br>"
+					PwrSwitchState=true
 					gpio.write(7,gpio.HIGH)
 				else
-					buf="&gt Off &lt<br>"
+					PwrSwitchState=false
 					gpio.write(7,gpio.LOW)
 				end
-			else
-				buf="FAILED"
+				PwrSwitchForced=true;
 			end
-			buf=string.format(htmlformat,buf)
+			path="/su.htm"
         end
-        if(path=="/switch-prog.htm")then
+        if(path=="/sp.htm")then
 			local f=file.open("weekprog.txt","w")
 			for d,l in pairs(_GET) do
 				weekprog[d]=l
 				f:write(d.." "..l.."\n")
 			end
 			f:close()
-			buf=string.format(htmlformat,"Prog updated<br>")
+			path="/su.htm"
+        end
+        if(path=="/su.htm")then
+			local ps="OFF"
+			if(PwrSwitchState)then ps="ON" end
+			buf=string.format(htmlformat,"<h2>Switch is "..ps.."</h2><br>")
         end
         if(path=="/debug.htm" and httpsrvdbg)then
 			file.open("debug.htm")

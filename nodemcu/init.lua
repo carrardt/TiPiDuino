@@ -5,6 +5,8 @@ local ssid=string.gsub(file.readline(),"\n","")
 local pwd=string.gsub(file.readline(),"\n","")
 PREVIP=string.gsub(file.readline(),"\n","")
 WanUpdateURL=string.gsub(file.readline(),"\n","")
+PwrSwitchState=false
+PwrSwitchForced=false
 IPUpdateCount=0
 wifi.sta.config(ssid,pwd)
 
@@ -70,19 +72,23 @@ function WeekProgRun()
 				h=tonumber(t:sub(1,s-1))
 				m=tonumber(t:sub(s+1))
 			end
-			if(h~=nil and m~=nil and (h<hour or h==hour and m<minute))then
-				a=w:sub(e+1)
-				-- print(string.format("action '%s' at %d:%d",a,h,m))
+			if( h~=nil and m~=nil and (h<hour or (h==hour and m<=minute)) )then
+				if(h==hour and m==minute)then
+					PwrSwitchForced=false
+				end
+				if(not PwrSwitchForced)then
+					a=w:sub(e+1)
+				end
 			end
 		end
 	end
 	if(a:upper()=="ON")then
-		-- print("Switch ON")
+		PwrSwitchState=true
 		gpio.mode(7,gpio.OUTPUT)
 		gpio.write(7,gpio.HIGH)
 	end
 	if(a:upper()=="OFF")then
-		-- print("Switch OFF")
+		PwrSwitchState=false
 		gpio.mode(7,gpio.OUTPUT)
 		gpio.write(7,gpio.LOW)
 	end
