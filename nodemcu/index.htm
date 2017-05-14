@@ -1,26 +1,21 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
 <head>
-<meta http-equiv="refresh" content="30;url=index.htm">
 <title>Smart Power Switch</title>
 </head>
 <body>
-%s<br>
-<iframe name="sf" src="su.htm" width="100%%" height="5%%"></iframe> 
-<form action="sa.htm" target="sf">
-  <fieldset>
-    <legend>Switch control</legend>
-    <input type="radio" name="SwitchState" value="1">On<br>
-    <input type="radio" name="SwitchState" value="0">Off<br>
-    <input type="submit" value="Ok" target="">
-  </fieldset>
-</form>
+<iframe name="sf" src="su.htm" width="320" height="120"></iframe>
+<br>
+<table><tr>
+<td><form action="son.htm" target="sf"><input type="submit" value="On"></form></td>
+<td><form action="soff.htm" target="sf"><input type="submit" value="Off"></form></td>
+</tr></table>
 <br>
 <form action="sp.htm" target="sf">
   <fieldset>
-    <legend>Weekly program</legend>
+    <legend>Schedule</legend>
     %s
-    <input type="submit" value="Ok" target="">
+    <input type="submit" value="Ok">
   </fieldset>
 </form> 
 <br>

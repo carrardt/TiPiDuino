@@ -1,4 +1,5 @@
-htmlformat="<!DOCTYPE html><html><body>%s</body></html>"
+htmlformat="<!doctype html><html><body>%s</body></html>"
+htmlrefresh='<!doctype html><html><head><meta http-equiv="refresh" content="15;url=su.htm"></head><body>%s %02d/%02d/%02d %02dh%02d<br>WAN IP %s<br><h2>Switch is %s</h2></body></html>'
 function MakeWeekHTMLForm(wd,wp)
 	local s='<table>'
 	for i,k in ipairs(wd) do
@@ -28,26 +29,22 @@ srv:listen(80,function(conn)
         httpsrvreq=request
         if(path=="/index.htm")then
 			file.open("index.htm")
-			local h,m,s,mo,d,y,wd=getRTCtime(2)
-			wd=weekdays[wd]
-			dt=string.format("%s %02d/%02d/%02d %02dh%02d",wd,d,mo,y,h,m)
-			buf=string.format(file.read(),dt,MakeWeekHTMLForm(weekdays,weekprog))
+			buf=string.format(file.read(),MakeWeekHTMLForm(weekdays,weekprog))
 			file.close()
         end
-        if(path=="/sa.htm")then
-			if(_GET.SwitchState ~= nil)then
-				v=tonumber(_GET.SwitchState)
-				gpio.mode(7,gpio.OUTPUT)
-				if(v~=0)then
-					PwrSwitchState=true
-					gpio.write(7,gpio.HIGH)
-				else
-					PwrSwitchState=false
-					gpio.write(7,gpio.LOW)
-				end
-				PwrSwitchForced=true;
-			end
+        if(path=="/son.htm")then
+			PwrSwitchState=true
+			PwrSwitchForced=true;
 			path="/su.htm"
+			gpio.mode(7,gpio.OUTPUT)
+			gpio.write(7,gpio.HIGH)
+        end
+        if(path=="/soff.htm")then
+			PwrSwitchState=false
+			PwrSwitchForced=true;
+			path="/su.htm"
+			gpio.mode(7,gpio.OUTPUT)
+			gpio.write(7,gpio.LOW)
         end
         if(path=="/sp.htm")then
 			local f=file.open("weekprog.txt","w")
@@ -61,38 +58,9 @@ srv:listen(80,function(conn)
         if(path=="/su.htm")then
 			local ps="OFF"
 			if(PwrSwitchState)then ps="ON" end
-			buf=string.format(htmlformat,"<h2>Switch is "..ps.."</h2><br>")
-        end
-        if(path=="/debug.htm" and httpsrvdbg)then
-			file.open("debug.htm")
-			buf=file.read()
-			file.close()
-			buf=string.format(buf,wifi.sta.getip(),node.heap())
-        end
-        if(path=="/dbgconsole.htm" and httpsrvdbg)then
-			buf=""
-			if(_GET.pin ~= nil and _GET.value ~= nil)then
-				  pinNumber=tonumber(_GET.pin)
-				  value=tonumber(_GET.value)
-				  if(pinNumber ~= nil and pinNumber>=0 and value ~= nil)then
-					buf=buf.."pin #"..pinNumber.." -> "..value.."<br>"
-					gpio.mode(pinNumber,gpio.OUTPUT)
-					if(value~=0)then gpio.write(pinNumber,gpio.HIGH) else gpio.write(pinNumber,gpio.LOW) end
-				  end
-			end
-			if(_GET.command ~= nil)then
-				local cmd=_GET.command
-				if(string.sub(cmd,1,1)=="=")then
-					cmd="_rval"..cmd
-				end
-				local f=loadstring(cmd)
-				_rval=nil
-				f()
-				if(_rval ~= nil)then
-					buf=buf..tostring(_rval).."<br>"
-				end
-			end
-			buf=string.format(htmlformat,buf)
+			local h,m,s,mo,d,y,wd=getRTCtime(2)
+			wd=weekdays[wd]
+			buf=string.format(htmlrefresh,wd,d,mo,y,h,m,WanIP,ps)
         end
         httpsrvreq=nil
 		client:send(buf)

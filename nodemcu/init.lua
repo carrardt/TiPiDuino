@@ -3,7 +3,7 @@ wifi.setmode(wifi.STATION)
 file.open("wifi.cfg")
 local ssid=string.gsub(file.readline(),"\n","")
 local pwd=string.gsub(file.readline(),"\n","")
-PREVIP=string.gsub(file.readline(),"\n","")
+WanIP=string.gsub(file.readline(),"\n","")
 WanUpdateURL=string.gsub(file.readline(),"\n","")
 PwrSwitchState=false
 PwrSwitchForced=false
@@ -14,12 +14,12 @@ function UpdateWanIP()
 	http.get("http://icanhazip.com",nil,
 		function(code,data)
 			NewIP=string.sub(data,0,-2)
-			if(NewIP~=PREVIP)then
-				print("Change Wan IP from "..PREVIP.." to "..NewIP.." (count="..IPUpdateCount..")")
-				PREVIP=NewIP
+			if(NewIP~=WanIP)then
+				print("Change Wan IP from "..WanIP.." to "..NewIP.." (count="..IPUpdateCount..")")
+				WanIP=NewIP
 				http.get(WanUpdateURL,nil,function(code,data) print(data) end)
 			end
-			if(IPUpdateCount==0)then print("Wan IP "..PREVIP) end
+			if(IPUpdateCount==0)then print("Wan IP "..WanIP) end
 			IPUpdateCount=IPUpdateCount+1
 		end)
 end
@@ -72,7 +72,7 @@ function WeekProgRun()
 				h=tonumber(t:sub(1,s-1))
 				m=tonumber(t:sub(s+1))
 			end
-			if( h~=nil and m~=nil and (h<hour or (h==hour and m<=minute)) )then
+			if(h~=nil and m~=nil and (h<hour or (h==hour and m<=minute)))then
 				if(h==hour and m==minute)then
 					PwrSwitchForced=false
 				end
