@@ -59,8 +59,9 @@ class GCode:
 	def writeBody(self,stream,tf):
 		for cl in self.body:
 			(x,y,z) = tf( cl[0][1] )
-			z = 0.0
-			stream.write("G00 Z%.4f\nG00 X%.4fY%.4f\nG00 Z0\n"%(self.zMax,x,y))
+			z = self.zMax
+			stream.write("G00 Z%.4f\n"%self.zMax)
+			stream.write("G00 X%.4fY%.4f\n"%(x,y))
 			for c in cl:
 				(nx,ny,nz) = tf( c[1] )
 				coordStr = ""
