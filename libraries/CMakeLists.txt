@@ -17,4 +17,4 @@ if(NOT "${ARDUINO_DEFAULT_BOARD}" MATCHES "attiny85.*" )
 endif()
 add_subdirectory(RFSniffer)
 add_subdirectory(Linkuino)
-
+add_subdirectory(PCD8544)

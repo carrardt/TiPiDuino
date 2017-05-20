@@ -50,6 +50,14 @@
 #define INPUT_PULLUP 2
 #endif
 
+#ifndef LSBFIRST
+#define LSBFIRST 0
+#endif
+
+#ifndef MSBFIRST
+#define MSBFIRST 1
+#endif
+
 /*************************************************************
  * Pin to register mapping macros
  *************************************************************/

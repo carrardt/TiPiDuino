@@ -4,7 +4,7 @@
 generate_avr_firmware(
 	SerialPinTest
 	SRCS SerialPinTest.cpp
-	LIBS BasicIO AvrTL AvrApp
+	LIBS SoftSerial BasicIO AvrTL AvrApp
 	)
 
 #====================================================================#
@@ -87,6 +87,15 @@ generate_avr_firmware(
 	SRCS DCMotorController.cpp
 	LIBS SoftSerial AvrTL AvrApp
 	)
+
+#====================================================================#
+# Serial input to PCD8544 LCD screen
+#====================================================================#
+generate_avr_firmware(
+	SerialToPCD8544
+    SRCS SerialToPCD8544.cpp
+    LIBS PCD8544 BasicIO AvrTL AvrApp
+    )
 
 if(NOT "${ARDUINO_DEFAULT_BOARD}" MATCHES "attiny85.*" )
 #====================================================================#
@@ -233,4 +242,13 @@ generate_avr_firmware(
     LIBS HWSerialNoInt BasicIO AvrApp
     )
 
+#====================================================================#
+# Hello World test for PCD8544 LCD screen (aka Nokia5110)
+#====================================================================#
+generate_avr_firmware(
+	TestPCD8544
+    SRCS TestPCD8544.cpp
+    LIBS PCD8544 AvrTL AvrApp
+    )
+    
 endif()

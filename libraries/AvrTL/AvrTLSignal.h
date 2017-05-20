@@ -369,9 +369,16 @@ namespace avrtl
 //#undef INIT_CLOCK_COUNTER
 }
 
+#if !defined(ARDUINO_MAIN) && !defined(Arduino_h)
 static inline void delayMicroseconds(uint32_t us)
 {
 	avrtl::DelayMicroseconds(us);
 }
+
+static inline void delay(unsigned long ms)
+{
+	avrtl::DelayMicroseconds( static_cast<uint32_t>(ms) * 1000 );
+}
+#endif // end of compatibility layer
 
 #endif
