@@ -32,7 +32,7 @@
 // Chip variants supported (ST7576 is experimental)...
 #define CHIP_PCD8544 0
 #define CHIP_ST7576  1
-
+#define PCD8544_UNASSIGNED 0xFF
 
 class PCD8544
 {

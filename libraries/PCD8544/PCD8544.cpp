@@ -129,7 +129,6 @@ const PROGMEM unsigned char charset[][5] = {
 #define PCD8544_CMD  LOW
 #define PCD8544_DATA HIGH
 
-
 PCD8544::PCD8544(unsigned char sclk, unsigned char sdin,
                  unsigned char dc, unsigned char reset,
                  unsigned char sce):
@@ -160,11 +159,11 @@ void PCD8544::begin(unsigned char width, unsigned char height, unsigned char mod
     pinMode(this->pin_sdin, OUTPUT);
     pinMode(this->pin_dc, OUTPUT);
     pinMode(this->pin_reset, OUTPUT);
-    pinMode(this->pin_sce, OUTPUT);
+    if( pin_sce != PCD8544_UNASSIGNED ) { pinMode(this->pin_sce, OUTPUT); }
 
     // Reset the controller state...
     digitalWrite(this->pin_reset, HIGH);
-    digitalWrite(this->pin_sce, HIGH);
+    if( pin_sce != PCD8544_UNASSIGNED ) { digitalWrite(this->pin_sce, HIGH); }
     digitalWrite(this->pin_reset, LOW);
     delay(100);
     digitalWrite(this->pin_reset, HIGH);
@@ -234,13 +233,13 @@ void PCD8544::setPower(bool on)
 }
 
 
-inline void PCD8544::display()
+void PCD8544::display()
 {
     this->setPower(true);
 }
 
 
-inline void PCD8544::noDisplay()
+void PCD8544::noDisplay()
 {
     this->setPower(false);
 }
@@ -402,14 +401,13 @@ void PCD8544::drawColumn(unsigned char lines, unsigned char value)
     this->setCursor(scolumn + 1, sline);
 }
 
-
 void PCD8544::send(unsigned char type, unsigned char data)
 {
     digitalWrite(this->pin_dc, type);
 
-    digitalWrite(this->pin_sce, LOW);
+    if( pin_sce != PCD8544_UNASSIGNED ) { digitalWrite(this->pin_sce, LOW); }
     shiftOut(this->pin_sdin, this->pin_sclk, MSBFIRST, data);
-    digitalWrite(this->pin_sce, HIGH);
+    if( pin_sce != PCD8544_UNASSIGNED ) { digitalWrite(this->pin_sce, HIGH); }
 }
 
 
