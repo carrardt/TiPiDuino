@@ -11,3 +11,6 @@ ncOptimizer.py -n -o final.nc *.0 *.1 *.2
 ncOptimizer.py -s -n T top.nc drill.nc cutout.nc
 ncOptimizer.py -transform 1 -1 0 0 -s -n B bottom.nc drill.nc cutout.nc
 ncOptimizer.py -n -o final.nc *.0 *.1 *.2
+
+# Single sided ( bottom layer )
+ncOptimizer.py -transform -1 1 0 0 -n -o final.nc bottom.nc drill.nc cutout.nc
