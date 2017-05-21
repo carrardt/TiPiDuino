@@ -10,8 +10,6 @@ using SerialScheduler = TimeSchedulerT<AvrTimer0NoPrescaler>;
 static auto serialIO = make_softserial_hr<SERIAL_SPEED,SerialScheduler>(rx,tx);
 static PCD8544 lcd( 2,3,4,5,6 );
 
-const PROGMEM unsigned char message[8]={'B','o','n','j','o','u','r','\0'};
-
 void setup() {
 	cli();
 
@@ -39,6 +37,8 @@ void renderText()
 		for(int i=0;i<CHARS_PER_ROW;i++) { lcd.writeByte(buffer[r][i]); }
 	}
 }
+
+struct 
 
 void loop()
 {
