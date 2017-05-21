@@ -1,5 +1,54 @@
-print("--- Smart Power Switch ---")
+httpsrvdbg=false
+printToLCD=true
+LCDScreenOn=true
+
+uart.setup(0,19200,8,0,1,1)
+
+screensavetmr=tmr.create()
+screensavetmr:register(60000,tmr.ALARM_AUTO,
+	function(t)
+		if(printToLCD and LCDScreenOn)then
+			print("&~p")
+			tmr.delay(100000)
+			LCDScreenOn=false
+		end
+	end)
+screensavetmr:start()
+
+function clear_console()
+	if(printToLCD)then
+			print("-- CLEAR --")
+			tmr.delay(100000)
+			print("&~C")
+			tmr.delay(100000)
+	end
+end
+
+function set_screen_contrast(i)
+	if(printToLCD)then
+		print("&~c"..i)
+		tmr.delay(100000)
+	end
+end
+
+function print_message(s)
+		if(printToLCD and not LCDScreenOn)then
+			print("&~P")
+			tmr.delay(100000)
+			LCDScreenOn=true
+		end
+		print(s)
+		if(printToLCD)then
+			tmr.delay(100000)
+			screensavetmr:stop()
+			screensavetmr:start()
+		end
+end
+
+clear_console()
+print_message("IoT Switch")
 wifi.setmode(wifi.STATION)
+
 file.open("wifi.cfg")
 local ssid=string.gsub(file.readline(),"\n","")
 local pwd=string.gsub(file.readline(),"\n","")
@@ -15,11 +64,12 @@ function UpdateWanIP()
 		function(code,data)
 			NewIP=string.sub(data,0,-2)
 			if(NewIP~=WanIP)then
-				print("Change Wan IP from "..WanIP.." to "..NewIP.." (count="..IPUpdateCount..")")
 				WanIP=NewIP
 				http.get(WanUpdateURL,nil,function(code,data) print(data) end)
 			end
-			if(IPUpdateCount==0)then print("Wan IP "..WanIP) end
+			if(IPUpdateCount==0)then
+				print_message(tostring(WanIP))
+			end
 			IPUpdateCount=IPUpdateCount+1
 		end)
 end
@@ -61,6 +111,7 @@ function WeekProgRun()
 	local d=weekdays[wday]
 	local k=string.format("%d:%d",hour,minute)
 	local a=""
+	local progHit=false
 	for w in string.gmatch(weekprog[d],"([^;]+)") do
 		local e=w:find('=')
 		if(e~=nil)then
@@ -75,12 +126,17 @@ function WeekProgRun()
 			if(h~=nil and m~=nil and (h<hour or (h==hour and m<=minute)))then
 				if(h==hour and m==minute)then
 					PwrSwitchForced=false
+					progHit=true;
 				end
 				if(not PwrSwitchForced)then
 					a=w:sub(e+1)
 				end
 			end
 		end
+	end
+	if(progHit)then
+		print_message(d)
+		print_message(k.." "..a)
 	end
 	if(a:upper()=="ON")then
 		PwrSwitchState=true
@@ -104,12 +160,11 @@ local wificontmr=tmr.create()
 wificontmr:register(8000,tmr.ALARM_SINGLE,
     function(t)
         t:unregister()
-		print("")
-        print("Local IP "..wifi.sta.getip())
+        print_message(tostring(wifi.sta.getip()))
 		UpdateWanIP()
 		sntp.sync({"0.fr.pool.ntp.org","1.fr.pool.ntp.org","2.fr.pool.ntp.org","3.fr.pool.ntp.org"},
 			function(sec, usec, server, info)
-				print('SNTP sync', sec, usec, server)
+				print_message('SNTP sync')
 			end,
 			function() print('SNTP sync failed') end)
         dofile("httpsrv.lua")
@@ -124,5 +179,4 @@ local weekprogtmr=tmr.create()
 weekprogtmr:register(20000,tmr.ALARM_AUTO,function(t) WeekProgRun() end)
 weekprogtmr:start()
 
-print("")
-print("WiFi setup ...")
+print_message("WiFi setup")

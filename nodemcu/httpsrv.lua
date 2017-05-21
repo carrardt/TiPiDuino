@@ -10,7 +10,6 @@ function MakeWeekHTMLForm(wd,wp)
 	return s
 end
 srv=net.createServer(net.TCP)
-httpsrvdbg=false
 httpsrvreq=nil
 srv:listen(80,function(conn)
     conn:on("receive", function(client,request)
@@ -23,7 +22,7 @@ srv:listen(80,function(conn)
         if (vars ~= nil)then
             for k, v in string.gmatch(vars,"(%w+)=([^&]+)&*") do
                 _GET[k] = string.gsub(v,"(%%[%dA-F][%dA-F])",function(w) n="0x"..string.sub(w,2) return string.char(n) end )
-                if(httpsrvdbg)then print(k.."=".._GET[k]) end
+                if(httpsrvdbg)then print_message(k.."=".._GET[k]) end
             end
         end
         httpsrvreq=request
@@ -38,6 +37,10 @@ srv:listen(80,function(conn)
 			path="/su.htm"
 			gpio.mode(7,gpio.OUTPUT)
 			gpio.write(7,gpio.HIGH)
+			local h,m,s,mo,d,y,wd=getRTCtime(2)
+			wd=weekdays[wd]
+			print_message(wd)
+			print_message(string.format("%02d:%02d ON",h,m))
         end
         if(path=="/soff.htm")then
 			PwrSwitchState=false
@@ -45,6 +48,10 @@ srv:listen(80,function(conn)
 			path="/su.htm"
 			gpio.mode(7,gpio.OUTPUT)
 			gpio.write(7,gpio.LOW)
+			local h,m,s,mo,d,y,wd=getRTCtime(2)
+			wd=weekdays[wd]
+			print_message(wd)
+			print_message(string.format("%02d:%02d OFF",h,m))
         end
         if(path=="/sp.htm")then
 			local f=file.open("weekprog.txt","w")
@@ -53,6 +60,18 @@ srv:listen(80,function(conn)
 				f:write(d.." "..l.."\n")
 			end
 			f:close()
+			path="/su.htm"
+        end
+        if(path=="/lcdhi.htm")then
+			set_screen_contrast(70)
+			path="/su.htm"
+        end
+        if(path=="/lcdmed.htm")then
+			set_screen_contrast(60)
+			path="/su.htm"
+        end
+        if(path=="/lcdlow.htm")then
+			set_screen_contrast(50)
 			path="/su.htm"
         end
         if(path=="/su.htm")then
