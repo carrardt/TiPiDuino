@@ -1,3 +1,4 @@
+httpsrvdbg=false
 htmlformat="<!doctype html><html><body>%s</body></html>"
 htmlrefresh='<!doctype html><html><head><meta http-equiv="refresh" content="15;url=su.htm"></head><body>%s %02d/%02d/%02d %02dh%02d<br>WAN IP %s<br><h2>Switch is %s</h2></body></html>'
 function MakeWeekHTMLForm(wd,wp)
@@ -32,26 +33,12 @@ srv:listen(80,function(conn)
 			file.close()
         end
         if(path=="/son.htm")then
-			PwrSwitchState=true
-			PwrSwitchForced=true;
+			ForceSwitchState(true)
 			path="/su.htm"
-			gpio.mode(7,gpio.OUTPUT)
-			gpio.write(7,gpio.HIGH)
-			local h,m,s,mo,d,y,wd=getRTCtime(2)
-			wd=weekdays[wd]
-			print_message(wd)
-			print_message(string.format("%02d:%02d ON",h,m))
         end
         if(path=="/soff.htm")then
-			PwrSwitchState=false
-			PwrSwitchForced=true;
+			ForceSwitchState(false)
 			path="/su.htm"
-			gpio.mode(7,gpio.OUTPUT)
-			gpio.write(7,gpio.LOW)
-			local h,m,s,mo,d,y,wd=getRTCtime(2)
-			wd=weekdays[wd]
-			print_message(wd)
-			print_message(string.format("%02d:%02d OFF",h,m))
         end
         if(path=="/sp.htm")then
 			local f=file.open("weekprog.txt","w")
