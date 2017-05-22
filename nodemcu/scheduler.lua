@@ -47,47 +47,89 @@ function PrintSwitchState(state)
 	print_message(string.format("%s %02d:%02d %s",wd,h,m,msg))
 end
 
-function WeekProgRun()
-	local hour,minute,second,month,day,year,wday=getRTCtime(2)
-	local d=weekdays[wday]
-	local k=string.format("%d:%d",hour,minute)
-	local a=""
-	local progHit=false
-	for w in string.gmatch(weekprog[d],"([^;]+)") do
+function pairsByKeys(t, f)
+  local a = {}
+  for n in pairs(t) do table.insert(a, n) end
+  table.sort(a, f)
+  local i = 0
+  local iter = function ()
+	i = i + 1
+	if(a[i]==nil)then return nil
+	else return a[i], t[a[i]]
+	end
+  end
+  return iter
+end
+
+function ParseDaySchedule(s)
+	local l={}
+	for w in string.gmatch(s,"([^;]+)") do
 		local e=w:find('=')
 		if(e~=nil)then
 			local t=w:sub(1,e-1)
-			local h=nil
-			local m=nil
 			local s=t:find(':')
+			local minutes=nil
 			if(s~=nil)then
-				h=tonumber(t:sub(1,s-1))
-				m=tonumber(t:sub(s+1))
+				local h=tonumber(t:sub(1,s-1))
+				local m=tonumber(t:sub(s+1))
+				if(h~=nil and m~=nil)then minutes=h*60+m end
+			else
+				minutes=tonumber(t)
 			end
-			if(h~=nil and m~=nil and (h<hour or (h==hour and m<=minute)))then
-				if(h==hour and m==minute)then
-					PwrSwitchForced=false
-					progHit=true;
-				end
-				if(not PwrSwitchForced)then
-					a=w:sub(e+1)
-				end
+			local a=w:sub(e+1)
+			local state=nil
+			if(a:upper()=="ON")then state=true end
+			if(a:upper()=="OFF")then state=false end
+			if(state~=nil and minutes~=nil)then
+				l[minutes]=state
 			end
 		end
 	end
-	if(a:upper()=="ON")then
-		PwrSwitchState=true
-		gpio.mode(7,gpio.OUTPUT)
-		gpio.write(7,gpio.HIGH)
+	return pairsByKeys(l)
+end
+
+function WeekProgRun()
+	local hour,minute,second,month,day,year,wday=getRTCtime(2)
+	local target=hour*60+minute
+	local d=weekdays[wday]
+	local progHit=false
+	local state=nil
+	for m,s in ParseDaySchedule(weekprog[d]) do
+		if(m<target and not PwrSwitchForced)then
+			state=s
+		end
+		if(m==target)then
+			PwrSwitchForced=false
+			progHit=true
+			state=s
+		end
 	end
-	if(a:upper()=="OFF")then
-		PwrSwitchState=false
+	if(state~=nil)then
+		PwrSwitchState=state
 		gpio.mode(7,gpio.OUTPUT)
-		gpio.write(7,gpio.LOW)
+		if(state)then gpio.write(7,gpio.HIGH)
+		else gpio.write(7,gpio.LOW)
+		end
 	end
 	if(progHit)then
 		PrintSwitchState(PwrSwitchState)
 	end
+end
+
+function UpdateWeekProg(wd)
+	local f=file.open("weekprog.txt","w")
+	for d,l in pairs(wd) do
+		local sched=""
+		for m,s in ParseDaySchedule(l) do
+			local a="OFF"
+			if(s)then a="ON" end
+			if(sched~="")then sched=sched..";" end
+			sched=sched..string.format("%02d:%02d=%s",m/60,m%60,a)
+		end
+		weekprog[d]=sched
+		f:write(d.." "..sched.."\n")
+	end
+	f:close()
 end
 
 weekdays = {"Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"}

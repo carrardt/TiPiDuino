@@ -27,11 +27,6 @@ srv:listen(80,function(conn)
             end
         end
         httpsrvreq=request
-        if(path=="/index.htm")then
-			file.open("index.htm")
-			buf=string.format(file.read(),MakeWeekHTMLForm(weekdays,weekprog))
-			file.close()
-        end
         if(path=="/son.htm")then
 			ForceSwitchState(true)
 			path="/su.htm"
@@ -41,13 +36,8 @@ srv:listen(80,function(conn)
 			path="/su.htm"
         end
         if(path=="/sp.htm")then
-			local f=file.open("weekprog.txt","w")
-			for d,l in pairs(_GET) do
-				weekprog[d]=l
-				f:write(d.." "..l.."\n")
-			end
-			f:close()
-			path="/su.htm"
+			UpdateWeekProg(_GET)
+			path="/index.htm"
         end
         if(path=="/lcdhi.htm")then
 			set_screen_contrast(70)
@@ -60,6 +50,11 @@ srv:listen(80,function(conn)
         if(path=="/lcdlow.htm")then
 			set_screen_contrast(50)
 			path="/su.htm"
+        end
+        if(path=="/index.htm")then
+			local f=file.open("index.htm","r")
+			buf=string.format(f:read(),MakeWeekHTMLForm(weekdays,weekprog))
+			f:close()
         end
         if(path=="/su.htm")then
 			local ps="OFF"
