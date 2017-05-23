@@ -10,10 +10,13 @@ function MakeWeekHTMLForm(wd,wp)
 	s=s..'</table><br>'
 	return s
 end
+
 srv=net.createServer(net.TCP)
-httpsrvreq=nil
 srv:listen(80,function(conn)
     conn:on("receive", function(client,request)
+    	if(httpsrvdbg)then
+			print_message("REQ "..#request)
+		end
         local buf = "";
         local _, _,method,path,vars=string.find(request, "([A-Z]+) (.+)?(.+) HTTP");
         if(method == nil)then
@@ -26,7 +29,6 @@ srv:listen(80,function(conn)
                 if(httpsrvdbg)then print_message(k.."=".._GET[k]) end
             end
         end
-        httpsrvreq=request
         if(path=="/son.htm")then
 			ForceSwitchState(true)
 			path="/su.htm"
@@ -63,7 +65,9 @@ srv:listen(80,function(conn)
 			wd=weekdays[wd]
 			buf=string.format(htmlrefresh,wd,d,mo,y,h,m,WanIP,ps)
         end
-        httpsrvreq=nil
+		if(httpsrvdbg)then
+			print_message("REPLY "..#buf)
+		end
 		client:send(buf)
 		client:close()
         collectgarbage()

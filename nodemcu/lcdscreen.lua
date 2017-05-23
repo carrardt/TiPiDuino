@@ -32,19 +32,20 @@ function set_screen_contrast(i)
 end
 
 function wakeUpLCD()
-	if(printToLCD)then
-		screensavetmr:stop()
-		if(not LCDScreenOn)then
-			print("&~P")
-			tmr.delay(LCDLineDelay)
-			LCDScreenOn=true
-		end
-		screensavetmr:start()
+	screensavetmr:stop()
+	if(not LCDScreenOn)then
+		print("&~P")
+		tmr.delay(LCDLineDelay)
+		LCDScreenOn=true
 	end
+	screensavetmr:start()
 end
 
 function print_message(s)
-		wakeUpLCD()
+		if(printToLCD)then
+			wakeUpLCD()
+			if(#s>14)then s=s:sub(1,14) end
+		end
 		print(s)
 		if(printToLCD)then
 			tmr.delay(LCDLineDelay)
@@ -65,14 +66,10 @@ function drawBitmapFile(fname)
 			print(string.format("&~l0 %d",i/21))
 			tmr.delay(LCDBitmapDelay)
 		end
-		local b0 = data:sub(i*4+0,i*4+0):byte()
-		local b1 = data:sub(i*4+1,i*4+1):byte()
-		local b2 = data:sub(i*4+2,i*4+2):byte()
-		local b3 = data:sub(i*4+3,i*4+3):byte()
-		if(not b0)then b0=0 end
-		if(not b1)then b1=0 end
-		if(not b2)then b2=0 end
-		if(not b3)then b3=0 end
+		local b0 = data:sub(i*4+1,i*4+1):byte()
+		local b1 = data:sub(i*4+2,i*4+2):byte()
+		local b2 = data:sub(i*4+3,i*4+3):byte()
+		local b3 = data:sub(i*4+4,i*4+4):byte()
 		print( string.format("&~d0x%02X%02X%02X%02X",b3,b2,b1,b0) )
 		tmr.delay(LCDBitmapDelay)
 	end
