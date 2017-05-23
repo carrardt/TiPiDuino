@@ -7,51 +7,34 @@
 #include "WiringUnoBoardDefs.h" // for standard pin mapping. From Wiring lib
 
 namespace avrtl
-{		
-	template<uint8_t _PORT> struct StaticPinGroup { };
+{
 
-#	if defined(DDRD) && defined(PIND) && defined(PORTD) 
-	template<> struct StaticPinGroup<0>
-	{
-		static void SetOutput(uint8_t mask) { DDRD |= mask; }
-		static void SetInput(uint8_t mask) { DDRD &= ~mask; }
-		static uint8_t Get() { return PIND; }
-		// not optimal but it has a constant execution time
-		static void Set(uint8_t x , uint8_t mask=0xFF)
-		{
-			PORTD |= mask&x;
-			PORTD &= (~mask)|x;
-		}
-	};
-	
-	template<> struct StaticPinGroup<1>
-#	else
-	template<> struct StaticPinGroup<0>
-#	endif
-	{
-		static void SetOutput(uint8_t mask) { DDRB |= mask; }
-		static void SetInput(uint8_t mask) { DDRB &= ~mask; }
-		static uint8_t Get() { return PINB; }
-		static void Set(uint8_t x , uint8_t mask=0xFF)
-		{
-			PORTB |= mask&x;
-			PORTB &= (~mask)|x;
-		}
-	};
+#	define DECLARE_PIN_GROUP(G) 								\
+	struct PinGroup##G { 									\
+		static void SetOutput(uint8_t mask) { DDR##G |= mask; } \
+		static void SetInput(uint8_t mask) { DDR##G &= ~mask; } \
+		static uint8_t Get() { return PIN##G ; } 				\
+		static void Set(uint8_t x , uint8_t mask=0xFF) 			\
+		{														\
+			PORT##G |= mask&x;									\
+			PORT##G &= (~mask)|x; 								\
+		} }
 
-#	if defined(DDRC) && defined(PINC) && defined(PORTC) 
-	template<> struct StaticPinGroup<2>
-	{
-		static void SetOutput(uint8_t mask) { DDRC |= mask; }
-		static void SetInput(uint8_t mask) { DDRC &= ~mask; }
-		static uint8_t Get() { return PINC; }
-		static void Set(uint8_t x , uint8_t mask=0xFF)
-		{
-			PORTC |= mask&x;
-			PORTC &= (~mask)|x;
-		}
-	};
-#	endif
+#	if defined(DDRA) && defined(PINA) && defined(PORTA)
+		DECLARE_PIN_GROUP(A);
+	#endif
+
+#	if defined(DDRB) && defined(PINB) && defined(PORTB)
+		DECLARE_PIN_GROUP(B);
+	#endif
+
+#	if defined(DDRC) && defined(PINC) && defined(PORTC)
+		DECLARE_PIN_GROUP(C);
+	#endif
+
+#	if defined(DDRD) && defined(PIND) && defined(PORTD)
+		DECLARE_PIN_GROUP(D);
+	#endif
 
 	template<typename PinGroupT, uint8_t _pinBit>
 	struct StaticPinT
@@ -80,35 +63,57 @@ namespace avrtl
 		const PinGroupT m_pg;
 	};
 
-	// standard definition for most Arduino alike boards
 	template<uint8_t pinId> struct PinMapping {};
-	template<> struct PinMapping<0> { using PinGroup = StaticPinGroup<0>; static constexpr uint8_t PinBit = 0; };
-	template<> struct PinMapping<1> { using PinGroup = StaticPinGroup<0>; static constexpr uint8_t PinBit = 1; };
-	template<> struct PinMapping<2> { using PinGroup = StaticPinGroup<0>; static constexpr uint8_t PinBit = 2; };
-	template<> struct PinMapping<3> { using PinGroup = StaticPinGroup<0>; static constexpr uint8_t PinBit = 3; };
-	template<> struct PinMapping<4> { using PinGroup = StaticPinGroup<0>; static constexpr uint8_t PinBit = 4; };
-	template<> struct PinMapping<5> { using PinGroup = StaticPinGroup<0>; static constexpr uint8_t PinBit = 5; };
-	template<> struct PinMapping<6> { using PinGroup = StaticPinGroup<0>; static constexpr uint8_t PinBit = 6; };
-	template<> struct PinMapping<7> { using PinGroup = StaticPinGroup<0>; static constexpr uint8_t PinBit = 7; };
-
-#	if defined(DDRD) && defined(PIND) && defined(PORTD) 
-	template<> struct PinMapping<8> { using PinGroup = StaticPinGroup<1>; static constexpr uint8_t PinBit = 0; };
-	template<> struct PinMapping<9> { using PinGroup = StaticPinGroup<1>; static constexpr uint8_t PinBit = 1; };
-	template<> struct PinMapping<10> { using PinGroup = StaticPinGroup<1>; static constexpr uint8_t PinBit = 2; };
-	template<> struct PinMapping<11> { using PinGroup = StaticPinGroup<1>; static constexpr uint8_t PinBit = 3; };
-	template<> struct PinMapping<12> { using PinGroup = StaticPinGroup<1>; static constexpr uint8_t PinBit = 4; };
-	template<> struct PinMapping<13> { using PinGroup = StaticPinGroup<1>; static constexpr uint8_t PinBit = 5; };
-#	endif
-
-#	if defined(DDRC) && defined(PINC) && defined(PORTC) 
-	template<> struct PinMapping<14> { using PinGroup = StaticPinGroup<2>; static constexpr uint8_t PinBit = 0; };
-	template<> struct PinMapping<15> { using PinGroup = StaticPinGroup<2>; static constexpr uint8_t PinBit = 1; };
-	template<> struct PinMapping<16> { using PinGroup = StaticPinGroup<2>; static constexpr uint8_t PinBit = 2; };
-	template<> struct PinMapping<17> { using PinGroup = StaticPinGroup<2>; static constexpr uint8_t PinBit = 3; };
-	template<> struct PinMapping<18> { using PinGroup = StaticPinGroup<2>; static constexpr uint8_t PinBit = 4; };
-	template<> struct PinMapping<19> { using PinGroup = StaticPinGroup<2>; static constexpr uint8_t PinBit = 5; };
-#	endif
 	
+#	ifdef __AVR_ATtiny84__
+	template<> struct PinMapping<0> { using PinGroup = PinGroupA; static constexpr uint8_t PinBit = 0; };
+	template<> struct PinMapping<1> { using PinGroup = PinGroupA; static constexpr uint8_t PinBit = 1; };
+	template<> struct PinMapping<2> { using PinGroup = PinGroupA; static constexpr uint8_t PinBit = 2; };
+	template<> struct PinMapping<3> { using PinGroup = PinGroupA; static constexpr uint8_t PinBit = 3; };
+	template<> struct PinMapping<4> { using PinGroup = PinGroupA; static constexpr uint8_t PinBit = 4; };
+	template<> struct PinMapping<5> { using PinGroup = PinGroupA; static constexpr uint8_t PinBit = 5; };
+	template<> struct PinMapping<6> { using PinGroup = PinGroupA; static constexpr uint8_t PinBit = 6; };
+	template<> struct PinMapping<7> { using PinGroup = PinGroupA; static constexpr uint8_t PinBit = 7; };
+
+	template<> struct PinMapping<8> { using PinGroup = PinGroupB; static constexpr uint8_t PinBit = 2; };
+	template<> struct PinMapping<9> { using PinGroup = PinGroupB; static constexpr uint8_t PinBit = 1; };
+	template<> struct PinMapping<10> { using PinGroup = PinGroupB; static constexpr uint8_t PinBit = 0; };
+#	endif
+
+#	ifdef __AVR_ATtiny85__
+	template<> struct PinMapping<0> { using PinGroup = PinGroupB; static constexpr uint8_t PinBit = 0; };
+	template<> struct PinMapping<1> { using PinGroup = PinGroupB; static constexpr uint8_t PinBit = 1; };
+	template<> struct PinMapping<2> { using PinGroup = PinGroupB; static constexpr uint8_t PinBit = 2; };
+	template<> struct PinMapping<3> { using PinGroup = PinGroupB; static constexpr uint8_t PinBit = 3; };
+	template<> struct PinMapping<4> { using PinGroup = PinGroupB; static constexpr uint8_t PinBit = 4; };
+#	endif
+
+	// standard definition for most Arduino UNO alike boards
+#	ifdef __AVR_ATmega328P__
+	template<> struct PinMapping<0> { using PinGroup = PinGroupD; static constexpr uint8_t PinBit = 0; };
+	template<> struct PinMapping<1> { using PinGroup = PinGroupD; static constexpr uint8_t PinBit = 1; };
+	template<> struct PinMapping<2> { using PinGroup = PinGroupD; static constexpr uint8_t PinBit = 2; };
+	template<> struct PinMapping<3> { using PinGroup = PinGroupD; static constexpr uint8_t PinBit = 3; };
+	template<> struct PinMapping<4> { using PinGroup = PinGroupD; static constexpr uint8_t PinBit = 4; };
+	template<> struct PinMapping<5> { using PinGroup = PinGroupD; static constexpr uint8_t PinBit = 5; };
+	template<> struct PinMapping<6> { using PinGroup = PinGroupD; static constexpr uint8_t PinBit = 6; };
+	template<> struct PinMapping<7> { using PinGroup = PinGroupD; static constexpr uint8_t PinBit = 7; };
+	
+	template<> struct PinMapping<8> { using PinGroup = PinGroupB; static constexpr uint8_t PinBit = 0; };
+	template<> struct PinMapping<9> { using PinGroup = PinGroupB; static constexpr uint8_t PinBit = 1; };
+	template<> struct PinMapping<10> { using PinGroup = PinGroupB; static constexpr uint8_t PinBit = 2; };
+	template<> struct PinMapping<11> { using PinGroup = PinGroupB; static constexpr uint8_t PinBit = 3; };
+	template<> struct PinMapping<12> { using PinGroup = PinGroupB; static constexpr uint8_t PinBit = 4; };
+	template<> struct PinMapping<13> { using PinGroup = PinGroupB; static constexpr uint8_t PinBit = 5; };
+
+	template<> struct PinMapping<14> { using PinGroup = PinGroupC; static constexpr uint8_t PinBit = 0; };
+	template<> struct PinMapping<15> { using PinGroup = PinGroupC; static constexpr uint8_t PinBit = 1; };
+	template<> struct PinMapping<16> { using PinGroup = PinGroupC; static constexpr uint8_t PinBit = 2; };
+	template<> struct PinMapping<17> { using PinGroup = PinGroupC; static constexpr uint8_t PinBit = 3; };
+	template<> struct PinMapping<18> { using PinGroup = PinGroupC; static constexpr uint8_t PinBit = 4; };
+	template<> struct PinMapping<19> { using PinGroup = PinGroupC; static constexpr uint8_t PinBit = 5; };
+#	endif // __AVR_ATmega328P__
+
 	// TODO: change StaticPin name to something like 'ArduinoStaticPin'
 	template<uint8_t p>
 	using StaticPin = StaticPinT< typename PinMapping<p>::PinGroup, PinMapping<p>::PinBit >;

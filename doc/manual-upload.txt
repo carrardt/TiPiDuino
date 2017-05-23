@@ -6,10 +6,20 @@ tn85upload()
         avrdude -v -pattiny85 -cstk500v1 -P/dev/tty$1 -b19200 -Uflash:w:$2:i
 }
 
+tn84upload()
+{
+        avrdude -v -pattiny84 -cstk500v1 -P/dev/tty$1 -b19200 -Uflash:w:$2:i
+}
+
 
 tn85i8fuse()
 {
 	avrdude -v -pattiny85 -cstk500v1 -P/dev/tty$1 -b19200 -U lfuse:w:0xe2:m -U hfuse:w:0xdf:m -U efuse:w:0xff:m
+}
+
+tn84i8fuse()
+{
+	avrdude -v -pattiny84 -cstk500v1 -P/dev/tty$1 -b19200 -U lfuse:w:0xe2:m -U hfuse:w:0xdf:m -U efuse:w:0xff:m
 }
 
 m328upload()
