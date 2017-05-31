@@ -8,8 +8,8 @@
 #define SERIAL_SPEED 19200
 
 #ifdef __AVR_ATtiny84__
-#define SERIAL_RX_PIN 4
-#define SERIAL_TX_PIN 5
+#define SERIAL_RX_PIN 9
+#define SERIAL_TX_PIN 10
 #else
 #define SERIAL_RX_PIN 0
 #define SERIAL_TX_PIN 1
@@ -32,7 +32,6 @@ PrintStream cout;
 void setup()
 {
 	cli();
-	serialIO.setEndLine("\n\r");
 #	ifdef USE_HW_SERIAL
 		serialIO.m_rawIO.begin(SERIAL_SPEED);
 #	else
@@ -42,44 +41,56 @@ void setup()
 	cout<<"Ready"<<endl;
 }
 
+#define BUF_LEN 64
+
 void loop()
 {
 	int p = 0;
 	bool value = false;
 	char c = 0;
-	uint8_t i=0;
+	int i=0;
 	
 	InputStream cin;
 
 #	ifdef USE_HW_SERIAL
 	cin.begin( &serialIO );
 #	else
-	uint8_t buffer[128];
+	uint8_t buffer[BUF_LEN];
 	serialIO.m_rawIO.ts.start();
 	do {
 		c = serialIO.m_rawIO.readByteFast();   
 		buffer[i++]=c;
-	} while( c!='\n' && i<128 );
+	} while( c!='\n' && c!='\r' && i<(BUF_LEN-1) );
 	serialIO.m_rawIO.ts.stop();
-	BufferStream bufStream(buffer,128);
+	cout<<"received "<<i<<" bytes"<<endl;
+	buffer[i-1]='\0';
+	cout<<"buffer='"<<((const char*)buffer)<<"'"<<endl;
+	BufferStream bufStream(buffer,BUF_LEN-1);
 	cin.begin(&bufStream);
 #	endif
 
 	c=' ';
 	cin>>c;
 	cin>>p;
+	cout<<"command is "<<c<<","<<p<<endl;
 	if(c=='r')
 	{
+		pinMode(p,INPUT);
 		value = digitalRead(p);
 		cout<<"pin #"<<p<<" -> "<<value<<endl;
 	}
-	if(c=='w')
+	else if(c=='w')
 	{
 		int x=0;
 		cin>>x;
 		value = x;
 		cout<<"pin #"<<p<<" <- "<<value<<endl;
+		pinMode(p,OUTPUT);
 		digitalWrite(p,value);
+	}
+	else
+	{
+		cout<<"command must be r# or w# 0|1"<<endl;
 	}
 }
 

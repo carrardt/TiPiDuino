@@ -61,7 +61,7 @@
 /*************************************************************
  * Pin to register mapping macros
  *************************************************************/
-#if defined(DDRD) && defined(PIND) && defined(PORTD) && defined(DDRC) && defined(PINC) && defined(PORTC) 
+#ifdef __AVR_ATmega328P__
 
 #define WdigitalPinToPortReg(PIN) \
         ( ((PIN) >= 0  && (PIN) <= 7)  ? &PORTD : \
@@ -101,13 +101,26 @@
 #define A3 17
 #define A4 18
 #define A5 19
+#endif
 
-#else // probably an attiny85, but this should be cleaner
-#define WdigitalPinToPort(PORT) 	0
-#define WportModeRegister(PORT) 	&DDRB
-#define WportOutputRegister(PORT) 	&PORTB
-#define WportInputRegister(PORT) 	&PINB
-#define WdigitalPinToBit(PIN) 	 	PIN
+#ifdef __AVR_ATtiny85__
+#define WdigitalPinToPort(p) 	0
+#define WportModeRegister(p) 	&DDRB
+#define WportOutputRegister(p) 	&PORTB
+#define WportInputRegister(p) 	&PINB
+#define WdigitalPinToBit(p) 	 p
+#endif
+
+#ifdef __AVR_ATtiny84__
+#define WdigitalPinToPort(pin) 		( (pin<8) ? 0 : 1)
+#define WportModeRegister(port) 	( (port==0) ? &DDRA : &DDRB )
+#define WportOutputRegister(port) 	( (port==0) ? &PORTA : &PORTB )
+#define WportInputRegister(port) 	( (port==0) ? &PINA : &PINB )
+#define WdigitalPinToBit(pin) 		( (pin<8) ? pin : (10-pin) )
+#endif
+
+#ifndef WdigitalPinToPort
+#error MCU not recognized
 #endif
 
 #endif
