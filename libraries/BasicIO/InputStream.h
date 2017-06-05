@@ -5,11 +5,17 @@
 
 struct InputStream
 {
-	InputStream() : stream(0) {}
+	InputStream() : stream(nullptr) {}
 	
 	void begin(ByteStream* _s)
 	{
 		stream = _s;
+	}
+	
+	bool eof()
+	{
+		if(stream==nullptr) { return true; }
+		else { return stream->eof(); }
 	}
 	
 	static bool isSpace(char x) { return x==' ' || x=='\t' || x=='\n' || x=='\r'; }
