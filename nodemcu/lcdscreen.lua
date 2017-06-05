@@ -1,14 +1,18 @@
-printToLCD=true
-LCDScreenOn=false
-LCDLineDelay=100000
-LCDBitmapDelay=10000
-LCDScreenSaveDelay=120000
+printToLCD			= true
+LCDScreenOn			= false
+LCDLineDelay  		= 100000
+LCDBitmapDelay		= 5000
+LCDScreenSaveDelay	= 60000
+
+function lcdprint(s)
+	print(s:sub(1,14))
+end
 
 screensavetmr=tmr.create()
 screensavetmr:register(LCDScreenSaveDelay,tmr.ALARM_AUTO,
 	function(t)
 		if(printToLCD and LCDScreenOn)then
-			print("&~p")
+			lcdprint("&~p")
 			tmr.delay(LCDLineDelay)
 			LCDScreenOn=false
 		end
@@ -17,16 +21,16 @@ screensavetmr:start()
 
 function clear_console()
 	if(printToLCD)then
-			print("--")
+			lcdprint("             ")
 			tmr.delay(LCDLineDelay)
-			print("&~C")
+			lcdprint("&~C")
 			tmr.delay(LCDLineDelay)
 	end
 end
 
 function set_screen_contrast(i)
 	if(printToLCD)then
-		print("&~c"..i)
+		lcdprint("&~c"..i)
 		tmr.delay(LCDLineDelay)
 	end
 end
@@ -34,7 +38,7 @@ end
 function wakeUpLCD()
 	screensavetmr:stop()
 	if(not LCDScreenOn)then
-		print("&~P")
+		lcdprint("&~P")
 		tmr.delay(LCDLineDelay)
 		LCDScreenOn=true
 	end
@@ -42,15 +46,39 @@ function wakeUpLCD()
 end
 
 function print_message(s)
-		if(printToLCD)then
-			wakeUpLCD()
-			if(#s>14)then s=s:sub(1,14) end
-		end
+	if(printToLCD)then
+		wakeUpLCD()
+		lcdprint(s)
+		tmr.delay(LCDLineDelay)
+	else
 		print(s)
-		if(printToLCD)then
-			tmr.delay(LCDLineDelay)
-		end
+	end
 end
+
+function print_power_status(d,h,m,s)
+	if(printToLCD)then
+		wakeUpLCD()
+		lcdprint("&~l0 0")
+		tmr.delay(LCDBitmapDelay)
+		lcdprint("&~D"..d)
+		tmr.delay(LCDBitmapDelay)
+		lcdprint("&~l0 1")
+		tmr.delay(LCDBitmapDelay)
+		lcdprint(string.format("&~D%02d",h))
+		tmr.delay(LCDBitmapDelay)
+		lcdprint("&~l0 2")
+		tmr.delay(LCDBitmapDelay)
+		lcdprint(string.format("&~D%02d",m))
+		tmr.delay(LCDBitmapDelay)
+		lcdprint("&~l0 3")
+		tmr.delay(LCDBitmapDelay)
+		lcdprint("&~D"..s)
+		tmr.delay(LCDBitmapDelay)
+	else
+		print(s)
+	end
+end
+
 
 function drawBitmapFile(fname)
 	if(not printToLCD)then
@@ -59,18 +87,23 @@ function drawBitmapFile(fname)
 	wakeUpLCD()
 	local f = file.open(fname,"rb")
 	local data = f:read()
+	local a,b,c
 	f:close()
-	for CI = 1, #data/4 do
+	for CI = 1, #data do
 		local i = CI-1
-		if( i%21 == 0 )then
-			print(string.format("&~l0 %d",i/21))
+		if(i%84==0)then
 			tmr.delay(LCDBitmapDelay)
+			uart.write(0,string.format("&~l0 %d\n",i/84))
 		end
-		local b0 = data:sub(i*4+1,i*4+1):byte()
-		local b1 = data:sub(i*4+2,i*4+2):byte()
-		local b2 = data:sub(i*4+3,i*4+3):byte()
-		local b3 = data:sub(i*4+4,i*4+4):byte()
-		print( string.format("&~d0x%02X%02X%02X%02X",b3,b2,b1,b0) )
-		tmr.delay(LCDBitmapDelay)
+		if(i%4==0)then
+			tmr.delay(LCDBitmapDelay)
+			uart.write(0,"&~d0x")
+			a=data:sub(CI,CI):byte()
+		end
+		if(i%4==1)then b=data:sub(CI,CI):byte() end
+		if(i%4==2)then c=data:sub(CI,CI):byte() end
+		if(i%4==3)then
+			uart.write(0,string.format("%02X%02X%02X%02X\n",data:sub(CI,CI):byte(),c,b,a))
+		end
 	end
 end

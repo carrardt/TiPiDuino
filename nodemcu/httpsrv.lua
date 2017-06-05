@@ -41,16 +41,11 @@ srv:listen(80,function(conn)
 			UpdateWeekProg(_GET)
 			path="/index.htm"
         end
-        if(path=="/lcdhi.htm")then
-			set_screen_contrast(70)
-			path="/su.htm"
-        end
-        if(path=="/lcdmed.htm")then
-			set_screen_contrast(60)
-			path="/su.htm"
-        end
-        if(path=="/lcdlow.htm")then
-			set_screen_contrast(50)
+        if(path:find("/lcd")==1)then
+			local C = tonumber(path:sub(5,-1))
+			if(C~=nil)then
+				set_screen_contrast(C)
+			end
 			path="/su.htm"
         end
         if(path=="/index.htm")then

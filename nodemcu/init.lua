@@ -1,4 +1,4 @@
-uart.setup(0,19200,8,0,1,1)
+uart.setup(0,38400,8,0,1,1)
 dofile("lcdscreen.lua")
 
 clear_console()

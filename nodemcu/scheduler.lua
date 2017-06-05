@@ -39,12 +39,13 @@ function PrintSwitchState(state)
 	if(state)then
 		msg="ON"
 	else
-		msg="OFF"
+		msg="of"
 	end
 	local h,m,s,mo,d,y,wd=getRTCtime(2)
 	wd = weekdays[wd]
 	wd = wd:sub(1,2)
-	print_message(string.format("%s %02d:%02d %s",wd,h,m,msg))
+	print_power_status(wd,h,m,msg)
+	-- print_message(string.format("%s %02d:%02d %s",wd,h,m,msg))
 end
 
 function pairsByKeys(t, f)
