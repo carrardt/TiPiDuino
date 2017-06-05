@@ -39,7 +39,7 @@ function PrintSwitchState(state)
 	if(state)then
 		msg="ON"
 	else
-		msg="of"
+		msg="off"
 	end
 	local h,m,s,mo,d,y,wd=getRTCtime(2)
 	wd = weekdays[wd]
