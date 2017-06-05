@@ -3,7 +3,7 @@
 #====================================================================#
 generate_arduino_library(
 	AvrTL
-    SRCS AvrTLSignal.cpp
+    SRCS AvrTLPin.cpp AvrTLSignal.cpp
     HDRS AvrTL.h AvrTLPin.h AvrTLEEPROM.h AvrTLSignal.h
     NO_AUTOLIBS MANUAL
 	)
