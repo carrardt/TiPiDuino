@@ -2,10 +2,10 @@ httpsrvdbg=false
 htmlformat="<!doctype html><html><body>%s</body></html>"
 htmlrefresh='<!doctype html><html><head><meta http-equiv="refresh" content="15;url=su.htm"></head><body>%s %02d/%02d/%02d %02dh%02d<br>WAN IP %s<br><h2>Switch is %s</h2></body></html>'
 function MakeWeekHTMLForm(wd,wp)
-	local s='<table>'
+	local s='<table border="1">'
 	for i,k in ipairs(wd) do
 		v=wp[k]
-		s=s..string.format('<tr><td>%s</td><td><input type="text" name="%s" value="%s"></td></tr>',k,k,v)
+		s=s..string.format('<tr><td>%s</td><td><input type="text" name="%s" value="%s" size="40"></td></tr>',k,k,v)
 	end
 	s=s..'</table><br>'
 	return s
