@@ -16,15 +16,17 @@ end
 function UpdateWanIP(cb,cbchange)
 	http.get("http://icanhazip.com",nil,
 		function(code,data)
-			NewIP=string.sub(data,0,-2)
-			if(NewIP~=WanIP)then
-				WanIP=NewIP
-				http.get(WanUpdateURL,nil,function(code,data) print(data) end)
-				local f = file.open("wan.cfg","w")
-				f:writeline(tostring(WanIP))
-				f:close()
-				if(cbcbchange~=nil)then
-					cbchange(WanIP)
+			if(data~=nil)then
+				NewIP=string.sub(data,0,-2)
+				if(NewIP~=WanIP)then
+					WanIP=NewIP
+					http.get(WanUpdateURL,nil,function(code,data) print(data) end)
+					local f = file.open("wan.cfg","w")
+					f:writeline(tostring(WanIP))
+					f:close()
+					if(cbcbchange~=nil)then
+						cbchange(WanIP)
+					end
 				end
 			end
 			if(cb~=nil)then
@@ -64,7 +66,7 @@ function startWiFi(cb)
 					UpdateWanIP( nil , function(wip)
 						print_message("WAN IP update")
 						print_message(tostring(wip))
-						end)
+					end)
 				end)
 			wanupdatetmr:start()
 			if(cb~=nil)then
