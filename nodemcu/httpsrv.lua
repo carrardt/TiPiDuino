@@ -1,6 +1,6 @@
 httpsrvdbg=false
 htmlformat="<!doctype html><html><body>%s</body></html>"
-htmlrefresh='<!doctype html><html><head><meta http-equiv="refresh" content="15;url=su.htm"></head><body>%s %02d/%02d/%02d %02dh%02d<br>WAN IP %s<br><h2>Switch is %s</h2></body></html>'
+htmlrefresh='<!doctype html><html><head><meta http-equiv="refresh" content="15;url=su.htm"></head><body>%s %02d/%02d/%02d %02dh%02d<br>Temperature %d&deg;C<br>Humidity %d%%<br>WAN IP %s<br><h2>Switch is %s</h2></body></html>'
 function MakeWeekHTMLForm(wd,wp)
 	local s='<table border="1">'
 	for i,k in ipairs(wd) do
@@ -58,7 +58,7 @@ srv:listen(80,function(conn)
 			if(PwrSwitchState)then ps="ON" end
 			local h,m,s,mo,d,y,wd=getRTCtime(2)
 			wd=weekdays[wd]
-			buf=string.format(htmlrefresh,wd,d,mo,y,h,m,WanIP,ps)
+			buf=string.format(htmlrefresh,wd,d,mo,y,h,m,SensorTemperature,SensorHumidity,WanIP,ps)
         end
 		if(httpsrvdbg)then
 			print_message("REPLY "..#buf)

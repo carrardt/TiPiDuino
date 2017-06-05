@@ -55,7 +55,7 @@ function print_message(s)
 	end
 end
 
-function print_power_status(d,h,m,s)
+function print_power_status(d,h,m,s,temp,hum)
 	if(printToLCD)then
 		wakeUpLCD()
 		lcdprint("&~l0 0")
@@ -73,6 +73,14 @@ function print_power_status(d,h,m,s)
 		lcdprint("&~l0 3")
 		tmr.delay(LCDBitmapDelay)
 		lcdprint("&~D"..s)
+		tmr.delay(LCDBitmapDelay)
+		lcdprint("&~l0 4")
+		tmr.delay(LCDBitmapDelay)
+		lcdprint("&~D"..temp)
+		tmr.delay(LCDBitmapDelay)
+		lcdprint("&~l0 5")
+		tmr.delay(LCDBitmapDelay)
+		lcdprint("&~D"..hum)
 		tmr.delay(LCDBitmapDelay)
 	else
 		print(s)
