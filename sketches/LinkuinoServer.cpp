@@ -41,11 +41,15 @@ AvrAnalogDigitalConverter g_adc;
  * contiguous bits in the same port for Digital out pins
  * contiguous bits in the same port for Digital in pins
  */
+ 
+/*
+ * Linkuino Traits for a Uno like micro-controller, i.e. atmega328p.
+ */
 struct LinkuinoUnoTraits
 {
-	using PWMPinGroupT = avrtl::StaticPinGroup<0>; // Pins 0-7 (first bit set to 2 to let pins 0 & 1 free for hardware serial)
-	using DOutPinGroupT = avrtl::StaticPinGroup<1>; // Pins 9-13 (pin 8 reserved for link with slave uController)
-	using DInPinGroupT = StaticPinGroup<2>; // Pins 14-19 (a.k.a. A0-A5)
+	using PWMPinGroupT = avrtl::PinGroupD; // Pins 0-7 (first bit set to 2 to let pins 0 & 1 free for hardware serial)
+	using DOutPinGroupT = avrtl::PinGroupB; // Pins 9-13 (pin 8 reserved for link with slave uController)
+	using DInPinGroupT = avrtl::PinGroupC; // Pins 14-19 (a.k.a. A0-A5)
 
 	static constexpr uint8_t PWMPortFirstBit = 2; // first accessible for PWM
 	static constexpr uint8_t PWMPortMask = 0xFC; // mask of bits accessible for PWM

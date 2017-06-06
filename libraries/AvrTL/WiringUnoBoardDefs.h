@@ -104,11 +104,11 @@
 #endif
 
 #ifdef __AVR_ATtiny85__
-#define WdigitalPinToPort(p) 	0
-#define WportModeRegister(p) 	&DDRB
-#define WportOutputRegister(p) 	&PORTB
-#define WportInputRegister(p) 	&PINB
-#define WdigitalPinToBit(p) 	 p
+#define WdigitalPinToPort(p) 	( 0 )
+#define WportModeRegister(p) 	( &DDRB )
+#define WportOutputRegister(p) 	( &PORTB )
+#define WportInputRegister(p) 	( &PINB )
+#define WdigitalPinToBit(p) 	 ( p )
 #endif
 
 #ifdef __AVR_ATtiny84__

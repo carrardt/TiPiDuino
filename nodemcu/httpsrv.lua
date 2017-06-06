@@ -1,11 +1,11 @@
 httpsrvdbg=false
 htmlformat="<!doctype html><html><body>%s</body></html>"
-htmlrefresh='<!doctype html><html><head><meta http-equiv="refresh" content="15;url=su.htm"></head><body>%s %02d/%02d/%02d %02dh%02d<br>WAN IP %s<br><h2>Switch is %s</h2></body></html>'
+htmlrefresh='<!doctype html><html><head><meta http-equiv="refresh" content="15;url=su.htm"></head><body>%s %02d/%02d/%02d %02dh%02d<br>Temperature %d&deg;C<br>Humidity %d%%<br>WAN IP %s<br><h2>Switch is %s</h2></body></html>'
 function MakeWeekHTMLForm(wd,wp)
-	local s='<table>'
+	local s='<table border="1">'
 	for i,k in ipairs(wd) do
 		v=wp[k]
-		s=s..string.format('<tr><td>%s</td><td><input type="text" name="%s" value="%s"></td></tr>',k,k,v)
+		s=s..string.format('<tr><td>%s</td><td><input type="text" name="%s" value="%s" size="40"></td></tr>',k,k,v)
 	end
 	s=s..'</table><br>'
 	return s
@@ -41,16 +41,11 @@ srv:listen(80,function(conn)
 			UpdateWeekProg(_GET)
 			path="/index.htm"
         end
-        if(path=="/lcdhi.htm")then
-			set_screen_contrast(70)
-			path="/su.htm"
-        end
-        if(path=="/lcdmed.htm")then
-			set_screen_contrast(60)
-			path="/su.htm"
-        end
-        if(path=="/lcdlow.htm")then
-			set_screen_contrast(50)
+        if(path:find("/lcd")==1)then
+			local C = tonumber(path:sub(5,-1))
+			if(C~=nil)then
+				set_screen_contrast(C)
+			end
 			path="/su.htm"
         end
         if(path=="/index.htm")then
@@ -63,7 +58,7 @@ srv:listen(80,function(conn)
 			if(PwrSwitchState)then ps="ON" end
 			local h,m,s,mo,d,y,wd=getRTCtime(2)
 			wd=weekdays[wd]
-			buf=string.format(htmlrefresh,wd,d,mo,y,h,m,WanIP,ps)
+			buf=string.format(htmlrefresh,wd,d,mo,y,h,m,SensorTemperature,SensorHumidity,WanIP,ps)
         end
 		if(httpsrvdbg)then
 			print_message("REPLY "..#buf)

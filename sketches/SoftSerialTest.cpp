@@ -55,7 +55,6 @@ void setup()
 	cout.begin( &serialIO );
 	cout<<"F_CPU="<<F_CPU<<endl;
 	cout<<"Ready"<<endl;
-	serialIO.m_rawIO.ts.start();
 }
 
 static uint32_t counter = 0;
@@ -71,7 +70,9 @@ void loop()
 	char buf[64];
 	uint8_t i=0;
 //	while( ( buf[i]=serialIO.readByte() ) != '\n' && i<63 ) ++i;
+	serialIO.m_rawIO.ts.start();
 	for(uint8_t i=0;i<64;i++) { buf[i]=serialIO.m_rawIO.readByteFast(); }
+	serialIO.m_rawIO.ts.stop();
 	buf[63]='\0';
 	cout<<counter<<':'<<buf<<endl;
 	++ counter;

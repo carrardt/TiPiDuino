@@ -2,15 +2,18 @@
 #include <SoftSerial.h>
 #include "BasicIO/ByteStream.h"
 #include "BasicIO/InputStream.h"
+//#include "BasicIO/PrintStream.h"
 
 /*
  * Important Note : if you connect screen's SCE pin to ground, it just works !
  * it seems SCE pin prevents undesired messages to be received.
  */
 
+
+// PCD8544 pins : SCLK, SDIN, DC, RST, SCE
 #define LCD_PINS_ATTINY85 1,2,3,4,PCD8544_UNASSIGNED
 #define LCD_PINS_ATMEGA328 2,3,4,5,6,7 
-#define SERIAL_SPEED 19200
+#define SERIAL_SPEED 38400
 
 static auto rx = avrtl::StaticPin<0>();
 static auto tx = avrtl::NullPin();
@@ -18,48 +21,72 @@ using SerialScheduler = TimeSchedulerT<AvrTimer0NoPrescaler>;
 static auto serialIO = make_softserial_hr<SERIAL_SPEED,SerialScheduler>(rx,tx);
 static PCD8544 lcd( LCD_PINS_ATTINY85 );
 
-void setup() {
-	cli();
+#define LCD_WIDTH 		84
+#define LCD_HEIGHT 		48
+#define CHARS_PER_ROW 	14
+#define NB_ROWS       	 6
 
-  // PCD8544-compatible displays may have a different resolution...
-  lcd.begin(84, 48);
-  
-    // set medium contrast
-    lcd.setContrast(50);
-
-	serialIO.begin();
-	serialIO.ts.start();
-}
-
-#define CHARS_PER_ROW 14
-#define NB_ROWS 6
-
-static uint8_t lcd_buffer[NB_ROWS][CHARS_PER_ROW];
+static uint8_t lcd_buffer[NB_ROWS*CHARS_PER_ROW];
 static int lcd_row = 0;
+
+static void clearText()
+{
+	for(int i=0;i<(NB_ROWS*CHARS_PER_ROW);i++)
+	{
+		lcd_buffer[i] = ' ';
+	}
+	lcd_row = 0;
+}
 
 static void renderText()
 {
 	for(int r=0;r<NB_ROWS;r++)
 	{
 		lcd.setCursor(0, r);
-		for(int i=0;i<CHARS_PER_ROW;i++) { lcd.writeByte(lcd_buffer[r][i]); }
+		for(int i=0;i<CHARS_PER_ROW;i++) { lcd.writeByte(lcd_buffer[r*CHARS_PER_ROW+i]); }
 	}
+}
+
+void setup()
+{
+	cli();
+
+	// PCD8544-compatible displays may have a different resolution...
+	lcd.begin(84, 48);
+
+	// set medium contrast
+	lcd.setContrast(63);
+
+	serialIO.begin();
+/*	clearText();
+	BufferStream bufStream(lcd_buffer[0],CHARS_PER_ROW);
+	PrintStream cout;
+	cout.begin(&bufStream);
+	cout<<"Ready @"<<SERIAL_SPEED;
+	renderText();
+*/
+	serialIO.ts.start();
 }
 
 void loop()
 {
-   uint8_t i = 0;
-   char c = 0;
-   
-   do {
-	c = serialIO.readByteFast();   
-	lcd_buffer[lcd_row][i++]=c;
-   } while( c!='\n' && i<CHARS_PER_ROW );
-   for(;i<CHARS_PER_ROW;i++) lcd_buffer[lcd_row][i]=' ';
-   
-   if( lcd_buffer[lcd_row][0]=='&' && lcd_buffer[lcd_row][1]=='~' )
+   uint8_t* buf = lcd_buffer + lcd_row*CHARS_PER_ROW;
    {
-	   BufferStream bufStream(lcd_buffer[lcd_row]+2,CHARS_PER_ROW-2);
+		uint8_t i;
+		uint8_t c='\0';
+		for(i=0;i<CHARS_PER_ROW && c!='\n';i++)
+		{
+			c = serialIO.readByteFast() ;
+			buf[i] = c;
+		}
+		while(c!='\n') { c = serialIO.readByteFast(); }
+		for(;i<CHARS_PER_ROW;i++) buf[i]=' ';
+	}
+	
+	//buf = lcd_buffer + lcd_row*CHARS_PER_ROW;
+   if( buf[0]=='&' && buf[1]=='~' )
+   {
+	   BufferStream bufStream(buf+2,CHARS_PER_ROW-2);
 	   InputStream cin;
 	   int32_t x=0,y=0;
 	   cin.begin(&bufStream);
@@ -85,21 +112,28 @@ void loop()
 			lcd.setInverse(true);
 			break;
 		   case 'C':
-			for(int r=0;r<NB_ROWS;r++) for(i=0;i<CHARS_PER_ROW;i++) { lcd_buffer[r][i]=' '; }
-			lcd_row=0;
+			clearText();
 			renderText();
 			break;
 		   case 'l':
 		    cin >> x >> y;
 			lcd.setCursor(x,y);
 			break;
-		   case 'd':
-			cin >> x ;
-			lcd.drawBitmap( (uint8_t*)&x , 4 , 1 );
-			break;
 		   case 'D':
-			cin >> cmd ;
-			lcd.writeByte( cmd );
+			{
+				char c=0;
+				while( !cin.eof() && c!='\n' )
+				{
+					cin >> c;
+					if( c>=' ') { lcd.writeByte( c ); }
+				}
+			}
+			break;
+		   case 'd':
+		    {
+				cin >> x ;
+				lcd.drawBitmap( (uint8_t*)&x , 4 , 1 );
+			}
 			break;
 	   }
 	   return;
@@ -108,8 +142,9 @@ void loop()
    renderText();
    if( lcd_row == (NB_ROWS-1) )
    {
-		for(int r=0;r<(NB_ROWS-1);r++){
-		   for(i=0;i<CHARS_PER_ROW;i++) { lcd_buffer[r][i]=lcd_buffer[r+1][i]; }
+		for(int i=0;i<((NB_ROWS-1)*CHARS_PER_ROW);i++)
+		{
+		   lcd_buffer[i]=lcd_buffer[i+CHARS_PER_ROW];
 		}
    }
    else

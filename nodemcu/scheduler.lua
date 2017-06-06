@@ -1,6 +1,20 @@
 -- power switch state --
 PwrSwitchState=false
 PwrSwitchForced=false
+PwrSwitchGPIOPin=7
+
+-- Temperature and Humidity ---
+DHTSensorGPIOPin=1			-- GPIO for DHT11 device
+TempSensorADCPin=0			-- analog input for TMP35 device
+SensorTemperature=20
+SensorHumidity=50
+
+function updateTemperatureHumidity()
+	local atemp = adc.read(TempSensorADCPin)
+	local _,temp,hum,tempd,humd = dht.read11(1)
+	SensorTemperature = (SensorTemperature+atemp/10+temp+1)/3
+	SensorHumidity = (SensorHumidity+hum)/2
+end
 
 function getRTCtime(tz)
    function isleapyear(y) if ((y%4)==0) or (((y%100)==0) and ((y%400)==0)) == true then return 2 else return 1 end end
@@ -39,12 +53,12 @@ function PrintSwitchState(state)
 	if(state)then
 		msg="ON"
 	else
-		msg="OFF"
+		msg="--"
 	end
 	local h,m,s,mo,d,y,wd=getRTCtime(2)
 	wd = weekdays[wd]
 	wd = wd:sub(1,2)
-	print_message(string.format("%s %02d:%02d %s",wd,h,m,msg))
+	print_power_status(wd,h,m,msg,string.format("%d°",SensorTemperature),string.format("%d%%",SensorHumidity))
 end
 
 function pairsByKeys(t, f)
@@ -89,6 +103,7 @@ function ParseDaySchedule(s)
 end
 
 function WeekProgRun()
+	updateTemperatureHumidity()
 	local hour,minute,second,month,day,year,wday=getRTCtime(2)
 	local target=hour*60+minute
 	local d=weekdays[wday]
@@ -106,9 +121,9 @@ function WeekProgRun()
 	end
 	if(state~=nil)then
 		PwrSwitchState=state
-		gpio.mode(7,gpio.OUTPUT)
-		if(state)then gpio.write(7,gpio.HIGH)
-		else gpio.write(7,gpio.LOW)
+		gpio.mode(PwrSwitchGPIOPin,gpio.OUTPUT)
+		if(state)then gpio.write(PwrSwitchGPIOPin,gpio.HIGH)
+		else gpio.write(PwrSwitchGPIOPin,gpio.LOW)
 		end
 	end
 	if(progHit)then
@@ -141,11 +156,11 @@ end
 function ForceSwitchState(state)
 	PwrSwitchState = state
 	PwrSwitchForced = true;
-	gpio.mode(7,gpio.OUTPUT)
+	gpio.mode(PwrSwitchGPIOPin,gpio.OUTPUT)
 	if(state)then
-		gpio.write(7,gpio.HIGH)
+		gpio.write(PwrSwitchGPIOPin,gpio.HIGH)
 	else
-		gpio.write(7,gpio.LOW)
+		gpio.write(PwrSwitchGPIOPin,gpio.LOW)
 	end
 	PrintSwitchState(state)
 end
