@@ -4,11 +4,11 @@ class GCode:
 	def __init__(self):
 		self.segments=[]
 		self.bbox=AABB()
-		self.travelZ = 1.0
+		self.startPosition = Point(0.0,0.0,0.0)
 		
 	def readFromFile(self,filename):
 		self.readFromStream(open(filename,"r"))
-		
+
 	def readFromStream(self,fin):
 		commands = fin.read().split('\n')
 		x = 0.0
@@ -41,10 +41,10 @@ class GCode:
 		if not segment.empty():
 			self.segments.append(segment)
 		self.updateBounds()
-		self.setTravelZ( self.bbox.zMax )
-		
+		self.startPoint = self.segments[0].firstNode()
+
 	def header(self):
-		return "G21\nG90\nG94\nG00 Z%g\nG00 X0Y0\n" % self.travelZ
+		return "G21\nG90\nG94\nG00 X%gY%gZ%g\n" % (self.startPoint.x,self.startPoint.y,self.startPoint.z)
 
 	def write(self,stream):
 		stream.write(self.header())
@@ -60,6 +60,8 @@ class GCode:
 				Pe = TravelPlane.project( s.nodes[-1] )
 				Pe.code = Code
 				s.nodes = [Ps]+s.nodes+[Pe]
+				s.updateBounds()
+		self.updateBounds()
 
 	def mergeSegments(self):
 		if self.numberOfSegments()<2:
@@ -104,14 +106,11 @@ class GCode:
 
 	def numberOfSegments(self):
 		return len(self.segments)
-
-	def setTravelZ(self,z):
-		self.travelZ = z
 		
-	def zCutOff(self,zcut=0.0):
+	def cutOff(self,plane):
 		newSegments = []
 		for s in self.segments:
-			l = s.zCutOff(zcut)
+			l = s.cutOff(plane)
 			newSegments += l
 		self.segments = newSegments
 		self.updateBounds()
@@ -193,7 +192,7 @@ class GCode:
 		print("split end : %d cuts, overlap=%g," % (nCuts,leftGCode.bbox.intersection(rightGCode.bbox).xyArea()/self.bbox.xyArea()) )
 		return ( leftGCode , rightGCode )
 	
-	def merge(self,gc):
+	def concat(self,gc):
 		self.travelZ = max(self.travelZ,gc.travelZ)
 		self.segments += gc.segments
 		self.bbox = self.bbox.union( gc.bbox )
@@ -226,22 +225,28 @@ class GCode:
 			segList.append( s )
 		self.segments = segList
 		return p
-		
+	
+	def translate(self,t):
+		for s in self.segments:
+			s.translate(t)
+		self.updateBounds()
+
+	def scale(self,sf):
+		for seg in self.segments:
+			seg.scale(sf)
+		self.updateBounds()
+
 	def printStats(self):
 		print("Number of segments = %d"%len(self.segments))
 		print("Number of nodes = %d"%self.numberOfNodes())
 		print("Loops = %d"%self.numberOfLoops())
 		print("Total length = %g"%self.totalLength())
 		print("Total gap distance = %g"%self.gapDistance())
-		print("Travel Z = %g"%self.travelZ)
+		print("Start = %s" % str(self.startPoint) )
 		print("Bounds = %s"%str(self.bbox))
 
 	def print(self):
-		print("Number of segments = %d"%len(self.segments))
-		print("Total length = %g"%self.totalLength())
-		print("Total gap distance = %g"%self.gapDistance())
-		print("Travel Z = %g"%self.travelZ)
-		print("Bounds = %s"%str(self.bbox))
+		self.printStats()
 		for (i,s) in enumerate(self.segments):
 			print("\nSegment %d"%i)
 			s.print()

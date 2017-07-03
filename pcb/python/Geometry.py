@@ -108,10 +108,20 @@ class Point:
 		
 	def scale(self,s):
 		return Point(self.x*s,self.y*s,self.z*s)
-		
+
+	def imult(self,s):
+		self.x *= s.x
+		self.y *= s.y
+		self.z *= s.z
+
+	def iadd(self,t):
+		self.x += t.x
+		self.y += t.y
+		self.z += t.z
+
 	def add(self,p):
 		return Point(self.x+p.x,self.y+p.y,self.z+p.z)
-		
+
 	def sub(self,p):
 		return Point(self.x-p.x,self.y-p.y,self.z-p.z)
 
@@ -303,10 +313,20 @@ class Segment:
 			r.append(rs)
 		return (l,r)
 		
-	def zCutOff(self,zCut=0.0):
-		(l,r) = self.planeCut( Plane(0.0,0.0,1.0,-zCut) )
+	def cutOff(self,plane):
+		(l,r) = self.planeCut( plane )
 		return l
-		
+	
+	def translate(self,t):
+		for n in self.nodes:
+			n.iadd(t)
+		self.updateBounds()
+
+	def scale(self,s):
+		for n in self.nodes:
+			n.imult(s)
+		self.updateBounds()
+
 	def printStats(self):
 		print("Number of nodes = %d"%self.numberOfNodes())
 		print("Length = %g"%self.length())
