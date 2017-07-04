@@ -4,9 +4,10 @@ class GCode:
 	def __init__(self):
 		self.segments=[]
 		self.bbox=AABB()
-		self.startPosition = Point(0.0,0.0,0.0)
+		self.name = "anonymous"
 		
 	def readFromFile(self,filename):
+		self.name = filename
 		self.readFromStream(open(filename,"r"))
 
 	def readFromStream(self,fin):
@@ -41,10 +42,19 @@ class GCode:
 		if not segment.empty():
 			self.segments.append(segment)
 		self.updateBounds()
-		self.startPoint = self.segments[0].firstNode()
+
+	def startPoint(self):
+		sp = None
+		for s in self.segments:
+			if s.numberOfNodes()>=1 and sp==None:
+				sp = s.firstNode().copy()
+		if sp == None:
+			sp = self.bbox.upper()
+		return sp
 
 	def header(self):
-		return "G21\nG90\nG94\nG00 X%gY%gZ%g\n" % (self.startPoint.x,self.startPoint.y,self.startPoint.z)
+		sp = self.startPoint()
+		return "G21\nG90\nG94\nG00 X%gY%gZ%g\n" % (sp.x,sp.y,sp.z)
 
 	def write(self,stream):
 		stream.write(self.header())
@@ -63,7 +73,7 @@ class GCode:
 				s.updateBounds()
 		self.updateBounds()
 
-	def mergeSegments(self):
+	def linkSegments(self):
 		if self.numberOfSegments()<2:
 			return
 		prevSeg = self.segments[0]
@@ -122,49 +132,51 @@ class GCode:
 				n+=1
 		return n
 
-	def subdivide(self,axis='?',threshold=0.2):
-		if self.bbox.xyArea()==0.0:
-			return (self,None)
+	def subdivide(self,axis=None,position=None,threshold=0.2):
 		bb1 = self.bbox.copy() # aka left part
-		bb2 = self.bbox.copy() # aka right part
-		cutPlane = None
+		bb2 = self.bbox.copy() # aka right part		
 		(W,H,Z) = self.bbox.size()
-		(xc,yc,zc) = self.bbox.center()
-		if (W>=H and W>=Z and axis.lower()=='?') or axis.lower()=='x':
-			bb1.xMax = xc
-			bb2.xMin = xc
-			cutPlane = Plane(1.0,0.0,0.0,-xc)
-			axis='X'
-		elif (H>=Z and axis.lower()=='?') or axis.lower()=='y':
-			bb1.yMax = yc
-			bb2.yMin = yc
-			cutPlane = Plane(0.0,1.0,0.0,-yc)
-			axis='Y'
+		cutPlane = None
+		if axis==None:
+			if W>=H and W>=Z: axis=0
+			elif H>=Z and H>=W: axis=1
+			else: axis=2
+		if position==None:
+			position = self.bbox.center()[axis]
+		if axis==0:
+			bb1.xMax = position
+			bb2.xMin = position
+			cutPlane = Plane(1.0,0.0,0.0,-position)
+		elif axis==1:			
+			bb1.yMax = position
+			bb2.yMin = position
+			cutPlane = Plane(0.0,1.0,0.0,-position)
 		else:
-			bb1.zMax = zc
-			bb2.zMin = zc
-			cutPlane = Plane(0.0,0.0,1.0,-zc)
-			axis='Z'
-			raise BaseException("Z axis not supported yet for subdivide operations")
-		#print("Cut axis = %s"%axis)
-		if bb1.xyArea()+bb2.xyArea() != self.bbox.xyArea():
-			raise BaseException("bounding box splitting error")
-		#else:
-		#	print("split BBox:\n%s\n%s\n%s"%(self.bbox,bb1,bb2))
+			bb1.zMax = position
+			bb2.zMin = position
+			cutPlane = Plane(0.0,0.0,1.0,-position)
+		axisName = ('x','y','z')[axis]
+		bb1Length = bb1.size()[axis]
+		bb2Length = bb2.size()[axis]
+		totalLength = self.bbox.size()[axis]
+		if totalLength==0.0:
+			return (self,None)
+		if math.fabs((bb1Length+bb2Length)-totalLength)>1.e-12:
+			raise BaseException("Cut position error : L=%g, l1=%g, l2=%g, diff=%g"%(totalLength,bb1Length,bb2Length,bb1Length+bb2Length-totalLength))
+		print("split: axis=%s, position=%g, length=%g"%(axisName,position,totalLength))
 		s1 = []
 		s2 = []
 		nCuts = 0
 		maxOverlapRatio = 1.0 + threshold
 		for s in self.segments:
 			sbb = s.bounds()
-			sa = sbb.xyArea()
 			assignToLeft = bb1.containsBounds(sbb)
 			assignToRight = bb2.containsBounds(sbb)
 			r1=0.0
 			r2=0.0
 			if not assignToLeft and not assignToRight:
-				r1 = sbb.union(bb1).xyArea() / bb1.xyArea()
-				r2 = sbb.union(bb2).xyArea() / bb2.xyArea()
+				r1 = sbb.union(bb1).size()[axis] / bb1Length
+				r2 = sbb.union(bb2).size()[axis] / bb2Length
 				if r1<=r2 and r1<=maxOverlapRatio:
 					assignToLeft = True
 				elif r2<r1 and r2<=maxOverlapRatio:
@@ -182,21 +194,31 @@ class GCode:
 		leftGCode = GCode()
 		leftGCode.bbox = bb1
 		leftGCode.segments = s1
+		leftGCode.name = self.name+"0"
 		leftGCode.updateBounds()
-		leftGCode.travelZ = self.travelZ
 		rightGCode = GCode()
 		rightGCode.bbox = bb2
 		rightGCode.segments = s2
+		rightGCode.name = self.name+"1"
 		rightGCode.updateBounds()
-		rightGCode.travelZ = self.travelZ
-		print("split end : %d cuts, overlap=%g," % (nCuts,leftGCode.bbox.intersection(rightGCode.bbox).xyArea()/self.bbox.xyArea()) )
+		#print("split end : %d cuts, overlap=%g," % (nCuts,leftGCode.bbox.intersection(rightGCode.bbox).size()[axis]/totalLength) )
 		return ( leftGCode , rightGCode )
 	
-	def concat(self,gc):
-		self.travelZ = max(self.travelZ,gc.travelZ)
+	def merge(self,gc):
 		self.segments += gc.segments
 		self.bbox = self.bbox.union( gc.bbox )
-
+		self.name = "(%s,%s)"%(self.name,gc.name)
+	
+	def split(self):
+		gcList=[]
+		for (i,s) in enumerate(self.segments):
+			gc = GCode()
+			gc.segments = [s]
+			gc.name="%s[%d]"%(self.name,i)
+			gc.updateBounds()
+			gcList.append(gc)
+		return gcList
+			
 	def findNearestSegment(self,p):
 		ns = self.numberOfSegments()
 		if ns==0:
@@ -242,7 +264,7 @@ class GCode:
 		print("Loops = %d"%self.numberOfLoops())
 		print("Total length = %g"%self.totalLength())
 		print("Total gap distance = %g"%self.gapDistance())
-		print("Start = %s" % str(self.startPoint) )
+		print("Start = %s" % str(self.startPoint()) )
 		print("Bounds = %s"%str(self.bbox))
 
 	def print(self):

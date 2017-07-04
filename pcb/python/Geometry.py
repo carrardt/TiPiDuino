@@ -4,12 +4,12 @@ import math
 
 class AABB:
 	def __init__(self):
-		self.xMin=1.e12
-		self.xMax=-1.e12
-		self.yMin=1.e12
-		self.yMax=-1.e12
-		self.zMin=1.e12
-		self.zMax=-1.e12
+		self.xMin=math.inf
+		self.xMax=-math.inf
+		self.yMin=math.inf
+		self.yMax=-math.inf
+		self.zMin=math.inf
+		self.zMax=-math.inf
 		
 	def union(self, o):
 		if self.empty():
@@ -62,6 +62,12 @@ class AABB:
 		
 	def center(self):
 		return ( (self.xMax+self.xMin)*0.5 , (self.yMax+self.yMin)*0.5 , (self.zMax+self.zMin)*0.5 )
+	
+	def upper(self):
+		return Point(self.xMax,self.yMax,self.zMax)
+
+	def lower(self):
+		return Point(self.xMin,self.yMin,self.zMin)
 		
 	def intersection(self,bb):
 		r = AABB()
@@ -73,11 +79,6 @@ class AABB:
 			r.zMin = max(self.zMin,bb.zMin)
 			r.zMax = min(self.zMax,bb.zMax)
 		return r
-		
-	def xyArea(self):
-		if self.empty(): return 0.0
-		s = self.size()
-		return s[0]*s[1]
 		
 	def volume(self):
 		if self.empty(): return 0.0
@@ -91,7 +92,7 @@ class AABB:
 		return "X[%g;%g] Y[%g;%g] Z[%g;%g]"%(self.xMin,self.xMax,self.yMin,self.yMax,self.zMin,self.zMax)
 
 class Point:
-	def __init__(self,x,y,z,c="G01"):
+	def __init__(self,x=0.0,y=0.0,z=0.0,c="G01"):
 		self.x=x
 		self.y=y
 		self.z=z
@@ -109,10 +110,13 @@ class Point:
 	def scale(self,s):
 		return Point(self.x*s,self.y*s,self.z*s)
 
+	def copy(self):
+		return Point(self.x,self.y,self.z,self.c)
+		
 	def imult(self,s):
-		self.x *= s.x
-		self.y *= s.y
-		self.z *= s.z
+		self.x = self.x * s.x
+		self.y = self.y * s.y
+		self.z = self.z * s.z
 
 	def iadd(self,t):
 		self.x += t.x
@@ -132,7 +136,12 @@ class Point:
 		return (self.x,self.y,self.z)
 		
 	def __str__(self):
-		return "X%gY%gZ%g"%(self.x,self.y,self.z)
+		s = ''
+		if not math.isnan(self.x): s = s + "X" + str(self.x)
+		if not math.isnan(self.y): s = s + "Y" + str(self.y)
+		if not math.isnan(self.z): s = s + "Z" + str(self.z)
+		if s=='': s='nul'
+		return s
 
 class Plane:
 	def __init__(self,A=1.0,B=0.0,C=0.0,D=0.0):
@@ -155,7 +164,11 @@ class Plane:
 			return p1
 		t = d1 / (d1-d2)
 		return p1.add( p2.sub(p1).scale(t) )
-		
+
+	def __str__(self):
+		return "A=%g,B=%g,C=%g,D=%g"%(self.A,self.B,self.C,self.D)
+
+
 class Segment:
 	def __init__(self,S=14000.0,F=100.0):
 		self.nodes=[]
@@ -164,7 +177,7 @@ class Segment:
 		self.speed = F
 
 	def updateBounds(self):
-		self.bbox=AABB()
+		self.bbox = AABB()
 		for node in self.nodes:
 			self.bbox.insertPoint(node)
 			
@@ -232,7 +245,7 @@ class Segment:
 		if isloop:
 			if i>0: i -= 1
 			polyline = self.nodes[1:] # remove duplicated point (that's makes it a loop)
-			rotnodes = polyline[i:] + polyline[:i] + [polyline[i]] # re-duplicate new starting point at the end
+			rotnodes = polyline[i:] + polyline[:i] + [polyline[i].copy()] # re-duplicate new starting point at the end
 			self.nodes = rotnodes
 		elif i==(self.numberOfNodes()-1):
 			self.nodes.reverse()
@@ -292,20 +305,20 @@ class Segment:
 			if plane.distance(n)<=0: # point is left
 				if not rs.empty():
 					I = plane.lineIntersection(rs.nodes[-1],n)
-					rs.nodes.append(I)
+					rs.nodes.append(I.copy())
 					rs.updateBounds()
 					r.append(rs)
 					rs = Segment(self.getSpindle(),self.getSpeed())
-					ls.nodes.append(I)
+					ls.nodes.append(I.copy())
 				ls.nodes.append(n)
 			else: # point is right
 				if not ls.empty():
 					I = plane.lineIntersection(ls.nodes[-1],n)
-					ls.nodes.append(I)
+					ls.nodes.append(I.copy())
 					ls.updateBounds()
 					l.append(ls)
 					ls = Segment(self.getSpindle(),self.getSpeed())
-					rs.nodes.append(I)
+					rs.nodes.append(I.copy())
 				rs.nodes.append(n)
 		if not ls.empty():
 			l.append(ls)
