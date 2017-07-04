@@ -1,0 +1,77 @@
+read top.nc
+	origin * * 0
+	cutoff 0 0 1 0
+	translate 0 0 -0.1
+
+read drill.nc
+	origin * * 0
+	cutoff 0 0 1 0
+	translate 0 0 -0.5 
+
+merge
+stats
+
+subdivide 3
+x 8 optimize 0 0 0
+x 7 merge
+
+stats
+
+read cutout.nc
+	origin * * 0
+	cutoff 0 0 1 0
+	translate 0 0 -0.5
+
+merge
+origin 0 0 *
+print ============ Top Layer Final ============= ;
+stats
+print ========================================== ;
+print ;
+
+read bottom.nc
+	origin * * 0
+	cutoff 0 0 1 0
+	translate 0 0 -0.1	
+
+read drill.nc
+	origin * * 0
+	cutoff 0 0 1 0
+	translate 0 0 -0.5 
+
+merge
+stats
+print ;
+
+subdivide 3
+x 8 optimize 0 0 0
+x 7 merge
+
+stats
+print ;
+
+read cutout.nc
+	origin * * 0
+	cutoff 0 0 1 0
+	translate 0 0 -0.5
+
+merge
+origin 0 0 *
+scale 1 -1 1
+
+print ============ Bottom Layer Final ============= ;
+stats
+print ========================================== ;
+print ;
+
+merge
+origin 0 0 *
+connect 0 0 1 -0.5 G00
+	
+print ================= Final Job ============== ;
+stats
+print ========================================== ;
+print ;
+
+write final.nc
+pop

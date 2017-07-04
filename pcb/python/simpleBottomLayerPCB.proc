@@ -1,0 +1,46 @@
+read bottom.nc
+	origin * * 0
+	cutoff 0 0 1 0
+	translate 0 0 -0.1	
+	print Bottom Layer ;
+	stats
+	print ;
+
+read drill.nc
+	origin * * 0
+	cutoff 0 0 1 0
+	translate 0 0 -0.5 
+	print Holes ;
+	stats
+	print ;
+
+merge
+print Before optimization ;
+stats
+print ;
+
+optimize 0 0 0
+print After optimization ;
+stats
+print ;
+
+read cutout.nc
+	origin * * 0
+	cutoff 0 0 1 0
+	translate 0 0 -0.5
+	print Board cutout ;
+	stats
+	print ;
+
+merge
+scale 1 -1 1
+connect 0 0 1 -0.5 G00
+origin 0 0 *
+
+print ================= Final Job ============== ;
+stats
+print ========================================== ;
+print ;
+
+write final.nc
+pop
