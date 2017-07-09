@@ -91,7 +91,7 @@ struct LinkuinoT /* Server */
 	static constexpr uint8_t PWM_COUNT   			= 6;
 	static constexpr uint8_t ANALOG_COUNT 			= 6;
 	static constexpr uint8_t CMD_COUNT 	 			= 20;
-	static constexpr uint8_t REPLY_BUFFER_SIZE 		= 2;
+	static constexpr uint8_t REPLY_BUFFER_SIZE 		= 2;		// FIXME: SHOULD BE 3 !! not used yet though ...
 	static constexpr uint32_t SERIAL_SPEED 			= 115200;
 	static constexpr uint32_t PACKET_BYTES      	= (CYCLE_PERIOD_SCALE*SERIAL_SPEED)/1000; //SERIAL_SPEED/1000; // 8+2 bits / byte, @ 57600 Bauds, to cover 10ms => 57.6 bytes
 	static constexpr uint32_t MESSAGE_REPEATS		= (PACKET_BYTES+CMD_COUNT-1)/CMD_COUNT; //SERIAL_SPEED/1000; // 8+2 bits / byte, @ 57600 Bauds, to cover 10ms => 57.6 bytes
@@ -127,7 +127,7 @@ struct LinkuinoT /* Server */
 	static constexpr uint8_t REQ_REV		  	= 0x04; // sends 0x00, version major-1 | message repeats<<2 (!=0) , version minor+1 (>=1)
 	static constexpr uint8_t REQ_NOREPLY		= 0x05; // stop replying messages
 	static constexpr uint8_t REQ_NO_OP			= 0x06; // do nothing (don't change reply status)
-	static constexpr uint8_t REQ_ACK		  	= 0x07; // i.e. ACKnowledge => sends 'Ok\n' // TODO: a changer en requete de service
+	static constexpr uint8_t REQ_ACK		  	= 0x07; // i.e. ACKnowledge => sends 'Ok\n' // TODO: change this useless request to a service/config request
 	static constexpr uint8_t REQ_NULL		  	= 0xFF; // no request received
 
 	/*************** reply signatures ***************/
@@ -510,7 +510,7 @@ struct LinkuinoT /* Server */
 	
 	// reply buffer
 	bool m_replyEnable;
-	uint8_t m_reply[3];
+	uint8_t m_reply[3]; // FIXME: why not REPLY_BUFFER_SIZE ?
 	
 	// forward buffer
 	bool m_fwdEnable;
