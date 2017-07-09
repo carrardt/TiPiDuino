@@ -340,6 +340,12 @@ bool PCD8544::writeByte(uint8_t chr)
     return true;
 }
 
+void PCD8544::writeString(const char * s)
+{
+	if(s==nullptr) return;
+	while( *s != '\0' ) { writeByte( *(s++) ); }
+}
+
 
 void PCD8544::drawBitmap(const unsigned char *data, unsigned char columns, unsigned char lines)
 {

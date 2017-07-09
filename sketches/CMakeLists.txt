@@ -97,6 +97,17 @@ generate_avr_firmware(
     LIBS PCD8544 BasicIO AvrTL AvrApp
     )
 
+if("${ARDUINO_DEFAULT_BOARD}" MATCHES "attiny84*")
+#====================================================================#
+# Calculator
+#====================================================================#
+generate_avr_firmware(
+	Calculator
+    SRCS Calculator.cpp
+    LIBS PCD8544 BasicIO AvrTL AvrApp
+    )
+endif()
+
 if(NOT "${ARDUINO_DEFAULT_BOARD}" MATCHES "attiny8.*")
 #====================================================================#
 # DC motor controller fast-serial input tester

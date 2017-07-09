@@ -77,6 +77,7 @@ class PCD8544
         // Write an ASCII character at the current cursor position (7-bit)...
         bool writeByte(uint8_t chr);
         uint8_t readByte() const { return '\0'; }
+        void writeString(const char * s);
 
         // Draw a bitmap at the current cursor position...
         void drawBitmap(const unsigned char *data, unsigned char columns, unsigned char lines);
