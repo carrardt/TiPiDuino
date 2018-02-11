@@ -8,6 +8,15 @@ generate_avr_firmware(
 	)
 
 #====================================================================#
+# prints 0-99 numbers to serial port at 19200
+#====================================================================#
+generate_avr_firmware(
+	SerialOutput
+	SRCS SerialOutput.cpp
+	LIBS HWSerial BasicIO AvrTL AvrApp
+	)
+
+#====================================================================#
 # Step motor test
 #====================================================================#
 generate_avr_firmware(
