@@ -2,7 +2,11 @@
 #include <avr/pgmspace.h>
 #include <stdlib.h>
 
+#ifdef __AVR_ATtiny85__
+static avrtl::NullPin led;
+#else
 static auto led = avrtl::StaticPin<10>();
+#endif
 
 /*
  * Important Note : if you connect screen's SCE pin to ground, it just works !

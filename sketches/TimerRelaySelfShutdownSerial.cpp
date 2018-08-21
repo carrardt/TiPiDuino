@@ -1,17 +1,20 @@
 #include <AvrTL.h>
+#include <AvrTLPin.h>
 #include <SoftSerial.h>
+#include <BasicIO/ByteStream.h>
+#include <BasicIO/PrintStream.h>
 #include <TimeScheduler/TimeScheduler.h>
 #include <avr/eeprom.h>
 
-// !!! Warning, PCD844 works with 3.3v !!!
+#define DEFAULT_TIMER_SECONDS 300
+#define SERIAL_SPEED 38400
+
 
 #define RELAY_PIN  		2
 #define TIME_INC_PIN 	1
 #define TIME_DEC_PIN 	0
 #define POWER_OFF_PIN 	3
 #define SERIAL_OUT_PIN 	4
-
-#define DEFAULT_TIMER_SECONDS 90
 
 #define TIMER_EEPROM_ADDR0 ((uint8_t*)0x0010)
 #define TIMER_EEPROM_ADDR1 ((uint8_t*)0x0011)
@@ -20,10 +23,10 @@
 
 using namespace avrtl;
 
-static auto powerOffPin = StaticPin<POWER_OFF_PIN>();
-static auto upPin = StaticPin<TIME_INC_PIN>();
-static auto downPin = StaticPin<TIME_DEC_PIN>();
-static auto relayPin = StaticPin<RELAY_PIN>();
+static auto powerOffPin = avrtl::StaticPin<POWER_OFF_PIN>();
+static auto upPin = avrtl::StaticPin<TIME_INC_PIN>();
+static auto downPin = avrtl::StaticPin<TIME_DEC_PIN>();
+static auto relayPin = avrtl::StaticPin<RELAY_PIN>();
 
 static bool upButtonState = false;
 static bool downButtonState = false;
@@ -35,7 +38,14 @@ static bool timerSecondsChanged = false;
 static bool timerState = false;
 static uint8_t timerCounter = 0;
 
-static TimeSchedulerT< AvrTimer1<1024> , int32_t > ts;
+static TimeSchedulerT< AvrTimer0, int32_t > ts;
+
+using SerialScheduler = TimeSchedulerT<AvrTimer0NoPrescaler>;
+static avrtl::NullPin rx;
+static auto tx = avrtl::StaticPin<SERIAL_OUT_PIN>();
+static auto rawSerialIO = make_softserial_hr<SERIAL_SPEED,SerialScheduler>(rx,tx);
+static ByteStreamAdapter<decltype(rawSerialIO),100000UL> serialIO = { rawSerialIO };
+static PrintStream cout;
 
 void setup()
 {
@@ -51,6 +61,9 @@ void setup()
 
 	downPin.SetInput();
 	downPin.Set( HIGH ); // pullup
+
+	serialIO.m_rawIO.begin();
+	cout.begin( &serialIO );
 	
 	timerSeconds = eeprom_read_byte( TIMER_EEPROM_ADDR0 )<<8 | eeprom_read_byte( TIMER_EEPROM_ADDR1 );
 	uint8_t magic = eeprom_read_byte( MAGICNUMBER_EEPROM_ADDR );
@@ -62,6 +75,9 @@ void setup()
 		eeprom_write_byte( MAGICNUMBER_EEPROM_ADDR , MAGICNUMBER_VALUE );
 	}
 	timerRemainingSeconds = timerSeconds;
+	
+	avrtl::blink( relayPin );
+	
 	ts.start();
 }
 
@@ -97,6 +113,9 @@ static uint8_t getButtonCode()
 
 static void updateTimerLCD()
 {
+	cout << timerRemainingSeconds << '/' << timerSeconds << '\n';
+	
+	/*
 	static char counter_char[2] = { '_', '-' };
 	
 	uint32_t elapsed = timerSeconds - timerRemainingSeconds;
@@ -109,7 +128,7 @@ static void updateTimerLCD()
 	
 	uint32_t pct = ( elapsed * 100UL ) / timerSeconds;
 	uint32_t bar = ( elapsed * 16UL ) / timerSeconds;
-
+/*
 /*	
 	lcd.home();
 	lcd.sendByte( '0'+(minutes/10) );
@@ -143,12 +162,22 @@ static void updateTimerLCD()
 	lcd.sendByte( timerState ? counter_char[timerCounter] : ' ' );
 	*/
 	
-	timerCounter = (timerCounter+1)%2;
+	// timerCounter = (timerCounter+1)%2;
 
 	//lcd.setCursor(0,1);
 	//uint8_t i=0;
 	//if( timerState ) { for(;i<bar;i++) lcd.sendByte( '#' ); }
 	//for(;i<16;i++) lcd.sendByte( ' ' );
+}
+
+static void powerOff()
+{
+	if( timerSecondsChanged )
+	{
+		eeprom_write_byte( TIMER_EEPROM_ADDR0 , timerSeconds>>8 );
+		eeprom_write_byte( TIMER_EEPROM_ADDR1 , timerSeconds&0xFF );
+	}
+	while( true ) { relayPin.Set( false ); }
 }
 
 static void processButton(uint8_t bc)
@@ -172,42 +201,26 @@ static void processButton(uint8_t bc)
 			timerSecondsChanged = true;
 			break;
 		case 4 : // poweroff
-			if( timerSecondsChanged )
-			{
-				eeprom_write_byte( TIMER_EEPROM_ADDR0 , timerSeconds>>8 );
-				eeprom_write_byte( TIMER_EEPROM_ADDR1 , timerSeconds&0xFF );
-				while( true ) { relayPin.Set( false ); }
-			}
+			powerOff();
 			break;
 	}
 }
 
 void loop()
 {
-	if( timerState )
+	ts.exec( 100000, [](){ updateTimerLCD(); } );
+	uint8_t bc;
+	for(uint8_t i=0;i<85;i++)
 	{
-		ts.exec( 100000, [](){ updateTimerLCD(); } );
-		uint8_t bc;
-		for(uint8_t i=0;i<85;i++)
+		ts.exec( 10000, [&bc](){ bc = getButtonCode(); } );
+		if(bc!=0) { processButton(bc); ts.reset(); return; }
+	}
+	ts.exec( 50000, [](){
+		-- timerRemainingSeconds;
+		if( timerRemainingSeconds <= 0 )
 		{
-			ts.exec( 10000, [&bc](){ bc = getButtonCode(); } );
-			if(bc!=0) { processButton(bc); ts.reset(); return; }
+			powerOff();
 		}
-		ts.exec( 50000, [](){
-			-- timerRemainingSeconds;
-			if( timerRemainingSeconds <= 0 )
-			{
-				timerState = false;
-				timerRemainingSeconds = timerSeconds;
-			}
-		});
-	}
-	else
-	{
-		updateTimerLCD();
-		processButton( getButtonCode() );
-		ts.reset();
-	}
-	...
+	});
 }
 

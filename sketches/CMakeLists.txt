@@ -8,15 +8,6 @@ generate_avr_firmware(
 	)
 
 #====================================================================#
-# prints 0-99 numbers to serial port at 19200
-#====================================================================#
-generate_avr_firmware(
-	SerialOutput
-	SRCS SerialOutput.cpp
-	LIBS HWSerial BasicIO AvrTL AvrApp
-	)
-
-#====================================================================#
 # Step motor test
 #====================================================================#
 generate_avr_firmware(
@@ -106,6 +97,16 @@ generate_avr_firmware(
     LIBS PCD8544 BasicIO AvrTL AvrApp
     )
 
+
+#====================================================================#
+# Self shutting down relay timer
+#====================================================================#
+generate_avr_firmware(
+	TimerRelaySelfShutdownSerial
+	SRCS TimerRelaySelfShutdownSerial.cpp
+	LIBS SoftSerial BasicIO TimeScheduler AvrTL AvrApp
+	)
+
 if("${ARDUINO_DEFAULT_BOARD}" MATCHES "attiny84*")
 #====================================================================#
 # Calculator
@@ -118,6 +119,16 @@ generate_avr_firmware(
 endif()
 
 if(NOT "${ARDUINO_DEFAULT_BOARD}" MATCHES "attiny8.*")
+
+#====================================================================#
+# prints 0-99 numbers to serial port at 19200
+#====================================================================#
+generate_avr_firmware(
+	SerialOutput
+	SRCS SerialOutput.cpp
+	LIBS HWSerial BasicIO AvrTL AvrApp
+	)
+
 #====================================================================#
 # DC motor controller fast-serial input tester
 #====================================================================#
