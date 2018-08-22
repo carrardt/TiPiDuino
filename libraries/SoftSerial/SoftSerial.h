@@ -84,6 +84,29 @@ struct SoftSerialIO
 	  return true;
 	}
 
+	inline bool writeByteFast(uint8_t b)
+	{
+	  ts.execFast( 64000/TimerT::NanoSecPerTick, [](){} ); // just to absorb startup time
+	  ts.execFast( bitDelay(0), [this](){ tx = LOW; } );
+	  ts.execFast( bitDelay(1), [this,&b](){ tx = b&0x01; b>>=1; } );
+	  ts.execFast( bitDelay(2), [this,&b](){ tx = b&0x01; b>>=1; } );
+	  ts.execFast( bitDelay(3), [this,&b](){ tx = b&0x01; b>>=1; } );
+	  ts.execFast( bitDelay(4), [this,&b](){ tx = b&0x01; b>>=1; } );
+	  ts.execFast( bitDelay(5), [this,&b](){ tx = b&0x01; b>>=1; } );
+	  ts.execFast( bitDelay(6), [this,&b](){ tx = b&0x01; b>>=1; } );
+	  ts.execFast( bitDelay(7), [this,&b](){ tx = b&0x01; b>>=1; } );
+	  ts.execFast( bitDelay(8), [this,&b](){ tx = b&0x01; b>>=1; } );
+	  ts.execFast( bitDelay(9), [this](){ tx = HIGH; } );
+	  return true;
+	}
+
+	inline bool writeBufferFast(uint8_t* s)
+	{
+	  uint8_t b = 0;
+	  while( ( b=(*(s++)) ) != '\0' ) { writeByteFast(b); }
+	  return true;
+	}
+
 };
 
 template<uint32_t br, typename _RxPinT, typename _TxPinT>

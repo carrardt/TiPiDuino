@@ -13,7 +13,7 @@
 // PCD8544 pins : SCLK, SDIN, DC, RST, SCE
 #define LCD_PINS_ATTINY85 1,2,3,4,PCD8544_UNASSIGNED
 #define LCD_PINS_ATMEGA328 2,3,4,5,6,7 
-#define SERIAL_SPEED 38400
+#define SERIAL_SPEED 19200
 
 static auto rx = avrtl::StaticPin<0>();
 static auto tx = avrtl::NullPin();

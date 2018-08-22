@@ -32,7 +32,7 @@ static auto tx = StaticPin<TX_PIN>();
  * Tests on an ATtiny85 @8Mhz :
  * ============================
  * 9600 : Tx Ok, Rx Ok
- * 9200 : Tx Ok, Rx Ok
+ * 19200 : Tx Ok, Rx Ok
  * 38400 : Tx Ok, Rx Ok
  * 57600 : Tx Ok, Rx Ok
  * 115200 : not working at all 
@@ -42,7 +42,7 @@ static auto tx = StaticPin<TX_PIN>();
  */
 
 using SerialScheduler = TimeSchedulerT<AvrTimer0NoPrescaler>;
-static auto rawSerialIO = make_softserial_hr<57600,SerialScheduler>(rx,tx);
+static auto rawSerialIO = make_softserial_hr<19200,SerialScheduler>(rx,tx);
 
 static ByteStreamAdapter<decltype(rawSerialIO),100000UL> serialIO = { rawSerialIO };
 static PrintStream cout;
@@ -61,12 +61,12 @@ static uint32_t counter = 0;
 void loop()
 {
 	led = !led;
-	/*
+
 	cout<<"Counter = "<<counter<<endl;
-	avrtl::DelayMicroseconds( 10000UL );
+	avrtl::DelayMicroseconds( 100000UL );
 	++ counter;
-	*/
-	
+
+#if 0
 	char buf[64];
 	uint8_t i=0;
 //	while( ( buf[i]=serialIO.readByte() ) != '\n' && i<63 ) ++i;
@@ -76,7 +76,8 @@ void loop()
 	buf[63]='\0';
 	cout<<counter<<':'<<buf<<endl;
 	++ counter;
-	
+#endif
+
 	/*
 	serialIO.writeByte('X');
 	avrtl::DelayMicroseconds( 100000UL );

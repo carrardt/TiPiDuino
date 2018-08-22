@@ -7,7 +7,7 @@
 #include <avr/eeprom.h>
 
 #define DEFAULT_TIMER_SECONDS 300
-#define SERIAL_SPEED 38400
+#define SERIAL_SPEED 19200
 
 
 #define RELAY_PIN  		2
@@ -28,31 +28,30 @@ static auto upPin = avrtl::StaticPin<TIME_INC_PIN>();
 static auto downPin = avrtl::StaticPin<TIME_DEC_PIN>();
 static auto relayPin = avrtl::StaticPin<RELAY_PIN>();
 
-static bool upButtonState = false;
-static bool downButtonState = false;
-static bool powerOffButtonState = false;
-
 static int32_t timerSeconds = DEFAULT_TIMER_SECONDS;
 static int32_t timerRemainingSeconds = DEFAULT_TIMER_SECONDS;
 static bool timerSecondsChanged = false;
-static bool timerState = false;
-static uint8_t timerCounter = 0;
 
-static TimeSchedulerT< AvrTimer0, int32_t > ts;
-
+/*
 using SerialScheduler = TimeSchedulerT<AvrTimer0NoPrescaler>;
 static avrtl::NullPin rx;
 static auto tx = avrtl::StaticPin<SERIAL_OUT_PIN>();
 static auto rawSerialIO = make_softserial_hr<SERIAL_SPEED,SerialScheduler>(rx,tx);
 static ByteStreamAdapter<decltype(rawSerialIO),100000UL> serialIO = { rawSerialIO };
 static PrintStream cout;
+*/
+
+static TimeSchedulerT< AvrTimer0 , int32_t > ts;
 
 void setup()
 {
+	cli();
+	
 	// first thing to do in order to stay alive (otherwise power will shutdown
 	relayPin.SetOutput();
 	relayPin.Set( true );
 
+/*
 	powerOffPin.SetInput();
 	powerOffPin.Set( HIGH ); // pullup
 
@@ -61,9 +60,6 @@ void setup()
 
 	downPin.SetInput();
 	downPin.Set( HIGH ); // pullup
-
-	serialIO.m_rawIO.begin();
-	cout.begin( &serialIO );
 	
 	timerSeconds = eeprom_read_byte( TIMER_EEPROM_ADDR0 )<<8 | eeprom_read_byte( TIMER_EEPROM_ADDR1 );
 	uint8_t magic = eeprom_read_byte( MAGICNUMBER_EEPROM_ADDR );
@@ -75,8 +71,16 @@ void setup()
 		eeprom_write_byte( MAGICNUMBER_EEPROM_ADDR , MAGICNUMBER_VALUE );
 	}
 	timerRemainingSeconds = timerSeconds;
+	*/
 	
-	avrtl::blink( relayPin );
+	/*
+	avrtl::DelayMicroseconds( 200000UL );
+	serialIO.m_rawIO.begin();
+	cout.begin( &serialIO );
+	cout<<"F_CPU="<<F_CPU<<endl;
+	cout<<"Ready"<<endl;
+	//rawSerialIO.ts.start();
+	*/
 	
 	ts.start();
 }
@@ -111,72 +115,30 @@ static uint8_t getButtonCode()
 	return press_code;
 }
 
+/*
+static uint8_t buffer[16];
 static void updateTimerLCD()
 {
-	cout << timerRemainingSeconds << '/' << timerSeconds << '\n';
-	
-	/*
-	static char counter_char[2] = { '_', '-' };
-	
-	uint32_t elapsed = timerSeconds - timerRemainingSeconds;
-	if( elapsed > timerSeconds ) elapsed = 0;
-	
-	uint32_t minutes = timerRemainingSeconds / 60;
-	if(minutes>99) minutes=99;
-	
-	uint32_t seconds = timerRemainingSeconds % 60;
-	
-	uint32_t pct = ( elapsed * 100UL ) / timerSeconds;
-	uint32_t bar = ( elapsed * 16UL ) / timerSeconds;
-/*
-/*	
-	lcd.home();
-	lcd.sendByte( '0'+(minutes/10) );
-	lcd.sendByte( '0'+(minutes%10) );
-	lcd.sendByte( 'M' );
-	lcd.sendByte( 'n' );
-	lcd.sendByte( ' ' );
-	lcd.sendByte( '0'+(seconds/10) );
-	lcd.sendByte( '0'+(seconds%10) );
-	lcd.sendByte( 's' );
-	lcd.sendByte( ' ' );
-	
-	if( timerState )
-	{
-		lcd.sendByte( '0'+(pct/100) );
-		lcd.sendByte( '0'+(pct%100)/10 );
-		lcd.sendByte( '0'+(pct%10) );
-		lcd.sendByte( '%' );
-		lcd.sendByte( ' ' );
-	}
-	else
-	{
-		lcd.sendByte( 'R' );
-		lcd.sendByte( 'e' );
-		lcd.sendByte( 'a' );
-		lcd.sendByte( 'd' );
-		lcd.sendByte( 'y' );
-	}
-
-	lcd.sendByte( ' ' );
-	lcd.sendByte( timerState ? counter_char[timerCounter] : ' ' );
-	*/
-	
-	// timerCounter = (timerCounter+1)%2;
-
-	//lcd.setCursor(0,1);
-	//uint8_t i=0;
-	//if( timerState ) { for(;i<bar;i++) lcd.sendByte( '#' ); }
-	//for(;i<16;i++) lcd.sendByte( ' ' );
+	uint8_t i = 0;
+	uint8_t* buf = buffer;
+	rawSerialIO.ts.execFast( 1000, [&buf](){ *buf++ = 'H'; });
+	rawSerialIO.ts.execFast( 1000, [&buf](){ *buf++ = 'e'; });
+	rawSerialIO.ts.execFast( 1000, [&buf](){ *buf++ = 'l'; });
+	rawSerialIO.ts.execFast( 1000, [&buf](){ *buf++ = 'l'; });
+	rawSerialIO.ts.execFast( 1000, [&buf](){ *buf++ = 'o'; });
+	rawSerialIO.ts.execFast( 1000, [&buf](){ *buf++ = '\n'; });
+	rawSerialIO.ts.execFast( 1000, [&buf](){ *buf++ = '\0'; });
+	rawSerialIO.writeBufferFast( buffer );
 }
+*/
 
 static void powerOff()
 {
-	if( timerSecondsChanged )
+	/*if( timerSecondsChanged )
 	{
 		eeprom_write_byte( TIMER_EEPROM_ADDR0 , timerSeconds>>8 );
 		eeprom_write_byte( TIMER_EEPROM_ADDR1 , timerSeconds&0xFF );
-	}
+	}*/
 	while( true ) { relayPin.Set( false ); }
 }
 
@@ -208,19 +170,28 @@ static void processButton(uint8_t bc)
 
 void loop()
 {
-	ts.exec( 100000, [](){ updateTimerLCD(); } );
-	uint8_t bc;
-	for(uint8_t i=0;i<85;i++)
+	//updateTimerLCD();
+	/*
+	for(uint8_t i=0;i<95;i++)
 	{
-		ts.exec( 10000, [&bc](){ bc = getButtonCode(); } );
-		if(bc!=0) { processButton(bc); ts.reset(); return; }
-	}
-	ts.exec( 50000, [](){
-		-- timerRemainingSeconds;
-		if( timerRemainingSeconds <= 0 )
+		uint8_t bc = 0;
+		rawSerialIO.ts.execFast( 10000, [&bc](){ bc = getButtonCode(); });
+		if(bc!=0)
 		{
-			powerOff();
+			processButton(bc);
+			rawSerialIO.ts.reset();
+			return;
 		}
-	});
+	}
+	*/
+	ts.exec( 1000000UL, []()
+		{
+			-- timerRemainingSeconds;
+			if( timerRemainingSeconds <= 0 )
+			{
+				powerOff();
+			}
+		});
+
 }
 
