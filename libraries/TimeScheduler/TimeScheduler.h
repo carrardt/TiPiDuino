@@ -69,7 +69,7 @@ struct AvrTimer1HW
 		TIMSK1 = 0;
 		TCCR1A = 0;
 		TCCR1C = 0;
-		switch( TimerPrescaler )
+		switch( prescalerValue )
 		{
 			case 1    : TCCR1B = 0b00000001; break;
 			case 8    : TCCR1B = 0b00000010; break;
@@ -103,6 +103,9 @@ struct AvrTimer
 	// the only usable value
 	using TimerHW = _TimerHW;
 	using TimerCounterType = typename TimerHW::TimerCounterType;
+	static constexpr uint32_t TimerCounterResolution = TimerHW::TimerCounterResolution;
+	static constexpr uint32_t TimerCounterMax = TimerHW::TimerCounterResolution;
+
 	static constexpr uint32_t TimerPrescaler = _TimerPrescaler;
 	static constexpr uint32_t ClockMhz = F_CPU / 1000000UL;
 	static constexpr uint32_t NanoSecPerTick = ( 1000UL * TimerPrescaler ) / ClockMhz;
@@ -120,7 +123,7 @@ struct AvrTimer
 		return m_timerhw.counter();
 	}
 	
-	inline stop()
+	inline void stop()
 	{
 		m_timerhw.popState();
 	}
@@ -131,10 +134,10 @@ struct AvrTimer
 	
 } // namespace avrtimer
 
-using AvrTimer0            = avrtimer::AvrTimer<AvrTimer0HW,8>;
-using AvrTimer0NoPrescaler = avrtimer::AvrTimer<AvrTimer0HW,1>;
-using AvrTimer1            = avrtimer::AvrTimer<AvrTimer1HW,8>;
-using AvrTimer1NoPrescaler = avrtimer::AvrTimer<AvrTimer1HW,1>;
+using AvrTimer0            = avrtimer::AvrTimer<avrtimer::AvrTimer0HW,8>;
+using AvrTimer0NoPrescaler = avrtimer::AvrTimer<avrtimer::AvrTimer0HW,1>;
+using AvrTimer1            = avrtimer::AvrTimer<avrtimer::AvrTimer1HW,8>;
+using AvrTimer1NoPrescaler = avrtimer::AvrTimer<avrtimer::AvrTimer1HW,1>;
 
 // --- Debugging features ---
 template<typename WallClockT, bool DebugMode>
