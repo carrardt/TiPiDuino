@@ -18,7 +18,7 @@ struct AvrTimer0HW
 	static constexpr uint32_t TimerCounterMax = TimerCounterResolution - 1;
 	using TimerCounterType = uint8_t;
 
-	template<uint16_t PrescalerValue>
+	template<uint32_t PrescalerValue>
 	inline TimerCounterType pushState()
 	{
 		saved_TCCR0A = TCCR0A;
@@ -57,12 +57,11 @@ struct AvrTimer0HW
 #endif
 };
 
-template<uint16_t PrescalerValue = 8>
+template<uint32_t _TimerPrescaler>
 struct AvrTimer0
 {	
 	// the only usable value
-	static constexpr uint32_t TimerPrescaler = PrescalerValue;
-	
+	static constexpr uint32_t TimerPrescaler = _TimerPrescaler;
 	static constexpr uint32_t NanoSecPerTick = ( 1000UL * TimerPrescaler ) / ClockMhz;
 	static constexpr uint32_t TicksPerMilliSec = ( F_CPU / TimerPrescaler ) / 1000UL;
 	static constexpr uint32_t TicksPerSecond = F_CPU / TimerPrescaler;
@@ -82,6 +81,8 @@ struct AvrTimer0
 
 } // namespace avrtimer
 
+using AvrTimer0 = avrtimer::AvrTimer0<8>;
+using AvrTimer0NoPrescaler = avrtimer::AvrTimer0<1>;
 	
 // Warning! : it seems it doesn't work on ATtiny85, needs investigation. for ATtiny, use only Timer0.
 #if defined(TCCR1A) && defined(TCCR1B) && defined(TCCR1C) && defined(TIMSK1) 
