@@ -132,9 +132,9 @@ struct AvrTimer
 	
 } // namespace avrtimer
 
-using AvrTimer0 = avrtimer::avrtimer<AvrTimer0HW,8>;
+using AvrTimer0            = avrtimer::AvrTimer<AvrTimer0HW,8>;
 using AvrTimer0NoPrescaler = avrtimer::AvrTimer<AvrTimer0HW,1>;
-using AvrTimer1 = avrtimer::avrtimer<AvrTimer1HW,8>;
+using AvrTimer1            = avrtimer::AvrTimer<AvrTimer1HW,8>;
 using AvrTimer1NoPrescaler = avrtimer::AvrTimer<AvrTimer1HW,1>;
 
 // --- Debugging features ---
