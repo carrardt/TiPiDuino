@@ -6,8 +6,6 @@
 namespace avrtimer
 {
 
-static constexpr uint32_t ClockMhz = F_CPU / 1000000UL;
-
 /*!
  * Timer 0 is an 8-bit timer available on all atmel chips with selectable 1 or 8 prescaler.
  * This class represents the HW resources for this timer.
@@ -29,8 +27,12 @@ struct AvrTimer0HW
 		TCCR0A = 0;
 		switch(prescalerValue)
 		{
-		    case 1: TCCR0B = 0b00000001 ; break;
-		    case 8: TCCR0B = 0b00000010 ; break;
+		    case 1    : TCCR0B = 0b00000001; break;
+		    case 8    : TCCR0B = 0b00000010; break;
+		    case 64   : TCCR1B = 0b00000011; break;
+		    case 256  : TCCR1B = 0b00000100; break;
+		    case 1024 : TCCR1B = 0b00000101; break;
+		    default   : TCCR0B = 0b00000000; break; // stopped
 		}
 	}
 	
@@ -51,51 +53,15 @@ struct AvrTimer0HW
 #endif
 };
 
-template<uint32_t _TimerPrescaler>
-struct AvrTimer0
-{	
-	// the only usable value
-	static constexpr uint32_t TimerPrescaler = _TimerPrescaler;
-	static constexpr uint32_t NanoSecPerTick = ( 1000UL * TimerPrescaler ) / ClockMhz;
-	static constexpr uint32_t TicksPerMilliSec = ( F_CPU / TimerPrescaler ) / 1000UL;
-	static constexpr uint32_t TicksPerSecond = F_CPU / TimerPrescaler;
-	static constexpr uint32_t MaxExecMicroSec = ( TimerCounterMax * NanoSecPerTick ) / 1000UL;
-
-	inline AvrTimer0()
-	{
-		m_timerhw.pushState<TimerPrescaler>();
-	}
-	
-	inline ~AvrTimer0()
-	{
-		m_timerhw.popState();
-	}
-	
-	AvrTimer0HW m_timerhw;
-};
-
-} // namespace avrtimer
-
-using AvrTimer0 = avrtimer::AvrTimer0<8>;
-using AvrTimer0NoPrescaler = avrtimer::AvrTimer0<1>;
-	
 // Warning! : it seems it doesn't work on ATtiny85, needs investigation. for ATtiny, use only Timer0.
 #if defined(TCCR1A) && defined(TCCR1B) && defined(TCCR1C) && defined(TIMSK1) 
-template< uint32_t _TimerPrescaler = 8 >
-struct AvrTimer1
+struct AvrTimer1HW
 {
 	using TimerCounterType = uint16_t;
 	static constexpr uint32_t TimerCounterResolution = 65536;
 	static constexpr uint32_t TimerCounterMax = TimerCounterResolution - 1;
 
-	static constexpr uint32_t TimerPrescaler = _TimerPrescaler;
-	static constexpr uint32_t ClockMhz = F_CPU / 1000000UL;
-	static constexpr uint32_t NanoSecPerTick = ( 1000UL * TimerPrescaler ) / ClockMhz;
-	static constexpr uint32_t TicksPerMilliSec = ( F_CPU / TimerPrescaler ) / 1000UL;
-	static constexpr uint32_t TicksPerSecond = F_CPU / TimerPrescaler;
-	static constexpr uint32_t MaxExecMicroSec = ( TimerCounterMax * NanoSecPerTick ) / 1000UL;
-
-	inline TimerCounterType start()
+	inline void pushState(uint32_t prescalerValue)
 	{
 		saved_TCCR1A = TCCR1A;
 		saved_TCCR1B = TCCR1B;
@@ -111,12 +77,11 @@ struct AvrTimer1
 			case 64   : TCCR1B = 0b00000011; break;
 			case 256  : TCCR1B = 0b00000100; break;
 			case 1024 : TCCR1B = 0b00000101; break;
-			default   : TCCR1B = 0b00000010; break; // default to prescaler = 8
+			default   : TCCR1B = 0b00000000; break; // sopped
 		}
-		return TCNT1;
 	}
 
-	inline void stop()
+	inline void popState()
 	{
 		TCCR1A = saved_TCCR1A;
 		TCCR1B = saved_TCCR1B;
@@ -127,9 +92,42 @@ struct AvrTimer1
 	static inline TimerCounterType counter() { return TCNT1; }
 
 	uint8_t saved_TCCR1A;
-	uint8_t saved_TCCR1B, saved_TCCR1C, saved_TIMSK1;
+	uint8_t saved_TCCR1B;
+	uint8_t saved_TCCR1C;
+	uint8_t saved_TIMSK1;
 };
 #endif
+
+template<typename _TimerHW, uint32_t _TimerPrescaler>
+struct AvrTimer
+{	
+	// the only usable value
+	using TimerHW = _TimerHW;
+	static constexpr uint32_t TimerPrescaler = _TimerPrescaler;
+	static constexpr uint32_t ClockMhz = F_CPU / 1000000UL;
+	static constexpr uint32_t NanoSecPerTick = ( 1000UL * TimerPrescaler ) / ClockMhz;
+	static constexpr uint32_t TicksPerMilliSec = ( F_CPU / TimerPrescaler ) / 1000UL;
+	static constexpr uint32_t TicksPerSecond = F_CPU / TimerPrescaler;
+	static constexpr uint32_t MaxExecMicroSec = ( TimerCounterMax * NanoSecPerTick ) / 1000UL;
+
+	inline AvrTimer()
+	{
+		m_timerhw.pushState(TimerPrescaler);
+	}
+	
+	inline ~AvrTimer()
+	{
+		m_timerhw.popState();
+	}
+	
+	TimerHW m_timerhw;
+};
+
+	
+} // namespace avrtimer
+
+using AvrTimer0 = avrtimer::AvrTimer<AvrTimer0HW,8>;
+using AvrTimer0NoPrescaler = avrtimer::AvrTimer<AvrTimer0HW,1>;
 
 
 // --- Debugging features ---
