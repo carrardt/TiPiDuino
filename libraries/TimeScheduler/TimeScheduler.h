@@ -18,8 +18,7 @@ struct AvrTimer0HW
 	static constexpr uint32_t TimerCounterMax = TimerCounterResolution - 1;
 	using TimerCounterType = uint8_t;
 
-	template<uint32_t PrescalerValue>
-	inline void pushState()
+	inline void pushState(uint32_t prescalerValue)
 	{
 		saved_TCCR0A = TCCR0A;
 		saved_TCCR0B = TCCR0B;
@@ -28,7 +27,7 @@ struct AvrTimer0HW
 		TIMSK0 = 0;
 #endif
 		TCCR0A = 0;
-		switch(PrescalerValue)
+		switch(prescalerValue)
 		{
 		    case 1: TCCR0B = 0b00000001 ; break;
 		    case 8: TCCR0B = 0b00000010 ; break;
