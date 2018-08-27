@@ -19,7 +19,7 @@ struct AvrTimer0HW
 	using TimerCounterType = uint8_t;
 
 	template<uint32_t PrescalerValue>
-	inline TimerCounterType pushState()
+	inline void pushState()
 	{
 		saved_TCCR0A = TCCR0A;
 		saved_TCCR0B = TCCR0B;
@@ -30,14 +30,9 @@ struct AvrTimer0HW
 		TCCR0A = 0;
 		switch(PrescalerValue)
 		{
-		    case 1:
-			TCCR0B = 0b00000001 ; // this set prescaler to 1
-			break;
-		    case 8:
-			TCCR0B = 0b00000010 ; // this set prescaler to 8
-			break;
+		    case 1: TCCR0B = 0b00000001 ; break;
+		    case 8: TCCR0B = 0b00000010 ; break;
 		}
-		return TCNT0;
 	}
 	
 	inline void popState()
