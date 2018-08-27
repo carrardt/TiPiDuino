@@ -74,6 +74,7 @@ struct AvrTimer0
 	
 	inline ~AvrTimer0()
 	{
+		m_timerhw.popState();
 	}
 	
 	AvrTimer0HW m_timerhw;
