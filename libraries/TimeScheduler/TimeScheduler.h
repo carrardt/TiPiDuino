@@ -3,6 +3,48 @@
 
 #include <avr/io.h>
 
+/*!
+ * Timer 0 is an 8-bit timer available on all atmel chips with selectable 1 or 8 prescaler
+ */
+struct AvrHWTimer0
+{
+	static constexpr uint32_t TimerCounterResolution = 256;
+	static constexpr uint32_t TimerCounterMax = TimerCounterResolution - 1;
+	using TimerCounterType = uint8_t;
+
+	static constexpr uint32_t ClockMhz = F_CPU / 1000000UL;
+
+	inline TimerCounterType pushState()
+	{
+		saved_TCCR0A = TCCR0A;
+		saved_TCCR0B = TCCR0B;
+#ifdef TIMSK0
+		saved_TIMSK0 = TIMSK0;
+		TIMSK0 = 0;
+#endif
+		TCCR0A = 0;
+		TCCR0B = 0b00000010 ; // this set prescaler to 8
+		return TCNT0;
+	}
+	
+	inline void popState()
+	{
+		TCCR0A = saved_TCCR0A;
+		TCCR0B = saved_TCCR0B;
+#ifdef TIMSK0
+		TIMSK0 = saved_TIMSK0;
+#endif
+	}
+	
+	static inline TimerCounterType counter() { return TCNT0; }
+	
+	uint8_t saved_TCCR0A, saved_TCCR0B;
+#ifdef TIMSK0
+	uint8_t saved_TIMSK0;
+#endif
+};
+
+
 struct AvrTimer0
 {
 	static constexpr uint32_t TimerCounterResolution = 256;
