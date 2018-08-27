@@ -1,5 +1,4 @@
-#ifndef __TiDuino_TimeScheduler_h
-#define __TiDuino_TimeScheduler_h
+#pragma once
 
 #include <avr/io.h>
 
@@ -308,4 +307,3 @@ struct TimeSchedulerT
 // backward compatibilty
 using TimeScheduler = TimeSchedulerT<>;
 
-#endif
