@@ -22,13 +22,13 @@ ByteStreamAdapter<HWSerialNoInt,100000UL> serialIO;
 //#define DEBUG_TIMINGS 1
 
 #ifdef DEBUG_TIMINGS
-using Scheduler = TimeSchedulerT<AvrTimer1<>,int16_t,true>;
+using Scheduler = TimeSchedulerT<AvrTimer1,int16_t,true>;
 //using Scheduler = TimeSchedulerT<AvrTimer1<false>,int32_t,true>;
 PrintStream cout;
 #else
 //using Scheduler = TimeSchedulerT<AvrTimer0> ; // SlotMax=127uS, resolution=500nS, 16Bits wallclock
 //using Scheduler = TimeSchedulerT<AvrTimer1<false>,int32_t> ; // SlotMax>1000S, resolution=62nS, 32Bits wallclock
-using Scheduler = TimeSchedulerT<AvrTimer1<>,int16_t > ; // SlotMax=32767uS, resolution=500nS, 16Bits wallclock
+using Scheduler = TimeSchedulerT<AvrTimer1,int16_t > ; // SlotMax=32767uS, resolution=500nS, 16Bits wallclock
 #endif
 
 // AVR Analog acquisition

@@ -49,7 +49,7 @@ static bool timerSecondsChanged = false;
 static bool timerState = false;
 static uint8_t timerCounter = 0;
 
-static TimeSchedulerT< AvrTimer1<1024> , int32_t > ts;
+static TimeSchedulerT< avrtimer::AvrTimer<avrtimer::AvrTimer1HW,1024> , int32_t > ts;
 
 void setup()
 {

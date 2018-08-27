@@ -1,24 +1,21 @@
-#ifndef __TiDuino_TimeScheduler_h
-#define __TiDuino_TimeScheduler_h
+#pragma once
 
 #include <avr/io.h>
 
-struct AvrTimer0
+namespace avrtimer
+{
+
+/*!
+ * Timer 0 is an 8-bit timer available on all atmel chips with selectable 1 or 8 prescaler.
+ * This class represents the HW resources for this timer.
+ */
+struct AvrTimer0HW
 {
 	static constexpr uint32_t TimerCounterResolution = 256;
 	static constexpr uint32_t TimerCounterMax = TimerCounterResolution - 1;
 	using TimerCounterType = uint8_t;
-	
-	// the only usable value
-	static constexpr uint32_t TimerPrescaler = 8;
-	
-	static constexpr uint32_t ClockMhz = F_CPU / 1000000UL;
-	static constexpr uint32_t NanoSecPerTick = ( 1000UL * TimerPrescaler ) / ClockMhz;
-	static constexpr uint32_t TicksPerMilliSec = ( F_CPU / TimerPrescaler ) / 1000UL;
-	static constexpr uint32_t TicksPerSecond = F_CPU / TimerPrescaler;
-	static constexpr uint32_t MaxExecMicroSec = ( TimerCounterMax * NanoSecPerTick ) / 1000UL;
 
-	inline TimerCounterType start()
+	inline void pushState(uint32_t prescalerValue)
 	{
 		saved_TCCR0A = TCCR0A;
 		saved_TCCR0B = TCCR0B;
@@ -27,11 +24,18 @@ struct AvrTimer0
 		TIMSK0 = 0;
 #endif
 		TCCR0A = 0;
-		TCCR0B = 0b00000010 ; // this set prescaler to 8
-		return TCNT0;
+		switch(prescalerValue)
+		{
+		    case 1    : TCCR0B = 0b00000001; break;
+		    case 8    : TCCR0B = 0b00000010; break;
+		    case 64   : TCCR1B = 0b00000011; break;
+		    case 256  : TCCR1B = 0b00000100; break;
+		    case 1024 : TCCR1B = 0b00000101; break;
+		    default   : TCCR0B = 0b00000000; break; // stopped
+		}
 	}
 	
-	inline void stop()
+	inline void popState()
 	{
 		TCCR0A = saved_TCCR0A;
 		TCCR0B = saved_TCCR0B;
@@ -42,69 +46,21 @@ struct AvrTimer0
 	
 	static inline TimerCounterType counter() { return TCNT0; }
 	
-	uint8_t saved_TCCR0A, saved_TCCR0B, saved_TIMSK0;
-};
-
-struct AvrTimer0NoPrescaler
-{
-	static constexpr uint32_t TimerCounterResolution = 256;
-	static constexpr uint32_t TimerCounterMax = TimerCounterResolution - 1;
-	using TimerCounterType = uint8_t;
-	
-	// the only usable value
-	static constexpr uint32_t TimerPrescaler = 1;
-	
-	static constexpr uint32_t ClockMhz = F_CPU / 1000000UL;
-	static constexpr uint32_t NanoSecPerTick = ( 1000UL * TimerPrescaler ) / ClockMhz;
-	static constexpr uint32_t TicksPerMilliSec = ( F_CPU / TimerPrescaler ) / 1000UL;
-	static constexpr uint32_t TicksPerSecond = F_CPU / TimerPrescaler;
-	static constexpr uint32_t MaxExecMicroSec = ( TimerCounterMax * NanoSecPerTick ) / 1000UL;
-
-	inline TimerCounterType start()
-	{
-		saved_TCCR0A = TCCR0A;
-		saved_TCCR0B = TCCR0B;
+	uint8_t saved_TCCR0A, saved_TCCR0B;
 #ifdef TIMSK0
-		saved_TIMSK0 = TIMSK0;
-		TIMSK0 = 0;
+	uint8_t saved_TIMSK0;
 #endif
-		TCCR0A = 0;
-		TCCR0B = 0b00000001 ; // this set prescaler to 1
-		return TCNT0;
-	}
-	
-	inline void stop()
-	{
-		TCCR0A = saved_TCCR0A;
-		TCCR0B = saved_TCCR0B;
-#ifdef TIMSK0
-		TIMSK0 = saved_TIMSK0;
-#endif
-	}
-	
-	static inline TimerCounterType counter() { return TCNT0; }
-	
-	uint8_t saved_TCCR0A, saved_TCCR0B, saved_TIMSK0;
 };
-
 
 // Warning! : it seems it doesn't work on ATtiny85, needs investigation. for ATtiny, use only Timer0.
 #if defined(TCCR1A) && defined(TCCR1B) && defined(TCCR1C) && defined(TIMSK1) 
-template< uint32_t _TimerPrescaler = 8 >
-struct AvrTimer1
+struct AvrTimer1HW
 {
 	using TimerCounterType = uint16_t;
 	static constexpr uint32_t TimerCounterResolution = 65536;
 	static constexpr uint32_t TimerCounterMax = TimerCounterResolution - 1;
 
-	static constexpr uint32_t TimerPrescaler = _TimerPrescaler;
-	static constexpr uint32_t ClockMhz = F_CPU / 1000000UL;
-	static constexpr uint32_t NanoSecPerTick = ( 1000UL * TimerPrescaler ) / ClockMhz;
-	static constexpr uint32_t TicksPerMilliSec = ( F_CPU / TimerPrescaler ) / 1000UL;
-	static constexpr uint32_t TicksPerSecond = F_CPU / TimerPrescaler;
-	static constexpr uint32_t MaxExecMicroSec = ( TimerCounterMax * NanoSecPerTick ) / 1000UL;
-
-	inline TimerCounterType start()
+	inline void pushState(uint32_t prescalerValue)
 	{
 		saved_TCCR1A = TCCR1A;
 		saved_TCCR1B = TCCR1B;
@@ -113,19 +69,18 @@ struct AvrTimer1
 		TIMSK1 = 0;
 		TCCR1A = 0;
 		TCCR1C = 0;
-		switch( TimerPrescaler )
+		switch( prescalerValue )
 		{
 			case 1    : TCCR1B = 0b00000001; break;
 			case 8    : TCCR1B = 0b00000010; break;
 			case 64   : TCCR1B = 0b00000011; break;
 			case 256  : TCCR1B = 0b00000100; break;
 			case 1024 : TCCR1B = 0b00000101; break;
-			default   : TCCR1B = 0b00000010; break; // default to prescaler = 8
+			default   : TCCR1B = 0b00000000; break; // sopped
 		}
-		return TCNT1;
 	}
 
-	inline void stop()
+	inline void popState()
 	{
 		TCCR1A = saved_TCCR1A;
 		TCCR1B = saved_TCCR1B;
@@ -136,10 +91,53 @@ struct AvrTimer1
 	static inline TimerCounterType counter() { return TCNT1; }
 
 	uint8_t saved_TCCR1A;
-	uint8_t saved_TCCR1B, saved_TCCR1C, saved_TIMSK1;
+	uint8_t saved_TCCR1B;
+	uint8_t saved_TCCR1C;
+	uint8_t saved_TIMSK1;
 };
 #endif
 
+template<typename _TimerHW, uint32_t _TimerPrescaler>
+struct AvrTimer
+{	
+	// the only usable value
+	using TimerHW = _TimerHW;
+	using TimerCounterType = typename TimerHW::TimerCounterType;
+	static constexpr uint32_t TimerCounterResolution = TimerHW::TimerCounterResolution;
+	static constexpr uint32_t TimerCounterMax = TimerHW::TimerCounterResolution;
+
+	static constexpr uint32_t TimerPrescaler = _TimerPrescaler;
+	static constexpr uint32_t ClockMhz = F_CPU / 1000000UL;
+	static constexpr uint32_t NanoSecPerTick = ( 1000UL * TimerPrescaler ) / ClockMhz;
+	static constexpr uint32_t TicksPerMilliSec = ( F_CPU / TimerPrescaler ) / 1000UL;
+	static constexpr uint32_t TicksPerSecond = F_CPU / TimerPrescaler;
+	static constexpr uint32_t MaxExecMicroSec = ( TimerCounterMax * NanoSecPerTick ) / 1000UL;
+
+	inline TimerCounterType start()
+	{
+		m_timerhw.pushState(TimerPrescaler);
+	}
+	
+	inline TimerCounterType counter() const
+	{
+		return m_timerhw.counter();
+	}
+	
+	inline void stop()
+	{
+		m_timerhw.popState();
+	}
+
+	TimerHW m_timerhw;
+};
+
+	
+} // namespace avrtimer
+
+using AvrTimer0            = avrtimer::AvrTimer<avrtimer::AvrTimer0HW,8>;
+using AvrTimer0NoPrescaler = avrtimer::AvrTimer<avrtimer::AvrTimer0HW,1>;
+using AvrTimer1            = avrtimer::AvrTimer<avrtimer::AvrTimer1HW,8>;
+using AvrTimer1NoPrescaler = avrtimer::AvrTimer<avrtimer::AvrTimer1HW,1>;
 
 // --- Debugging features ---
 template<typename WallClockT, bool DebugMode>
@@ -312,4 +310,3 @@ struct TimeSchedulerT
 // backward compatibilty
 using TimeScheduler = TimeSchedulerT<>;
 
-#endif
