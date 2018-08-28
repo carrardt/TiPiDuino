@@ -4,7 +4,7 @@
 
 namespace avrtimer
 {
-
+// TODO: move to AvrTL
 /*!
  * Timer 0 is an 8-bit timer available on all atmel chips with selectable 1 or 8 prescaler.
  * This class represents the HW resources for this timer.
