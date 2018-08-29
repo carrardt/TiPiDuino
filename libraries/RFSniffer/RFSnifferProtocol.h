@@ -2,9 +2,9 @@
 #define __RFSNIFFERPROTOCOL_H
 
 #include "RFSnifferConstants.h"
-#include "AvrTLSignal.h"
 #include <stdint.h>
 #include "BasicIO/PrintStream.h"
+#include "SignalProcessing/SignalProcessing.h"
 
 /*
  	*** DI-O/Chacon RF433 protocol ***

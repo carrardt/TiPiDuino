@@ -7,9 +7,9 @@ www.DFRobot.com
 #include "LCD12864.h"
 
 #include <AvrTL/AvrTLPin.h>
-#include <AvrTL/AvrTLSignal.h>
 
 #include <avr/pgmspace.h>
+
 
 static avrtl::StaticPin<17> RS;
 static avrtl::StaticPin<16> RW;
@@ -144,8 +144,8 @@ void LCD12864::setPins(bool tRS, bool tRW, uint8_t vector)
 
 //*********************ÑÓÊ±º¯Êý************************//
 void LCD12864::delayns()
-{   
-	avrtl::DelayMicroseconds(DelayTime);
+{  
+	avrtl::delayMicroseconds(DelayTime);
 }
 
 void LCD12864::WriteCommand(uint8_t CMD)

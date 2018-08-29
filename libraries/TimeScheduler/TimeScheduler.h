@@ -1,143 +1,7 @@
 #pragma once
 
 #include <avr/io.h>
-
-namespace avrtimer
-{
-// TODO: move to AvrTL
-/*!
- * Timer 0 is an 8-bit timer available on all atmel chips with selectable 1 or 8 prescaler.
- * This class represents the HW resources for this timer.
- */
-struct AvrTimer0HW
-{
-	static constexpr uint32_t TimerCounterResolution = 256;
-	static constexpr uint32_t TimerCounterMax = TimerCounterResolution - 1;
-	using TimerCounterType = uint8_t;
-
-	inline void pushState(uint32_t prescalerValue)
-	{
-		saved_TCCR0A = TCCR0A;
-		saved_TCCR0B = TCCR0B;
-#ifdef TIMSK0
-		saved_TIMSK0 = TIMSK0;
-		TIMSK0 = 0;
-#endif
-		TCCR0A = 0;
-		switch(prescalerValue)
-		{
-		    case 1    : TCCR0B = 0b00000001; break;
-		    case 8    : TCCR0B = 0b00000010; break;
-		    case 64   : TCCR1B = 0b00000011; break;
-		    case 256  : TCCR1B = 0b00000100; break;
-		    case 1024 : TCCR1B = 0b00000101; break;
-		    default   : TCCR0B = 0b00000000; break; // stopped
-		}
-	}
-	
-	inline void popState()
-	{
-		TCCR0A = saved_TCCR0A;
-		TCCR0B = saved_TCCR0B;
-#ifdef TIMSK0
-		TIMSK0 = saved_TIMSK0;
-#endif
-	}
-	
-	static inline TimerCounterType counter() { return TCNT0; }
-	
-	uint8_t saved_TCCR0A, saved_TCCR0B;
-#ifdef TIMSK0
-	uint8_t saved_TIMSK0;
-#endif
-};
-
-// Warning! : it seems it doesn't work on ATtiny85, needs investigation. for ATtiny, use only Timer0.
-#if defined(TCCR1A) && defined(TCCR1B) && defined(TCCR1C) && defined(TIMSK1) 
-struct AvrTimer1HW
-{
-	using TimerCounterType = uint16_t;
-	static constexpr uint32_t TimerCounterResolution = 65536;
-	static constexpr uint32_t TimerCounterMax = TimerCounterResolution - 1;
-
-	inline void pushState(uint32_t prescalerValue)
-	{
-		saved_TCCR1A = TCCR1A;
-		saved_TCCR1B = TCCR1B;
-		saved_TCCR1C = TCCR1C;
-		saved_TIMSK1 = TIMSK1;
-		TIMSK1 = 0;
-		TCCR1A = 0;
-		TCCR1C = 0;
-		switch( prescalerValue )
-		{
-			case 1    : TCCR1B = 0b00000001; break;
-			case 8    : TCCR1B = 0b00000010; break;
-			case 64   : TCCR1B = 0b00000011; break;
-			case 256  : TCCR1B = 0b00000100; break;
-			case 1024 : TCCR1B = 0b00000101; break;
-			default   : TCCR1B = 0b00000000; break; // sopped
-		}
-	}
-
-	inline void popState()
-	{
-		TCCR1A = saved_TCCR1A;
-		TCCR1B = saved_TCCR1B;
-		TCCR1C = saved_TCCR1C;
-		TIMSK1 = saved_TIMSK1;
-	}
-
-	static inline TimerCounterType counter() { return TCNT1; }
-
-	uint8_t saved_TCCR1A;
-	uint8_t saved_TCCR1B;
-	uint8_t saved_TCCR1C;
-	uint8_t saved_TIMSK1;
-};
-#endif
-
-template<typename _TimerHW, uint32_t _TimerPrescaler>
-struct AvrTimer
-{	
-	// the only usable value
-	using TimerHW = _TimerHW;
-	using TimerCounterType = typename TimerHW::TimerCounterType;
-	static constexpr uint32_t TimerCounterResolution = TimerHW::TimerCounterResolution;
-	static constexpr uint32_t TimerCounterMax = TimerHW::TimerCounterResolution;
-
-	static constexpr uint32_t TimerPrescaler = _TimerPrescaler;
-	static constexpr uint32_t ClockMhz = F_CPU / 1000000UL;
-	static constexpr uint32_t NanoSecPerTick = ( 1000UL * TimerPrescaler ) / ClockMhz;
-	static constexpr uint32_t TicksPerMilliSec = ( F_CPU / TimerPrescaler ) / 1000UL;
-	static constexpr uint32_t TicksPerSecond = F_CPU / TimerPrescaler;
-	static constexpr uint32_t MaxExecMicroSec = ( TimerCounterMax * NanoSecPerTick ) / 1000UL;
-
-	inline TimerCounterType start()
-	{
-		m_timerhw.pushState(TimerPrescaler);
-	}
-	
-	inline TimerCounterType counter() const
-	{
-		return m_timerhw.counter();
-	}
-	
-	inline void stop()
-	{
-		m_timerhw.popState();
-	}
-
-	TimerHW m_timerhw;
-};
-
-	
-} // namespace avrtimer
-
-using AvrTimer0            = avrtimer::AvrTimer<avrtimer::AvrTimer0HW,8>;
-using AvrTimer0NoPrescaler = avrtimer::AvrTimer<avrtimer::AvrTimer0HW,1>;
-using AvrTimer1            = avrtimer::AvrTimer<avrtimer::AvrTimer1HW,8>;
-using AvrTimer1NoPrescaler = avrtimer::AvrTimer<avrtimer::AvrTimer1HW,1>;
+#include "AvrTL/timer.h"
 
 // --- Debugging features ---
 template<typename WallClockT, bool DebugMode>
@@ -196,7 +60,7 @@ struct TimeSchedulerDebug<WallClockT, false>
 	template<typename OStreamT> static inline bool printDebugInfo(const OStreamT&,uint32_t) { return false; }
 };
 
-template<typename _BaseTimer = AvrTimer0, typename _WallClockT = int16_t, bool DebugMode = false>
+template<typename _BaseTimer = avrtl::AvrTimer0, typename _WallClockT = int16_t, bool DebugMode = false>
 struct TimeSchedulerT
 {	
 	using BaseTimerT = _BaseTimer;
@@ -223,28 +87,29 @@ struct TimeSchedulerT
 	inline void start()
 	{
 		m_wallclock = 0;
-		m_t = timer.start();
+		m_t = m_timer.start();
 	}
 
 	inline void reset()
 	{
 		m_wallclock = 0;
-		m_t = timer.counter();
+		m_t = m_timer.counter();
 	}
 
 	inline void stop()
 	{
-		timer.stop();
+		m_timer.stop();
 	}
 
 	inline WallClockT wallclock()
 	{
-		CounterT t2 = timer.counter();
+		CounterT t2 = m_timer.counter();
 		m_wallclock += (CounterT)( t2 - m_t );
 		m_t = t2;
 		return m_wallclock;
 	}
 	
+	// works in timer tick time unit
 	template<typename FuncT>
 	inline void execFast( WallClockT t, FuncT f )
 	{
@@ -253,6 +118,7 @@ struct TimeSchedulerT
 		m_wallclock -= t;
 	}
 
+	// works in timer tick time unit
 	template<typename FuncT>
 	inline void loopFast( WallClockT t, FuncT f )
 	{
@@ -261,6 +127,7 @@ struct TimeSchedulerT
 		m_wallclock -= t;
 	}
 
+	// works in uS time unit
 	template<typename FuncT>
 	inline void exec( WallClockT t, FuncT f )
 	{
@@ -272,6 +139,7 @@ struct TimeSchedulerT
 		m_wallclock -= t;
 	}
 
+	// works in uS time unit
 	template<typename FuncT>
 	inline void loop( WallClockT t, FuncT f )
 	{
@@ -287,6 +155,14 @@ struct TimeSchedulerT
 		m_debugger.next();
 	}
 
+
+	inline void delayMicroseconds(uint32_t us)
+	{
+		reset();
+		exec( us , [](){} );
+	}
+
+
 	template<typename OStreamT>
 	inline bool printDebugInfo(OStreamT& cout)
 	{
@@ -301,7 +177,7 @@ struct TimeSchedulerT
 		m_debugger.reset();
 	}
 	
-	BaseTimerT timer;
+	BaseTimerT m_timer;
 	WallClockT m_wallclock;
 	CounterT m_t;
 	DebuggerT m_debugger;
@@ -309,4 +185,22 @@ struct TimeSchedulerT
 
 // backward compatibilty
 using TimeScheduler = TimeSchedulerT<>;
+
+
+namespace avrtl
+{
+	static inline void delayMicroseconds(uint32_t us)
+	{
+		TimeScheduler ts;
+		ts.start();
+		ts.delayMicroseconds(us);
+		ts.stop();
+	}
+
+	static inline void delay(unsigned long ms)
+	{
+		delayMicroseconds( static_cast<uint32_t>(ms) * 1000 );
+	}
+	
+}
 

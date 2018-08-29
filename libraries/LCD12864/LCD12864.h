@@ -8,6 +8,7 @@ www.DFRobot.com
 #define __LCD12864_h
 #include <inttypes.h>
 #include <BasicIO/TextFrameBuffer.h>
+#include <TimeScheduler/TimeScheduler.h>
 
 #define LCD12864_BUILTIN_FONT 1
 
