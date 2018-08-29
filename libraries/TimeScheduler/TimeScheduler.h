@@ -3,6 +3,8 @@
 #include <avr/io.h>
 #include "AvrTL/timer.h"
 
+// TODO: replace 'Fast' suffix by 'Ticks' suffix
+
 // --- Debugging features ---
 template<typename WallClockT, bool DebugMode>
 struct TimeSchedulerDebug
@@ -156,12 +158,10 @@ struct TimeSchedulerT
 	}
 
 
-	inline void delayMicroseconds(uint32_t us)
+	inline void delay(WallClockT t)
 	{
-		reset();
-		exec( us , [](){} );
+		exec( t , [](){} );
 	}
-
 
 	template<typename OStreamT>
 	inline bool printDebugInfo(OStreamT& cout)
@@ -193,7 +193,7 @@ namespace avrtl
 	{
 		TimeScheduler ts;
 		ts.start();
-		ts.delayMicroseconds(us);
+		ts.delay(us);
 		ts.stop();
 	}
 

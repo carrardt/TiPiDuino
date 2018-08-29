@@ -1,5 +1,4 @@
-#ifndef __RFSNIFFERCONSTANTS_H
-#define __RFSNIFFERCONSTANTS_H
+#pragma once
 
 #define MIN_PULSE_LEN 		150		// under this threshold noise is too important
 #define MAX_PULSE_LEN 		32000 	// mainly due to 16-bits limitation
@@ -17,4 +16,3 @@ enum MessageEncoding
 	CODING_MANCHESTER = 'M'	// manchester coding (bipolar)
 };
 
-#endif

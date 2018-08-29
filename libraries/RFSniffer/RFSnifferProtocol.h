@@ -210,7 +210,7 @@ struct RFSnifferProtocol
 	template<typename RxPinT>
 	int readMessage(RxPinT& rx, uint8_t* buf)
 	{
-		SCOPED_SIGNAL_PROCESSING;
+		SignalProcessing32 sp;
 		
 		const uint16_t b0 = bitSymbols[0];
 		const uint16_t b1 = bitSymbols[1];
@@ -227,7 +227,7 @@ struct RFSnifferProtocol
 		{
 			for(uint8_t i=0;i<latchSeqLen;)
 			{
-				long p = avrtl::PulseInFast(rx,lvl,MAX_PULSE_LEN);
+				long p = sp.PulseIn(rx,lvl,MAX_PULSE_LEN);
 				uint16_t l = latchSeq[i];
 				uint16_t relerr = l / PULSE_ERR_RATIO;
 				if( avrtl::abs(p-l) > relerr ) i=0;
@@ -239,7 +239,7 @@ struct RFSnifferProtocol
 			bool badBit;
 			do
 			{
-				long p = avrtl::PulseInFast(rx,lvl,MAX_PULSE_LEN);
+				long p = sp.PulseIn(rx,lvl,MAX_PULSE_LEN);
 				buf[byte] = 0;
 				badBit = false;
 				if( avrtl::abs(p-b1) <= b1_tol ) buf[byte] = 1;
@@ -251,7 +251,7 @@ struct RFSnifferProtocol
 		for(;j<bitsToRead;j++)
 		{
 			if(j%8==0) buf[byte]=0;
-			long p = avrtl::PulseInFast(rx,lvl,MAX_PULSE_LEN);
+			long p = sp.PulseIn(rx,lvl,MAX_PULSE_LEN);
 			uint8_t b = 0;
 			if( avrtl::abs(p-b1) <= b1_tol ) b = 1;
 			else if( avrtl::abs(p-b0) > b0_tol ) return 0;
