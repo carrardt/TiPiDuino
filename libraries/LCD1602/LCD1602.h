@@ -2,7 +2,6 @@
 #define _Template_LiquidCrystal_h
 
 #include <AvrTL/AvrTLPin.h>
-#include <AvrTL/AvrTLSignal.h>
 #include <BasicIO/ByteStream.h>
 #include <inttypes.h>
 
@@ -82,11 +81,11 @@ struct LCD1602 : public ByteStream
 	void pulseEnable() 
 	{
 	  en = 0;
-	  avrtl::DelayMicroseconds(1);    
+	  avrtl::delayMicroseconds(1);    
 	  en = 1;
-	  avrtl::DelayMicroseconds(1);    // enable pulse must be >450ns
+	  avrtl::delayMicroseconds(1);    // enable pulse must be >450ns
 	  en = 0;
-	  avrtl::DelayMicroseconds(100);   // commands need > 37us to settle
+	  avrtl::delayMicroseconds(100);   // commands need > 37us to settle
 	}
 
 	void write4bits(uint8_t value) 
@@ -121,11 +120,11 @@ struct LCD1602 : public ByteStream
 		d2.SetOutput();
 		d3.SetOutput();
 		write4bits(0x03);
-		avrtl::DelayMicroseconds(4500);
+		avrtl::delayMicroseconds(4500);
 		write4bits(0x03);
-		avrtl::DelayMicroseconds(4500);
+		avrtl::delayMicroseconds(4500);
 		write4bits(0x03);
-		avrtl::DelayMicroseconds(150);
+		avrtl::delayMicroseconds(150);
 		write4bits(0x02);
 		command( LCD_FUNCTIONSET | LCD_4BITMODE | ((lines<=1)?LCD_1LINE:LCD_2LINE) | dotSize );
 	}
@@ -157,13 +156,13 @@ struct LCD1602 : public ByteStream
 	void clear()
 	{
 	  command(LCD_CLEARDISPLAY);  // clear display, set cursor position to zero
-	  avrtl::DelayMicroseconds(2000);  // this command takes a long time!
+	  avrtl::delayMicroseconds(2000);  // this command takes a long time!
 	}
 	
 	void home()
 	{
 	  command(LCD_RETURNHOME);  // set cursor position to zero
-	  avrtl::DelayMicroseconds(2000);  // this command takes a long time!
+	  avrtl::delayMicroseconds(2000);  // this command takes a long time!
 	}
 	
 	void setCursor(uint8_t col, uint8_t row)

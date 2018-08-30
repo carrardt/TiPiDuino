@@ -26,6 +26,7 @@
 #include "PCD8544.h"
 
 #include <avr/pgmspace.h>
+#include <AvrTL/timer.h>
 
 const PROGMEM unsigned char charset[][5] = {
   { 0x00, 0x00, 0x00, 0x00, 0x00 },  // 20 space
@@ -165,7 +166,7 @@ void PCD8544::begin(unsigned char width, unsigned char height, unsigned char mod
     digitalWrite(this->pin_reset, HIGH);
     if( pin_sce != PCD8544_UNASSIGNED ) { digitalWrite(this->pin_sce, HIGH); }
     digitalWrite(this->pin_reset, LOW);
-    delay(100);
+    avrtl::delay(100);
     digitalWrite(this->pin_reset, HIGH);
 
     // Set the LCD parameters...
@@ -188,7 +189,7 @@ void PCD8544::begin(unsigned char width, unsigned char height, unsigned char mod
     // Activate LCD...
     this->send(PCD8544_CMD, 0x08);  // display blank
     this->send(PCD8544_CMD, 0x0c);  // normal mode (0x0d = inverse mode)
-    delay(100);
+    avrtl::delay(100);
 
     // Place the cursor at the origin...
     this->send(PCD8544_CMD, 0x80);

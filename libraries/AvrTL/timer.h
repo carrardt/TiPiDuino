@@ -146,4 +146,25 @@ using AvrTimer0NoPrescaler = AvrTimer<AvrTimer0HW,1>;
 using AvrTimer1            = AvrTimer<AvrTimer1HW,8>;
 using AvrTimer1NoPrescaler = AvrTimer<AvrTimer1HW,1>;
 
+static inline void delayMicroseconds(uint32_t us)
+{
+	AvrTimer0 timer;
+	auto t = timer.start();
+	uint32_t ticks = timer.microsecondsToTicks(us);
+	uint32_t w = 0;
+	do
+	{
+		auto t2 = t;
+		t = timer.counter();
+		w += (t2-t);
+	} while( w < ticks );
+	timer.stop();
+}
+
+static inline void delay(unsigned long ms)
+{
+	delayMicroseconds( static_cast<uint32_t>(ms) * 1000 );
+}
+	
+
 } // namespace avrtl

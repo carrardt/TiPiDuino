@@ -5,6 +5,8 @@
 #include <AvrTLPin.h>
 #include <HWSerialNoInt/HWSerialNoInt.h>
 
+#include <avr/interrupt.h>
+
 using namespace avrtl;
 
 /*

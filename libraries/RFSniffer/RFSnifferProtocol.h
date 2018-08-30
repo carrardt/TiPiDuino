@@ -270,7 +270,7 @@ struct RFSnifferProtocol
 	template<typename RxPinT>
 	int readMessageWithGaps(RxPinT& rx, uint8_t* buf, uint16_t* in_gaps)
 	{
-		SCOPED_SIGNAL_PROCESSING;
+		SignalProcessing32 sp;
 
 		const uint16_t b0 = bitSymbols[0];
 		const uint16_t b1 = bitSymbols[1];
@@ -288,7 +288,7 @@ struct RFSnifferProtocol
 		{
 			for(uint8_t i=0;i<latchSeqLen;)
 			{
-				long p = avrtl::PulseInFast(rx,lvl,MAX_PULSE_LEN,gaps++);
+				long p = sp.PulseIn(rx,lvl,MAX_PULSE_LEN,gaps++);
 				uint16_t l = latchSeq[i];
 				uint16_t relerr = l / PULSE_ERR_RATIO;
 				if( avrtl::abs(p-l) > relerr ) { i=0; gaps=in_gaps; }
@@ -300,7 +300,7 @@ struct RFSnifferProtocol
 			bool badBit;
 			do
 			{
-				long p = avrtl::PulseInFast(rx,lvl,MAX_PULSE_LEN,gaps);
+				long p = sp.PulseIn(rx,lvl,MAX_PULSE_LEN,gaps);
 				buf[byte] = 0;
 				badBit = false;
 				if( avrtl::abs(p-b1) <= b1_tol ) buf[byte] = 1;
@@ -313,7 +313,7 @@ struct RFSnifferProtocol
 		for(;j<bitsToRead;j++)
 		{
 			if(j%8==0) buf[byte]=0;
-			long p = avrtl::PulseInFast(rx,lvl,MAX_PULSE_LEN,gaps++);
+			long p = sp.PulseIn(rx,lvl,MAX_PULSE_LEN,gaps++);
 			uint8_t b = 0;
 			if( avrtl::abs(p-b1) <= b1_tol ) b = 1;
 			else if( avrtl::abs(p-b0) > b0_tol ) return 0;
@@ -321,7 +321,7 @@ struct RFSnifferProtocol
 			buf[byte] |= b;
 			if( (j%8)==7 ) { ++byte;  }
 		}
-		for(;in_gaps!=gaps;in_gaps++) { *in_gaps = avrtl::ticksToMicroseconds(*in_gaps); }
+		for(;in_gaps!=gaps;in_gaps++) { *in_gaps = sp.m_ts.m_timer.ticksToMicroseconds(*in_gaps); }
 		if( coding == CODING_MANCHESTER )
 		{
 			if( ! decodeManchester(buf,bitsToRead) ) return 0;
@@ -331,8 +331,9 @@ struct RFSnifferProtocol
 	}
 
 	template<typename LineSetFuncT>
-	void writeMessageFast(const uint8_t* buf, uint8_t len, LineSetFuncT lineState)
+	void writeMessage(const uint8_t* buf, uint8_t len, LineSetFuncT lineState)
 	{
+		SignalProcessing32 sp;
 		const bool manchester = (coding == CODING_MANCHESTER);
 
 		for(int r=0;r<nMessageRepeats;r++)
@@ -364,13 +365,6 @@ struct RFSnifferProtocol
 		lineState( ! pulseLevel() , 10000UL );
 	}
 	
-	template<typename LineSetFuncT>
-	void writeMessage(const uint8_t* buf, uint8_t len, LineSetFuncT lineState )
-	{
-		SCOPED_SIGNAL_PROCESSING;
-		writeMessageFast(buf,len,lineState);
-	}
-
 	uint16_t messageTotalPulses() const
 	{
 		int bitsToRead = messageBits;

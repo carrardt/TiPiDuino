@@ -40,8 +40,8 @@
  */
 
 #include <PCD8544.h>
-
 #include "BasicIO/PrintStream.h"
+#include "AvrTL/timer.h"
 
 // A custom glyph (a smiley)...
 static const uint8_t glyph[] = { 0b00010000, 0b00110100, 0b00110000, 0b00110100, 0b00010000 };
@@ -78,7 +78,7 @@ void loop() {
   lcdIO.m_rawIO.setCursor(0, 1);
   cout << counter << ' ' << '\1';
 
-  delay(200);
+  avrtl::delay(200);
   counter++;
 }
 

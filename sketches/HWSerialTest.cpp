@@ -1,9 +1,9 @@
 #include <AvrTLPin.h>
-#include <AvrTLSignal.h>
 #include <AvrTL.h>
 #include <BasicIO/PrintStream.h>
 #include <BasicIO/InputStream.h>
 #include <HWSerial/HWSerialIO.h>
+#include <AvrTL/timer.h>
 
 using namespace avrtl;
 
@@ -25,7 +25,7 @@ static uint32_t counter = 0;
 void loop()
 {
 	cout<< "Counter = "<<counter<<endl;
-	avrtl::DelayMicroseconds( 1000000UL );
+	avrtl::delayMicroseconds( 1000000UL );
 	++ counter;
 
 	/*

@@ -2,7 +2,7 @@
 #define __TIPIDUINO_ByteStream_h
 
 #include <stdint.h>
-#include <TimeScheduler/TimeScheduler.h>
+#include <AvrTL/timer.h>
 
 struct ByteStream
 {
@@ -63,13 +63,13 @@ protected:
 	uint16_t m_size;
 };
 
-template<typename RawIOType, typename SchedulerT, uint32_t _EndLineDelay=10000UL>
+template<typename RawIOType, uint32_t _EndLineDelay=10000UL>
 struct ByteStreamAdapter : public ByteStream
 {
 	static constexpr uint32_t EndLineDelay = _EndLineDelay;
 
 	inline ByteStreamAdapter() {}
-	inline ByteStreamAdapter(RawIOType io, SchedulerT& ts) : m_rawIO(io), m_ts(ts) {}
+	inline ByteStreamAdapter(RawIOType io) : m_rawIO(io) {}
 	inline ByteStreamAdapter(const ByteStreamAdapter& bsa) : m_rawIO(bsa.m_rawIO) {}
 
 	void setEndLine(const char* el) { m_endl=el; }
@@ -77,13 +77,12 @@ struct ByteStreamAdapter : public ByteStream
 	bool writeByte( uint8_t x ) override final 
 	{
 		bool r = m_rawIO.writeByte(x);
-		if( r && x=='\n' ) { m_ts.delayMicroseconds(EndLineDelay); }
+		if( r && x=='\n' ) { avrtl::delayMicroseconds(EndLineDelay); }
 		return r;
 	}
 	uint8_t readByte() override final { return m_rawIO.readByte(); }
 
 	RawIOType m_rawIO;
-	SchedulerT& m_ts;
 	const char* m_endl = "\n";
 };
 

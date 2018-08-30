@@ -1,6 +1,7 @@
 #include <AvrTL.h>
 #include <LCD1602.h>
 #include <BasicIO/PrintStream.h>
+#include <AvrTL/timer.h>
 
 /*
  * LCD1602	Arduino
@@ -35,6 +36,6 @@ void loop()
 {
 	cout << "Counter=" << COUNTER << '\n';
 	++COUNTER;
-	DelayMicroseconds(5000000UL);
+	avrtl::delayMicroseconds(5000000UL);
 }
 

@@ -27,7 +27,6 @@
 #define PCD8544_H
 
 #include "AvrTL/AvrTLPin.h"
-#include "AvrTL/AvrTLSignal.h"
 
 // Chip variants supported (ST7576 is experimental)...
 #define CHIP_PCD8544 0

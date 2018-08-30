@@ -187,20 +187,3 @@ struct TimeSchedulerT
 using TimeScheduler = TimeSchedulerT<>;
 
 
-namespace avrtl
-{
-	static inline void delayMicroseconds(uint32_t us)
-	{
-		TimeScheduler ts;
-		ts.start();
-		ts.delay(us);
-		ts.stop();
-	}
-
-	static inline void delay(unsigned long ms)
-	{
-		delayMicroseconds( static_cast<uint32_t>(ms) * 1000 );
-	}
-	
-}
-

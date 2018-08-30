@@ -21,9 +21,9 @@
  */
 
 #include "AvrTL/AvrTLPin.h"
-#include "AvrTL/AvrTLSignal.h"
 #include "LCD12864/LCD12864.h"
 #include "BasicIO/PrintStream.h"
+#include "AvrTL/timer.h"
 
 static LCD12864 LCDA;
 static PrintStream cout;
@@ -32,9 +32,9 @@ void setup()
 {
   LCDA.Initialise(); // INIT SCREEN
   cout.begin( & LCDA );
-  avrtl::DelayMicroseconds(100000);
+  avrtl::delayMicroseconds(100000);
   LCDA.Clear();
-  avrtl::DelayMicroseconds(100000);
+  avrtl::delayMicroseconds(100000);
 }
 
 static int count = 0;
@@ -42,6 +42,6 @@ void loop()
 {
   cout<<"Counter="<<count<<endl;
   ++ count;
-  avrtl::DelayMicroseconds(1000000);
+  avrtl::delayMicroseconds(1000000);
 }
 

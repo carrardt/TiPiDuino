@@ -21,11 +21,11 @@
  */
 
 #include "AvrTL/AvrTLPin.h"
-#include "AvrTL/AvrTLSignal.h"
 #include "LCD12864/LCD12864.h"
 #include "BasicIO/PrintStream.h"
 #include "BasicIO/InputStream.h"
 #include "SoftSerial/SoftSerial.h"
+#include "AvrTL/timer.h"
 
 static auto rx = avrtl::StaticPin<3>();
 static auto tx = avrtl::StaticPin<2>();
@@ -38,9 +38,9 @@ void setup()
 {
   LCDA.Initialise(); // INIT SCREEN
   cout.begin( & LCDA );
-  avrtl::DelayMicroseconds(100000);
+  avrtl::delayMicroseconds(100000);
   LCDA.Clear();
-  avrtl::DelayMicroseconds(100000);
+  avrtl::delayMicroseconds(100000);
   cout<<"LCD12864Console"<<endl;
   serialIO.begin();
 }
