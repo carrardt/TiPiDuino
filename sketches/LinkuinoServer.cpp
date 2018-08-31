@@ -1,6 +1,5 @@
 #include <AvrTL.h>
 #include <AvrTLPin.h>
-#include <AvrTLSignal.h>
 #include <TimeScheduler.h>
 #include <HWSerialNoInt.h>
 #include <BasicIO/ByteStream.h>
@@ -8,6 +7,8 @@
 #include <FastSerial.h>
 #include <ADC/adc.h>
 #include <Linkuino/Linkuino.h>
+
+#include <avr/interrupt.h>
 
 // 'old' setting, use led pin to forward commands to slave chip
 //#define FWD_SERIAL_PIN 13

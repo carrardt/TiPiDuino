@@ -4,6 +4,8 @@
 #include "BasicIO/PrintStream.h"
 #include "BasicIO/InputStream.h"
 
+#include <avr/interrupt.h>
+
 // #define USE_HW_SERIAL 1
 
 #ifdef USE_HW_SERIAL
@@ -13,7 +15,7 @@ ByteStreamAdapter<HWSerialNoInt,100000UL> serialIO;
 #include <SoftSerial.h>
 static auto rx = avrtl::StaticPin<0>();
 static auto tx = avrtl::StaticPin<1>();
-using SerialScheduler = TimeSchedulerT<AvrTimer0NoPrescaler>;
+using SerialScheduler = TimeScheduler;
 static auto rawSerialIO = make_softserial_hr<57600,SerialScheduler>(rx,tx);
 static ByteStreamAdapter<decltype(rawSerialIO),100000UL> serialIO = { rawSerialIO };
 #endif
