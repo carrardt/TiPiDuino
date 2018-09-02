@@ -4,6 +4,8 @@
 #include <AvrTL.h>
 #include <AvrTLPin.h>
 
+#include <avr/interrupt.h>
+
 using namespace avrtl;
 
 /*
@@ -63,7 +65,7 @@ void loop()
 	led = !led;
 
 	cout<<"Counter = "<<counter<<endl;
-	avrtl::DelayMicroseconds( 100000UL );
+	avrtl::delayMicroseconds( 100000UL );
 	++ counter;
 
 #if 0

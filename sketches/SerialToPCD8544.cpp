@@ -2,6 +2,8 @@
 #include <SoftSerial.h>
 #include "BasicIO/ByteStream.h"
 #include "BasicIO/InputStream.h"
+#include <avr/interrupt.h>
+
 //#include "BasicIO/PrintStream.h"
 
 /*
@@ -17,7 +19,7 @@
 
 static auto rx = avrtl::StaticPin<0>();
 static auto tx = avrtl::NullPin();
-using SerialScheduler = TimeSchedulerT<AvrTimer0NoPrescaler>;
+using SerialScheduler = TimeSchedulerT<avrtl::AvrTimer0NoPrescaler>;
 static auto serialIO = make_softserial_hr<SERIAL_SPEED,SerialScheduler>(rx,tx);
 static PCD8544 lcd( LCD_PINS_ATTINY85 );
 

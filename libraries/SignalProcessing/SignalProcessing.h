@@ -75,7 +75,7 @@ struct SignalProcessing
 	template<typename PinT>
 	inline uint32_t PulseIn(PinT p, bool lvl, uint32_t timeout, uint16_t* gap=nullptr) 
 	{
-		timeout = m_ts.m_timerhw.microsecondsToTicks(timeout);
+		timeout = m_ts.m_timer.microsecondsToTicks(timeout);
 		
 		m_ts.reset();
 		WallClockT ts = 0;
@@ -93,7 +93,7 @@ struct SignalProcessing
 			} );		
 		if( gap != nullptr ) { *gap = ts; }
 		if( (te-ts) >= timeout ) { return 0; }
-		else { return m_ts.m_timerhw.ticksToMicroseconds(te-ts); }
+		else { return m_ts.m_timer.ticksToMicroseconds(te-ts); }
 	}
 
 	template<typename PinT>

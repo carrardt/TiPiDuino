@@ -1,6 +1,5 @@
 #include "AvrTL.h"
 #include "AvrTLPin.h"
-#include "AvrTLSignal.h"
 #include "RFSniffer.h"
 #include "RFSnifferProtocol.h"
 #include "RFSnifferEEPROM.h"

@@ -1,9 +1,8 @@
 #include <AvrTL.h>
 #include <AvrTLPin.h>
-#include <AvrTLSignal.h>
 #include <HWSerial/HWSerialIO.h>
 #include <BasicIO/PrintStream.h>
-
+#include <SignalProcessing/SignalProcessing.h>
 #include <avr/pgmspace.h>
 
 using namespace avrtl;
@@ -57,7 +56,8 @@ void loop()
 	char c = scanKeyPad();
 	if( c != '\0' )
 	{
+		SignalProcessing32 sp;
 		cout<<c<<endl;
-		blink(led);
+		sp.blink(led);
 	}
 }

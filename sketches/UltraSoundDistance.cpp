@@ -1,8 +1,9 @@
 #include <AvrTL.h>
 #include <AvrTLPin.h>
-#include <AvrTLSignal.h>
+#include <AvrTL/timer.h>
 #include <BasicIO/PrintStream.h>
 #include <HWSerial/HWSerialIO.h>
+#include <SignalProcessing/SignalProcessing.h>
 
 using namespace avrtl;
 
@@ -29,13 +30,13 @@ void loop()
 	uint16_t echo_gap = 0;
 	uint32_t echo_length = 0;
 	{
-		SCOPED_SIGNAL_PROCESSING;
+		SignalProcessing32 sp;
 		trigger=true;
-		DelayMicrosecondsFast(10);
+		avrtl::delayMicroseconds(10);
 		trigger=false;
-		echo_length = PulseInFast(echo,true,4000,&echo_gap);
+		echo_length = sp.PulseIn(echo,true,4000,&echo_gap);
 		int32_t waitTime = 60000 - (echo_length+echo_gap);
-		if(waitTime>0) { DelayMicrosecondsFast(waitTime); }
+		if(waitTime>0) { avrtl::delayMicroseconds(waitTime); }
 	}
 	cout<<"gap="<<echo_gap<<", len="<<echo_length<<endl;
 }

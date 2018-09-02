@@ -4,6 +4,8 @@
 #include "BasicIO/PrintStream.h"
 #include "BasicIO/InputStream.h"
 
+#include <avr/interrupt.h>
+
 #define SERIAL_SPEED 19200
 
 #include "HWSerialNoInt/HWSerialNoInt.h"

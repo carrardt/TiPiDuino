@@ -3,8 +3,8 @@
 
 #include "RFSnifferConstants.h"
 #include "RFSnifferProtocol.h"
-#include "AvrTLSignal.h"
 #include "BasicIO/PrintStream.h"
+#include "SignalProcessing/SignalProcessing.h"
 
 /*
  * TODO: improve pulse length encoding, using TIMER0PRESCALER value
@@ -29,13 +29,13 @@ struct RFSniffer
 	template<uint8_t NSymbols, uint8_t SeqLen>
 	inline uint8_t detectEntropyDrop(uint16_t* buf, bool pulseLevel)
 	{
-		SCOPED_SIGNAL_PROCESSING;
+		SignalProcessing32 sproc;
 		
 		uint8_t nSymbolsInBuffer = 0;
 		uint8_t nSymbolsRead = 0;
 		while(nSymbolsInBuffer<NSymbols && nSymbolsRead<SeqLen)
 		{
-			long p = avrtl::PulseInFast(rx,pulseLevel,MAX_PULSE_LEN);
+			long p = sproc.PulseIn(rx,pulseLevel,MAX_PULSE_LEN);
 			if( p < MIN_PULSE_LEN ) return nSymbolsRead;
 			uint8_t j=NSymbols;
 			for(int s=0;s<nSymbolsInBuffer;++s)
@@ -52,7 +52,7 @@ struct RFSniffer
 		}
 		while( nSymbolsRead < SeqLen )
 		{
-			long p = avrtl::PulseInFast(rx,pulseLevel,MAX_PULSE_LEN);
+			long p = sproc.PulseIn(rx,pulseLevel,MAX_PULSE_LEN);
 			if( p < MIN_PULSE_LEN ) return nSymbolsRead;
 			uint8_t j = NSymbols;
 			for(int s=0;s<NSymbols;++s)
@@ -71,16 +71,16 @@ struct RFSniffer
 	template<uint16_t bufSize, uint16_t minLatchLen, uint8_t minLatchCount>
 	int recordSignalLatchDetect(uint16_t * buf,bool pulseLevel)
 	{
-	  SCOPED_SIGNAL_PROCESSING;
+	  SignalProcessing32 sproc;
 	  
 	  int n=0;
 	  for(;n<minLatchCount;++n)
 	  {
-		  buf[n] = avrtl::PulseInFast(rx,pulseLevel,MAX_PULSE_LEN);
+		  buf[n] = sproc.PulseIn(rx,pulseLevel,MAX_PULSE_LEN);
 		  if( buf[n]<minLatchLen || buf[n]>=MAX_PULSE_LEN ) return n;
 	  }
 	  do {
-		buf[n++] = avrtl::PulseInFast(rx,pulseLevel,MAX_PULSE_LEN);
+		buf[n++] = sproc.PulseIn(rx,pulseLevel,MAX_PULSE_LEN);
 	  }
 	  while( buf[n-1]>MIN_PULSE_LEN && buf[n-1]<=MAX_PULSE_LEN && n<bufSize);
 	  if(n<bufSize) { --n; }
@@ -90,11 +90,11 @@ struct RFSniffer
 	template<uint16_t bufSize>
 	int recordSignalLatchSequenceDetect(uint16_t * buf,bool pulseLevel,const int nlacthes, const uint16_t* sequence)
 	{
-		SCOPED_SIGNAL_PROCESSING;
+	  	SignalProcessing32 sproc;
 
 		for(uint8_t i=0;i<nlacthes;i++)
 		{
-			long p = avrtl::PulseInFast(rx,pulseLevel,MAX_PULSE_LEN);
+			long p = sproc.PulseIn(rx,pulseLevel,MAX_PULSE_LEN);
 			buf[i] = p;
 			uint16_t l = sequence[i];
 			uint16_t relerr = l / PULSE_ERR_RATIO;
@@ -103,7 +103,7 @@ struct RFSniffer
 		int n = nlacthes;
 	    do
 	    {
-			buf[n++] = avrtl::PulseInFast(rx,pulseLevel,MAX_PULSE_LEN);
+			buf[n++] = sproc.PulseIn(rx,pulseLevel,MAX_PULSE_LEN);
 	    }
 	    while( buf[n-1]>MIN_PULSE_LEN && buf[n-1]<=MAX_PULSE_LEN && n<bufSize);
 		if(n<bufSize) { --n; }
@@ -114,7 +114,7 @@ struct RFSniffer
 	template<uint16_t bufSize, uint16_t binarySeqLen>
 	int recordSignalBinaryEntropyDetect(uint16_t * buf, bool pulseLevel, uint16_t& P1)
 	{
-		SCOPED_SIGNAL_PROCESSING;
+		SignalProcessing32 sproc;
 
 		uint16_t fop0 = 0; // first occurence position
 		uint16_t fop1 = 0; // first occurence position
@@ -127,7 +127,7 @@ struct RFSniffer
 		// wait for a clean state
 		while( rx == pulseLevel );
 
-		l = avrtl::PulseInFast(rx,pulseLevel,MAX_PULSE_LEN);
+		l = sproc.PulseIn(rx,pulseLevel,MAX_PULSE_LEN);
 		if( l < MIN_PULSE_LEN ) return 0;
 		buf[curs] = l;	
 		curs=(curs+1)%bufSize;
@@ -139,7 +139,7 @@ struct RFSniffer
 
 			// read a valid pulse,
 			do {
-				l = avrtl::PulseInFast(rx,pulseLevel,MAX_PULSE_LEN);
+				l = sproc.PulseIn(rx,pulseLevel,MAX_PULSE_LEN);
 			} while( l < MIN_PULSE_LEN ) ;
 			
 			// store the pulse
@@ -156,7 +156,7 @@ struct RFSniffer
 		// now wait until we have a long enough binary sequence
 		while( CURSOR_DIST(fop0,curs) < binarySeqLen )
 		{
-			l = avrtl::PulseInFast(rx,pulseLevel,MAX_PULSE_LEN);
+			l = sproc.PulseIn(rx,pulseLevel,MAX_PULSE_LEN);
 			if( l < MIN_PULSE_LEN ) return 0;
 			buf[curs] = l;
 			re = l / PULSE_ERR_RATIO;
@@ -175,7 +175,7 @@ struct RFSniffer
 
 		while( curs != fop0 )
 		{
-			l = avrtl::PulseInFast(rx,pulseLevel,MAX_PULSE_LEN);
+			l = sproc.PulseIn(rx,pulseLevel,MAX_PULSE_LEN);
 			if( l < MIN_PULSE_LEN )
 			{
 				int recordSize = CURSOR_DIST(fop0,curs);
@@ -371,6 +371,7 @@ struct RFSniffer
 	 ***********************************/
 	void learnProtocol()
 	{
+		SignalProcessing32 sproc;
 		static const char* stageLabel[3] = {"detect","analyse","verify"};
 		bool stageChanged = true;
 		int maxRecoveredLatches = MAX_LATCH_SEQ_LEN;
@@ -382,7 +383,7 @@ struct RFSniffer
 			if( stageChanged )
 			{
 				cout<<stageLabel[stage]<<endl;
-				blink(led);
+				sproc.blink(led);
 				sp.toStream(cout);
 				stageChanged=false;
 			}
@@ -492,7 +493,7 @@ struct RFSniffer
 					if( stage1MaxTime <= recordTime )
 					{
 						cout<<"failed, retry"<<endl;
-						blink(led);
+						sproc.blink(led);
 						stage = 0;
 						sp.init();
 						stageChanged=true;

@@ -56,55 +56,55 @@ void setup()
 static void motor_cw(int32_t delay,int32_t inc)
 {
 	digitalWrite(4,HIGH);
-	avrtl::DelayMicroseconds(delay); delay += inc;
+	avrtl::delayMicroseconds(delay); delay += inc;
 
 	digitalWrite(7,LOW);
-	avrtl::DelayMicroseconds(delay); delay += inc;
+	avrtl::delayMicroseconds(delay); delay += inc;
 
 	digitalWrite(6,HIGH);
-	avrtl::DelayMicroseconds(delay); delay += inc;
+	avrtl::delayMicroseconds(delay); delay += inc;
 
 	digitalWrite(4,LOW);
-	avrtl::DelayMicroseconds(delay); delay += inc;
+	avrtl::delayMicroseconds(delay); delay += inc;
 
 	digitalWrite(5,HIGH);
-	avrtl::DelayMicroseconds(delay); delay += inc;
+	avrtl::delayMicroseconds(delay); delay += inc;
 
 	digitalWrite(6,LOW);
-	avrtl::DelayMicroseconds(delay); delay += inc;
+	avrtl::delayMicroseconds(delay); delay += inc;
 
 	digitalWrite(7,HIGH);
-	avrtl::DelayMicroseconds(delay); delay += inc;
+	avrtl::delayMicroseconds(delay); delay += inc;
 
 	digitalWrite(5,LOW);
-	avrtl::DelayMicroseconds(delay);
+	avrtl::delayMicroseconds(delay);
 }
 
 static void motor_ccw(int32_t delay,int32_t inc)
 {
 	digitalWrite(4,HIGH);
-	avrtl::DelayMicroseconds(delay);
+	avrtl::delayMicroseconds(delay);
 
 	digitalWrite(6,LOW);
-	avrtl::DelayMicroseconds(delay);
+	avrtl::delayMicroseconds(delay);
 
 	digitalWrite(7,HIGH);
-	avrtl::DelayMicroseconds(delay);
+	avrtl::delayMicroseconds(delay);
 
 	digitalWrite(4,LOW);
-	avrtl::DelayMicroseconds(delay);
+	avrtl::delayMicroseconds(delay);
 
 	digitalWrite(5,HIGH);
-	avrtl::DelayMicroseconds(delay);
+	avrtl::delayMicroseconds(delay);
 
 	digitalWrite(7,LOW);
-	avrtl::DelayMicroseconds(delay);
+	avrtl::delayMicroseconds(delay);
 
 	digitalWrite(6,HIGH);
-	avrtl::DelayMicroseconds(delay);
+	avrtl::delayMicroseconds(delay);
 
 	digitalWrite(5,LOW);
-	avrtl::DelayMicroseconds(delay);
+	avrtl::delayMicroseconds(delay);
 }
 
 void loop()

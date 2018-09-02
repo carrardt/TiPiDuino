@@ -7,6 +7,7 @@
 #include "RFSnifferEEPROM.h"
 #include "RFSnifferProtocol.h"
 #include "AvrTL.h"
+#include "SignalProcessing/SignalProcessing.h"
 #include <stdint.h>
 
 /*
@@ -50,6 +51,7 @@ struct RFSnifferInterpreter
 	
 	void processCommands(ByteStream* rawInput)
 	{
+		SignalProcessing32 sproc;
 		while( !rawInput->eof() )
 		{
 			InputStream cin;
@@ -177,7 +179,7 @@ struct RFSnifferInterpreter
 				{
 					int32_t duration = pop();
 					duration*=1000;
-					avrtl::DelayMicroseconds(duration);
+					avrtl::delayMicroseconds(duration);
 				}
 				break;
 
@@ -224,14 +226,13 @@ struct RFSnifferInterpreter
 					uint16_t rSamples = 0;
 					bool lvl = rx.Get();
 					{
-						SCOPED_SIGNAL_PROCESSING;
 						do {
-							rSamples = RecordSignalFast(rx,timeout*1000UL,nSamples,buf);
+							rSamples = sproc.RecordSignal(rx,timeout*1000UL,nSamples,buf);
 						} while( rSamples < 2 );
 					}
 					for(int i=0;i<rSamples;i++)
 					{
-						cout<<i<<':'<< lvl <<':' <<avrtl::ticksToMicroseconds(buf[i])<<endl;
+						cout<<i<<':'<< lvl <<':' <<sproc.m_ts.m_timer.ticksToMicroseconds(buf[i])<<endl;
 						lvl = !lvl;
 					}
 				}
@@ -241,8 +242,8 @@ struct RFSnifferInterpreter
 				case 'T':
 				{
 					int16_t RFMode = pop();
-					if( RFMode ) { avrtl::blink(rf_tx); }
-					else { avrtl::blink(ir_tx); }
+					if( RFMode ) { sproc.blink(rf_tx); }
+					else { sproc.blink(ir_tx); }
 				}
 				break;
 			
@@ -254,11 +255,10 @@ struct RFSnifferInterpreter
 					uint8_t buf[mesg.nbytes];
 					eeprom_read_block(buf,mesg.eeprom_addr,mesg.nbytes);
 					
-					SCOPED_SIGNAL_PROCESSING;
 					if( proto.mediumRF() )
 					{
-						proto.writeMessageFast(buf,mesg.nbytes,[&](bool l,uint32_t t)
-							{ avrtl::setLineFlatFast(rf_tx,l,t); } );
+						proto.writeMessage(buf,mesg.nbytes,[&](bool l,uint32_t t)
+							{ sproc.setLineFlat(rf_tx,l,t); } );
 						rf_tx = 0;
 					}
 					else
@@ -272,7 +272,7 @@ struct RFSnifferInterpreter
 						{
 							case RFSnifferProtocol::MODULATION_36KHZ:
 								proto.writeMessageFast(buf,mesg.nbytes,[&](bool l,uint32_t t)
-									{ avrtl::setLinePWMFast<36000,avrtl::pwmval(0.33)>(ir_tx,!l,t); } );
+									{ sproc.setLinePWM<36000,avrtl::pwmval(0.33)>(ir_tx,!l,t); } );
 								break;
 							case RFSnifferProtocol::MODULATION_38KHZ:
 								proto.writeMessageFast(buf,mesg.nbytes,[&](bool l,uint32_t t)

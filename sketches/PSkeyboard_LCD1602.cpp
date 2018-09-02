@@ -179,7 +179,6 @@ static uint8_t readBit()
 
 static inline char readKeyboard()
 {	
-	SCOPED_SIGNAL_PROCESSING;
 	uint8_t x=0, p=0, one=0;
 	while( readBit() != 0 );
 	x = readBit();

@@ -1,6 +1,5 @@
 #include <AvrTL.h>
 #include <AvrTLPin.h>
-#include <AvrTLSignal.h>
 #include <TimeScheduler.h>
 
 using namespace avrtl;
