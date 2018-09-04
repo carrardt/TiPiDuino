@@ -5,6 +5,8 @@
 #include <AvrTL.h>
 #include <AvrTLPin.h>
 
+#include <avr/interrupt.h>
+
 using namespace avrtl;
 
 /*

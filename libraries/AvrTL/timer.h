@@ -138,6 +138,17 @@ struct AvrTimer
 		return ( us * ClockMhz ) / TimerPrescaler;
 	}
 
+	inline void delay(int32_t ticks)
+	{
+		TimerCounterType t = counter();
+		do
+		{
+			TimerCounterType t2 = counter();
+			ticks -= (TimerCounterType)( t2 - t );
+			t = t2;
+		} while( ticks > 0 );
+	}
+
 	TimerHW m_timerhw;
 };
 
@@ -149,15 +160,8 @@ using AvrTimer1NoPrescaler = AvrTimer<AvrTimer1HW,1>;
 static inline void delayMicroseconds(uint32_t us)
 {
 	AvrTimer0 timer;
-	auto t = timer.start();
-	uint32_t ticks = timer.microsecondsToTicks(us);
-	uint32_t w = 0;
-	do
-	{
-		auto t2 = t;
-		t = timer.counter();
-		w += (t2-t);
-	} while( w < ticks );
+	timer.start();
+	timer.delay( timer.microsecondsToTicks(us) );
 	timer.stop();
 }
 

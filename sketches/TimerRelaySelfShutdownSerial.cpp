@@ -5,6 +5,7 @@
 #include <BasicIO/PrintStream.h>
 #include <TimeScheduler/TimeScheduler.h>
 #include <avr/eeprom.h>
+#include <avr/interrupt.h>
 
 #define DEFAULT_TIMER_SECONDS 300
 #define SERIAL_SPEED 19200

@@ -11,6 +11,8 @@
 #include "HWSerialNoInt/HWSerialNoInt.h"
 #endif
 
+#include <avr/interrupt.h>
+
 using namespace avrtl;
 
 #ifdef RFCAR_ATTINY_PINS

@@ -99,7 +99,7 @@ struct SignalProcessing
 	template<typename PinT>
 	inline uint16_t RecordSignal(PinT p, uint32_t timeout, uint16_t nSamples, uint16_t* signal) 
 	{
-		timeout = m_ts.m_timerhw.microsecondsToTicks(timeout);
+		timeout = m_ts.m_timer.microsecondsToTicks(timeout);
 		WallClockT ts = 0;
 		int i=0;
 		bool lvl = p.Get();

@@ -133,8 +133,9 @@ void loop(void)
 
 void rebootToOperationMode(int op)
 {
+	SignalProcessing32 sproc;
 	RFSnifferEEPROM::setOperationMode(op);
-	blink(led);
+	sproc.blink(led);
 	asm volatile ("  jmp 0");
 }
 
@@ -160,6 +161,8 @@ static bool testSequence(OutStream& out, uint8_t seq, bool value, uint8_t& seqId
 
 void recordMessage(int pId)
 {
+	SignalProcessing32 sproc;
+
 	// in case the remote doesn't work, reset will get you back to command mode
 	RFSnifferEEPROM::setOperationMode( RFSnifferEEPROM::COMMAND_MODE );
 
@@ -183,7 +186,7 @@ void recordMessage(int pId)
 			nbytes = (sp.messageBits+7) / 8;
 			int mesgId = RFSnifferEEPROM::saveMessage(pId,buf,nbytes);
 			cout<<"M#"<<mesgId<<endl;
-			blink(led);
+			sproc.blink(led);
 			uint8_t cs = checksum8(buf,nbytes);
 			bool same_mesg = (cs == last_checksum);
 			last_checksum = cs;

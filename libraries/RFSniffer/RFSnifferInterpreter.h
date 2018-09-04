@@ -263,7 +263,8 @@ struct RFSnifferInterpreter
 					}
 					else
 					{
-						uint8_t mod = proto.pulseModulation();
+						static constexpr uint16_t pulseFraction = 21845; // 1/3 coded on 16 bit unsigned int
+						uint8_t mod = proto.pulseModulation();	
 						if( mod == RFSnifferProtocol::MODULATION_NONE )
 						{
 							mod = RFSnifferProtocol::MODULATION_38KHZ;
@@ -271,16 +272,16 @@ struct RFSnifferInterpreter
 						switch( mod )
 						{
 							case RFSnifferProtocol::MODULATION_36KHZ:
-								proto.writeMessageFast(buf,mesg.nbytes,[&](bool l,uint32_t t)
-									{ sproc.setLinePWM<36000,avrtl::pwmval(0.33)>(ir_tx,!l,t); } );
+								proto.writeMessage(buf,mesg.nbytes,[&](bool l,uint32_t t)
+									{ sproc.setLinePWM<36000,pulseFraction>(ir_tx,!l,t); } );
 								break;
 							case RFSnifferProtocol::MODULATION_38KHZ:
-								proto.writeMessageFast(buf,mesg.nbytes,[&](bool l,uint32_t t)
-									{ avrtl::setLinePWMFast<38000,avrtl::pwmval(0.33)>(ir_tx,!l,t); } );
+								proto.writeMessage(buf,mesg.nbytes,[&](bool l,uint32_t t)
+									{ sproc.setLinePWM<38000,pulseFraction>(ir_tx,!l,t); } );
 								break;
 							case RFSnifferProtocol::MODULATION_40KHZ:
-								proto.writeMessageFast(buf,mesg.nbytes,[&](bool l,uint32_t t)
-									{ avrtl::setLinePWMFast<40000,avrtl::pwmval(0.33)>(ir_tx,!l,t); } );
+								proto.writeMessage(buf,mesg.nbytes,[&](bool l,uint32_t t)
+									{ sproc.setLinePWM<40000,pulseFraction>(ir_tx,!l,t); } );
 								break;
 						}
 						ir_tx = 0;
