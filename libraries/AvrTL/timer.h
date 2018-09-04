@@ -34,7 +34,7 @@ struct AvrTimer0HW
 		}
 	}
 	
-	inline void popState()
+	inline void popState() const
 	{
 		TCCR0A = saved_TCCR0A;
 		TCCR0B = saved_TCCR0B;
@@ -79,7 +79,7 @@ struct AvrTimer1HW
 		}
 	}
 
-	inline void popState()
+	inline void popState() const
 	{
 		TCCR1A = saved_TCCR1A;
 		TCCR1B = saved_TCCR1B;
@@ -123,7 +123,7 @@ struct AvrTimer
 		return m_timerhw.counter();
 	}
 	
-	inline void stop()
+	inline void stop() const
 	{
 		m_timerhw.popState();
 	}
@@ -138,7 +138,7 @@ struct AvrTimer
 		return ( us * ClockMhz ) / TimerPrescaler;
 	}
 
-	inline void delay(int32_t ticks)
+	inline void delay(int32_t ticks) const
 	{
 		TimerCounterType t = counter();
 		do
