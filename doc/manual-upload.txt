@@ -1,8 +1,8 @@
 # in case you want to manually upload a .hex to an avr, using an ArduinoAsISP, you can use these 
 # shell functions :
 
-# export ARDUINOISP_SERIALSPEED=19200 # standard value as in the ArduinoISP original sketch
-export ARDUINOISP_SERIALSPEED=38400
+export ARDUINOISP_SERIALSPEED=19200 # standard value as in the ArduinoISP original sketch
+# export ARDUINOISP_SERIALSPEED=38400
 
 tn85upload()
 {
@@ -29,6 +29,12 @@ m328upload()
 {
         avrdude -v -pm328p -cstk500v1 -P/dev/tty$1 -b${ARDUINOISP_SERIALSPEED} -Uflash:w:$2:i
 }
+
+m328i8fuse()
+{
+        avrdude -v -pm328p -cstk500v1 -P/dev/tty$1 -b${ARDUINOISP_SERIALSPEED} -Ulfuse:w:0xe2:m -Uhfuse:w:0xd9:m -Uefuse:w:0xff:m
+}
+
 
 m328e16fuse()
 {
