@@ -43,15 +43,29 @@
 #include "BasicIO/PrintStream.h"
 #include "AvrTL/timer.h"
 
+/*
+ * Important Note : if you connect screen's SCE pin to ground, it just works !
+ * it seems SCE pin prevents undesired messages to be received.
+ */
+
+
+// PCD8544 pins :         SCLK, SDIN, DC, RST, SCE
+#define LCD_PINS_ATTINY85    1,    2,  3,   4, PCD8544_UNASSIGNED
+#define LCD_PINS_ATMEGA328   2,    3,  4,   5, 6
+
+#define LED_PIN 13
+static auto led = avrtl::StaticPin<LED_PIN>();
+
 // A custom glyph (a smiley)...
 static const uint8_t glyph[] = { 0b00010000, 0b00110100, 0b00110000, 0b00110100, 0b00010000 };
-
 
 static ByteStreamAdapter<PCD8544> lcdIO;
 static PrintStream cout;
 
-
-void setup() {
+void setup()
+{
+  lcdIO.m_rawIO.setPins( LCD_PINS_ATMEGA328 );
+  
   // PCD8544-compatible displays may have a different resolution...
   lcdIO.m_rawIO.begin(84, 48);
 
@@ -66,9 +80,11 @@ void setup() {
 }
 
 
-void loop() {
+void loop()
+{
   // Just to show the program is alive...
   static int counter = 0;
+  static bool ledState = false;
 
   // Write a piece of text on the first line...
   lcdIO.m_rawIO.setCursor(0, 0);
@@ -78,9 +94,11 @@ void loop() {
   lcdIO.m_rawIO.setCursor(0, 1);
   cout << counter << ' ' << '\1';
 
-  avrtl::delay(200);
+  led = ledState;
+  ledState = ! ledState;
+
+  avrtl::delay(950);
   counter++;
 }
 
 
-/* EOF - HelloWorld.ino */

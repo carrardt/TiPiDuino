@@ -37,11 +37,15 @@ class PCD8544
 {
     public:
         // All the pins can be changed from the default values...
-        PCD8544(unsigned char sclk  = 3,   /* clock       (display pin 2) */
-                unsigned char sdin  = 4,   /* data-in     (display pin 3) */
-                unsigned char dc    = 5,   /* data select (display pin 4) */
-                unsigned char reset = 6,   /* reset       (display pin 8) */
-                unsigned char sce   = 7);  /* enable      (display pin 5) */
+        PCD8544(unsigned char sclk  = 2,   /* clock       (display pin 2) */
+                unsigned char sdin  = 3,   /* data-in     (display pin 3) */
+                unsigned char dc    = 4,   /* data select (display pin 4) */
+                unsigned char reset = 5,   /* reset       (display pin 8) */
+                unsigned char sce   = 6);  /* enable      (display pin 5) */
+
+		void setPins(unsigned char sclk, unsigned char sdin,
+                 unsigned char dc, unsigned char reset,
+                 unsigned char sce);
 
         // Display initialization (dimensions in pixels)...
         void begin(unsigned char width=84, unsigned char height=48, unsigned char model=CHIP_PCD8544);

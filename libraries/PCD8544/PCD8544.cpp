@@ -132,14 +132,21 @@ const PROGMEM unsigned char charset[][5] = {
 
 PCD8544::PCD8544(unsigned char sclk, unsigned char sdin,
                  unsigned char dc, unsigned char reset,
-                 unsigned char sce):
-    pin_sclk(sclk),
-    pin_sdin(sdin),
-    pin_dc(dc),
-    pin_reset(reset),
-    pin_sce(sce)
-{}
+                 unsigned char sce)
+{
+	setPins(sclk,sdin,dc,reset,sce);
+}
 
+void PCD8544::setPins(unsigned char sclk, unsigned char sdin,
+                 unsigned char dc, unsigned char reset,
+                 unsigned char sce)
+{
+    pin_sclk = sclk;
+    pin_sdin = sdin;
+    pin_dc = dc;
+    pin_reset = reset;
+    pin_sce = sce;
+}
 
 void PCD8544::begin(unsigned char width, unsigned char height, unsigned char model)
 {
