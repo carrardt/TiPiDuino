@@ -98,16 +98,19 @@ generate_avr_firmware(
     )
 
 
+if(NOT "${ARDUINO_DEFAULT_BOARD}" MATCHES "attiny85.*")
 #====================================================================#
 # Self shutting down relay timer
 #====================================================================#
+# workd with atmega328 and attiny84
 generate_avr_firmware(
 	TimerRelaySelfShutdownSerial
 	SRCS TimerRelaySelfShutdownSerial.cpp
 	LIBS SoftSerial BasicIO TimeScheduler AvrTL AvrApp
 	)
+endif()
 
-if("${ARDUINO_DEFAULT_BOARD}" MATCHES "attiny84*")
+if("${ARDUINO_DEFAULT_BOARD}" MATCHES "attiny84.*")
 #====================================================================#
 # Calculator
 #====================================================================#

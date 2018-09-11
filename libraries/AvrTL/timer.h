@@ -27,9 +27,9 @@ struct AvrTimer0HW
 		{
 		    case 1    : TCCR0B = 0b00000001; break;
 		    case 8    : TCCR0B = 0b00000010; break;
-		    case 64   : TCCR1B = 0b00000011; break;
-		    case 256  : TCCR1B = 0b00000100; break;
-		    case 1024 : TCCR1B = 0b00000101; break;
+		    case 64   : TCCR0B = 0b00000011; break;
+		    case 256  : TCCR0B = 0b00000100; break;
+		    case 1024 : TCCR0B = 0b00000101; break;
 		    default   : TCCR0B = 0b00000000; break; // stopped
 		}
 	}
@@ -52,7 +52,8 @@ struct AvrTimer0HW
 };
 
 // Warning! : it seems it doesn't work on ATtiny85, needs investigation. for ATtiny, use only Timer0.
-#if defined(TCCR1A) && defined(TCCR1B) && defined(TCCR1C) && defined(TIMSK1) 
+#if defined(TCCR1A) && defined(TCCR1B) && defined(TCCR1C) && defined(TIMSK1)
+#define AVR_HAS_TIMER1HW 1 
 struct AvrTimer1HW
 {
 	using TimerCounterType = uint16_t;
@@ -154,8 +155,11 @@ struct AvrTimer
 
 using AvrTimer0            = AvrTimer<AvrTimer0HW,8>;
 using AvrTimer0NoPrescaler = AvrTimer<AvrTimer0HW,1>;
+
+#ifdef AVR_HAS_TIMER1HW
 using AvrTimer1            = AvrTimer<AvrTimer1HW,8>;
 using AvrTimer1NoPrescaler = AvrTimer<AvrTimer1HW,1>;
+#endif
 
 static inline void delayMicroseconds(uint32_t us)
 {
