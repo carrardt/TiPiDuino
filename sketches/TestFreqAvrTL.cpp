@@ -15,8 +15,8 @@
 #define LED_PIN 4
 #elif defined(__AVR_ATtiny85__)
 #warning ATtiny85
-#define CLK_PIN 0
-#define LED_PIN 2
+#define CLK_PIN 4
+#define LED_PIN 3
 #else
 #define CLK_PIN 8
 #define LED_PIN 13
