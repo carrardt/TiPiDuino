@@ -1,52 +1,15 @@
-# in case you want to manually upload a .hex to an avr, using an ArduinoAsISP, you can use these 
-# shell functions :
-
-export ARDUINOISP_SERIALSPEED=19200 # standard value as in the ArduinoISP original sketch
-# export ARDUINOISP_SERIALSPEED=38400
-
-tn85upload()
-{
-        avrdude -v -pattiny85 -cstk500v1 -P/dev/tty$1 -b${ARDUINOISP_SERIALSPEED} -Uflash:w:$2:i
-}
-
-tn84upload()
-{
-        avrdude -v -pattiny84 -cstk500v1 -P/dev/tty$1 -b${ARDUINOISP_SERIALSPEED} -Uflash:w:$2:i
-}
-
-
-tn85i8fuse()
-{
-	avrdude -v -pattiny85 -cstk500v1 -P/dev/tty$1 -b${ARDUINOISP_SERIALSPEED} -U lfuse:w:0xe2:m -U hfuse:w:0xdf:m -U efuse:w:0xff:m
-}
-
-tn84i8fuse()
-{
-	avrdude -v -pattiny84 -cstk500v1 -P/dev/tty$1 -b${ARDUINOISP_SERIALSPEED} -U lfuse:w:0xe2:m -U hfuse:w:0xdf:m -U efuse:w:0xff:m
-}
-
-m328upload()
-{
-        avrdude -v -pm328p -cstk500v1 -P/dev/tty$1 -b${ARDUINOISP_SERIALSPEED} -Uflash:w:$2:i
-}
-
-m328i8fuse()
-{
-        avrdude -v -pm328p -cstk500v1 -P/dev/tty$1 -b${ARDUINOISP_SERIALSPEED} -Ulfuse:w:0xe2:m -Uhfuse:w:0xd9:m -Uefuse:w:0xff:m
-}
-
-
-m328e16fuse()
-{
-        avrdude -v -pm328p -cstk500v1 -P/dev/tty$1 -b${ARDUINOISP_SERIALSPEED} -e -Ulock:w:0x3F:m -Uefuse:w:0x05:m -Uhfuse:w:0xDA:m -Ulfuse:w:0xFF:m
-}
-
-
-
-attiny 85 considerations :
+attiny 85
+=========
 prefered option is to burn the desired bootloader with arduino IDE, using a recent version.
+last successfull experience :
+- arduino IDE 1.0.5 under linux
+- ArduinoISP sketch upoloaded to an arduino nano compatible board
+- paste attiny boards definitions at the end of /usr/share/arduino/hardware/arduino/boards.txt
+- select Attiny85 (internal 8Mhz clock)
+- select programmer Arduino as ISP 
+- burn boot loader
 
-otherwise, try these FUSE settings :
+ialternatively, try these FUSE settings :
 ATTiny85 @8Mhz, internal clock
 avrdude: safemode: lfuse reads as E2
 avrdude: safemode: hfuse reads as DF
@@ -54,6 +17,7 @@ avrdude: safemode: efuse reads as FF
 avrdude: safemode: Fuses OK (E:FF, H:DF, L:E2)
 
 
-
+atmega328
+=========
 ATMega328PU bootloader
 avrdude -v -patmega328p -cstk500v1 -PCOM3 -b19200 -e -Ulock:w:0x3F:m -Uefuse:w:0x05:m -Uhfuse:w:0xDA:m -Ulfuse:w:0xFF:m
