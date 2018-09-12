@@ -1,5 +1,6 @@
 #include <AvrTL.h>
 #include <AvrTLPin.h>
+#include <AvrTL/timer.h>
 #include <avr/interrupt.h>
 
 /*
@@ -25,19 +26,22 @@
 auto clk = avrtl::StaticPin<CLK_PIN>();
 auto led = avrtl::StaticPin<LED_PIN>();
 
+avrtl::AvrTimer0NoPrescaler g_timer;
+
 // the setup function runs once when you press reset or power the board
 void setup()
 {
   clk.SetOutput();
   led.SetOutput();
-  cli();
+  //cli();
+  g_timer.start();
 }
 
 // the loop function runs over and over again forever
 void loop() {
   static uint16_t counter = 0;
   static uint8_t tick = 0;
-  uint8_t tock = (TCNT0>>7) & 0x01;
+  uint8_t tock = (g_timer.counter()>>7) & 0x01;
   counter += tick^tock;
   tick = tock;
   clk.Set( tock );
