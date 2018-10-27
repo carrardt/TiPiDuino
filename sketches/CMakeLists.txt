@@ -104,8 +104,8 @@ if(NOT "${ARDUINO_DEFAULT_BOARD}" MATCHES "attiny85.*")
 #====================================================================#
 # workd with atmega328 and attiny84
 generate_avr_firmware(
-	TimerRelaySelfShutdownSerial
-	SRCS TimerRelaySelfShutdownSerial.cpp
+	TimerRelaySelfShutdownPCD8544
+	SRCS TimerRelaySelfShutdownPCD8544.cpp
 	LIBS SoftSerial BasicIO TimeScheduler AvrTL AvrApp
 	)
 endif()

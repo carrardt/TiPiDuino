@@ -1,6 +1,9 @@
 #include <PCD8544.h>
-#include <avr/pgmspace.h>
+#include <AvrTL/timer.h>
+#include <SignalProcessing/SignalProcessing.h>
 #include <stdlib.h>
+#include <avr/pgmspace.h>
+#include <avr/interrupt.h>
 
 #ifdef __AVR_ATtiny85__
 static avrtl::NullPin led;
@@ -109,11 +112,12 @@ void printMessage(const char* s)
 	lcd.clear();
 	lcd.setCursor(6, 2);
 	lcd.writeString(s);
-	delay(2000);
+	avrtl::delay(2000);
 }
 
 void printCalculatorMode()
 {
+	SignalProcessing32 sp;
 	lcd.clear();
 	switch(calculator_mode)
 	{
@@ -126,7 +130,7 @@ void printCalculatorMode()
 			lcd.writeString("Quizz");
 			break;
 	}
-	avrtl::blink(led);
+	sp.blink(led);
 	led = false;
 }
 

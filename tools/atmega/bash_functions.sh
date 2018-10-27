@@ -29,9 +29,14 @@ m328upload()
         avrdude -v -pm328p -cstk500v1 -P/dev/tty$1 -b${ARDUINOISP_SERIALSPEED} -Uflash:w:$2:i
 }
 
+m328i8bootloader()
+{
+	avrdude -v -pm328p -cstk500v1 -P/dev/tty$1 -b${ARDUINOISP_SERIALSPEED} -Uflash:w:ATmegaBOOT_168_atmega328_pro_8MHz.hex:i -Ulock:w:0xCF:m
+}
+
 m328i8fuse()
 {
-        avrdude -v -pm328p -cstk500v1 -P/dev/tty$1 -b${ARDUINOISP_SERIALSPEED} -Ulfuse:w:0xe2:m -Uhfuse:w:0xd9:m -Uefuse:w:0xff:m
+	avrdude -v -pm328p -cstk500v1 -P/dev/tty$1 -b${ARDUINOISP_SERIALSPEED} -Ulfuse:w:0xe2:m -Uhfuse:w:0xd9:m -Uefuse:w:0xff:m
 }
 
 m328e16fuse()
