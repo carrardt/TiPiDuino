@@ -13,7 +13,6 @@ tn84upload()
         avrdude -v -pattiny84 -cstk500v1 -P/dev/tty$1 -b${ARDUINOISP_SERIALSPEED} -Uflash:w:$2:i
 }
 
-
 tn85i8fuse()
 {
 	avrdude -v -pattiny85 -cstk500v1 -P/dev/tty$1 -b${ARDUINOISP_SERIALSPEED} -U lfuse:w:0xe2:m -U hfuse:w:0xdf:m -U efuse:w:0xff:m

@@ -111,13 +111,18 @@ struct TimeSchedulerT
 		return m_wallclock;
 	}
 	
+	inline void rewindWallClock(WallClockT t)
+	{
+		m_wallclock -= t;
+	}
+	
 	// works in timer tick time unit
 	template<typename FuncT>
 	inline void execFast( WallClockT t, FuncT f )
 	{
 		f();
 		while( wallclock() < t );
-		m_wallclock -= t;
+		rewindWallClock( t );
 	}
 
 	// works in timer tick time unit
@@ -126,7 +131,7 @@ struct TimeSchedulerT
 	{
 		WallClockT w;
 		while( (w=wallclock()) < t ) { f( w ); }
-		m_wallclock -= t;
+		rewindWallClock( t );
 	}
 
 	// works in uS time unit
@@ -138,7 +143,7 @@ struct TimeSchedulerT
 		m_debugger.setTiming(wallclock());
 		m_debugger.next();
 		while( wallclock() < t );
-		m_wallclock -= t;
+		rewindWallClock( t );
 	}
 
 	// works in uS time unit
@@ -153,7 +158,7 @@ struct TimeSchedulerT
 			f( usec );
 			if(DebugMode) {	WallClockT w2 = wallclock(); m_debugger.updateTiming(w2-w); }
 		}
-		m_wallclock -= t;
+		rewindWallClock( t );
 		m_debugger.next();
 	}
 

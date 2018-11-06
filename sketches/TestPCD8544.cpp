@@ -48,13 +48,23 @@
  * it seems SCE pin prevents undesired messages to be received.
  */
 
-
 // PCD8544 pins :         SCLK, SDIN, DC, RST, SCE
 #define LCD_PINS_ATTINY85    1,    2,  3,   4, PCD8544_UNASSIGNED
+#define LCD_PINS_ATTINY84    5,    4,  3,   1, 2
 #define LCD_PINS_ATMEGA328   8,    7,  6,   5, PCD8544_UNASSIGNED
 
-#define LED_PIN 13
-static auto led = avrtl::StaticPin<LED_PIN>();
+#if defined(__AVR_ATtiny84__)
+#define LCD_PINS LCD_PINS_ATTINY84
+static avrtl::NullPin led;
+#elif defined(__AVR_ATtiny85__)
+#define LCD_PINS LCD_PINS_ATTINY85
+static avrtl::NullPin led;
+#elif defined(__AVR_ATmega328__)
+#define LCD_PINS LCD_PINS_ATMEGA328
+static auto led = avrtl::StaticPin<13>();
+#else
+#error MCU not supported
+#endif
 
 // A custom glyph (a smiley)...
 static const uint8_t glyph[] = { 0b00010000, 0b00110100, 0b00110000, 0b00110100, 0b00010000 };
@@ -64,7 +74,7 @@ static PrintStream cout;
 
 void setup()
 {
-  lcdIO.m_rawIO.setPins( LCD_PINS_ATMEGA328 );
+  lcdIO.m_rawIO.setPins( LCD_PINS );
   
   // PCD8544-compatible displays may have a different resolution...
   lcdIO.m_rawIO.begin(84, 48);

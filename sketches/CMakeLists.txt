@@ -97,18 +97,14 @@ generate_avr_firmware(
     LIBS PCD8544 BasicIO AvrTL AvrApp
     )
 
-
-if(NOT "${ARDUINO_DEFAULT_BOARD}" MATCHES "attiny85.*")
 #====================================================================#
-# Self shutting down relay timer
+# Hello World test for PCD8544 LCD screen (aka Nokia5110)
 #====================================================================#
-# workd with atmega328 and attiny84
 generate_avr_firmware(
-	TimerRelaySelfShutdownPCD8544
-	SRCS TimerRelaySelfShutdownPCD8544.cpp
-	LIBS SoftSerial BasicIO TimeScheduler AvrTL AvrApp
-	)
-endif()
+	TestPCD8544
+    SRCS TestPCD8544.cpp
+    LIBS PCD8544 BasicIO AvrTL AvrApp
+    )
 
 if("${ARDUINO_DEFAULT_BOARD}" MATCHES "attiny84.*")
 #====================================================================#
@@ -119,6 +115,15 @@ generate_avr_firmware(
     SRCS Calculator.cpp
     LIBS PCD8544 BasicIO AvrTL AvrApp
     )
+#====================================================================#
+# Self shutting down relay timer
+#====================================================================#
+# works with attiny84 (m328 would do, but pins shall be adapted)
+generate_avr_firmware(
+	TimerRelaySelfShutdownPCD8544
+	SRCS TimerRelaySelfShutdownPCD8544.cpp
+	LIBS PCD8544 TimeScheduler AvrTL AvrApp
+	)
 endif()
 
 if(NOT "${ARDUINO_DEFAULT_BOARD}" MATCHES "attiny8.*")
@@ -274,15 +279,6 @@ generate_avr_firmware(
 	HWSerialNoIntTest
     SRCS HWSerialNoIntTest.cpp
     LIBS HWSerialNoInt BasicIO AvrApp
-    )
-
-#====================================================================#
-# Hello World test for PCD8544 LCD screen (aka Nokia5110)
-#====================================================================#
-generate_avr_firmware(
-	TestPCD8544
-    SRCS TestPCD8544.cpp
-    LIBS PCD8544 AvrTL AvrApp
     )
     
 endif()
