@@ -19,16 +19,15 @@
 #define POWER_OFF_PIN 	8
 #define RELAY_PIN  		9
 #define LED_PIN  		0
+#define DEBUG_PIN		10
 
 #define DEFAULT_TIMER_SECONDS 300
 
-
-
-// TODO: rotating address
+// eeprom management
 #define EEPROM_SIZE			512
-#define MAGICNUMBER_EEPROM_ADDR ((uint8_t*)0x0012)
 #define MAGICNUMBER_VALUE1 ((uint8_t)0x19)
 #define MAGICNUMBER_VALUE2 ((uint8_t)0x76)
+//uint8_t EEMEM default_nvm_values[4] = {MAGICNUMBER_VALUE1, MAGICNUMBER_VALUE2, DEFAULT_TIMER_SECONDS>>8, DEFAULT_TIMER_SECONDS&0xFF };
 
 using namespace avrtl;
 
@@ -38,6 +37,7 @@ static auto upPin = avrtl::StaticPin<TIME_INC_PIN>();
 static auto downPin = avrtl::StaticPin<TIME_DEC_PIN>();
 static auto relayPin = avrtl::StaticPin<RELAY_PIN>();
 static auto ledPin = avrtl::StaticPin<LED_PIN>();
+static auto debugPin = avrtl::StaticPin<DEBUG_PIN>();
 
 // timer
 static TimeSchedulerT< AvrTimer0 , int32_t > ts;
@@ -80,6 +80,11 @@ const PROGMEM unsigned char digits_bitmap[] = {
 0x00,0x00,0x00,0x00,0x00,0x00,0x0E,0x0E,0x0E,0x00,0x00,0x00,0x00,0x00,0x00,0x00
 };
 
+static bool debugEnabled()
+{
+	return ! debugPin.Get();
+}
+
 static void writeBigDigit(uint16_t col, uint16_t line, uint16_t d)
 {
 	unsigned char buf[16];
@@ -97,7 +102,8 @@ static void writeBigDigit(uint16_t col, uint16_t line, uint16_t d)
 	ts.wallclock();
 }
 
-static void writeBigTime(uint16_t col, uint16_t line, uint16_t seconds)
+
+static void secondsToTime(uint16_t seconds, uint8_t* t)
 {
 	uint16_t m = seconds / 60;
 	ts.wallclock();
@@ -110,12 +116,22 @@ static void writeBigTime(uint16_t col, uint16_t line, uint16_t seconds)
 	uint16_t s1 = seconds / 10;
 	ts.wallclock();
 	uint16_t s2 = seconds - (s1 * 10);
-	ts.wallclock();
-	writeBigDigit(col,line,m1); col+=16;
-	writeBigDigit(col,line,m2); col+=16;
+	ts.wallclock();	
+	t[0] = m1;
+	t[1] = m2;
+	t[2] = s1;
+	t[3] = s2;
+}
+
+static void writeBigTime(uint16_t col, uint16_t line, uint16_t seconds)
+{
+	uint8_t t[4];
+	secondsToTime(seconds,t);
+	writeBigDigit(col,line,t[0]); col+=16;
+	writeBigDigit(col,line,t[1]); col+=16;
 	writeBigDigit(col,line,10); col+=16;
-	writeBigDigit(col,line,s1); col+=16;
-	writeBigDigit(col,line,s2);
+	writeBigDigit(col,line,t[2]); col+=16;
+	writeBigDigit(col,line,t[3]);
 }
 
 static void writeLCDMessage(const char* s)
@@ -129,21 +145,20 @@ static void writeLCDMessage(const char* s)
 	ts.wallclock();
 }
 
-static void writeLCDInt(int16_t i)
+static const char* int2str(int16_t i,char* number_str)
 {
+	char* s = number_str;
 	if(i<0)
 	{
-		lcdIO.writeByte('-');
+		*s++ = '-';
 		i = -i;
 	}
-
 	ts.wallclock();
 	int16_t d = 10000;
 	while( i < d )
 	{
 		d /= 10;
-		ts.wallclock();
-		lcdIO.writeByte(' ');
+		*s++ = ' ';
 		ts.wallclock();
 	}
 	do
@@ -151,20 +166,39 @@ static void writeLCDInt(int16_t i)
 		uint8_t x =  (i/d);
 		ts.wallclock();
 		i -= x*d ;
-		ts.wallclock();
-		lcdIO.writeByte( '0' + x);
+		*s++ = '0' + x;
 		ts.wallclock();
 		d /= 10;
 		ts.wallclock();
 	}while(d>0);
+	*s = '\0';
+	return number_str;
+}
+
+static void writeLCDInt(int16_t i)
+{
+	char number_str[8];
+	writeLCDMessage(int2str(i,number_str));
 }
 
 static void writeLCDTotalTime()
 {
+		ts.wallclock();
 		lcdIO.setCursor(0, 0);
 		ts.wallclock();
-		writeLCDMessage("TEMPS ");
-		writeLCDInt(timerSeconds);
+		writeLCDMessage("Tempo. ");
+		uint8_t t[4];
+		secondsToTime(timerSeconds,t);
+		lcdIO.writeByte( '0'+t[0] );
+		ts.wallclock();
+		lcdIO.writeByte( '0'+t[1] );
+		ts.wallclock();
+		lcdIO.writeByte( ':' );
+		ts.wallclock();
+		lcdIO.writeByte( '0'+t[2] );
+		ts.wallclock();
+		lcdIO.writeByte( '0'+t[3] );
+		ts.wallclock();
 		timerSecondsChanged = false;
 }
 
@@ -175,11 +209,19 @@ static void writeLCDRemainingTime()
 		timerRemainingSecondsChanged = false;
 }
 
-static void writeLCDInfoMessage(const char* s)
+static void writeLCDDebugInfo(const char* s, int16_t i)
 {
-		lcdIO.setCursor(0, 4);
-		ts.wallclock();
-		writeLCDMessage(s);
+		if( debugEnabled() )
+		{
+			char number_str[8];
+			ts.wallclock();
+			lcdIO.setCursor(0, 4);
+			ts.wallclock();
+			writeLCDMessage(s);
+			ts.wallclock();
+			writeLCDMessage(int2str(i,number_str));
+			ts.wallclock();
+		}
 }
 
 static void readEEPROMData()
@@ -203,13 +245,12 @@ static void readEEPROMData()
 	{
 		eeprom_address = 0;
 		timerSeconds = DEFAULT_TIMER_SECONDS;
-		writeLCDInfoMessage("1st run");
+		writeLCDDebugInfo("1st run",addr);
 	}
 	else
 	{
-		writeLCDInfoMessage("addr=");
-		writeLCDInt(addr);
 		eeprom_address = addr - 2;
+		writeLCDDebugInfo("addr=",eeprom_address);
 	}
 	timerRemainingSeconds = timerSeconds;
 }
@@ -234,7 +275,9 @@ void setup()
 	upPin.Set( HIGH ); // pullup
 	downPin.SetInput();
 	downPin.Set( HIGH ); // pullup
-		
+	debugPin.SetInput();
+	debugPin.Set( HIGH ); // pullup
+	
 	// PCD8544 LCD display
 	lcdIO.setPins( LCD_PINS );
 	lcdIO.begin(84, 48);
@@ -270,10 +313,10 @@ static void powerOff()
 {
 	if( backupTimerSeconds )
 	{
-		writeLCDInfoMessage("backup...");
 		eeprom_write_byte( (uint8_t*)(eeprom_address++) , 0 );
 		eeprom_write_byte( (uint8_t*)(eeprom_address++) , 0 );
-		if(eeprom_address > (EEPROM_SIZE-4) ) { eeprom_address = 0; }
+		if(eeprom_address >= (EEPROM_SIZE-4) ) { eeprom_address = 0; }
+		writeLCDDebugInfo("backup@",eeprom_address);
 		eeprom_write_byte( (uint8_t*)(eeprom_address++) , MAGICNUMBER_VALUE1 );
 		eeprom_write_byte( (uint8_t*)(eeprom_address++) , MAGICNUMBER_VALUE2 );
 		eeprom_write_byte( (uint8_t*)(eeprom_address++) , timerSeconds>>8 );
@@ -287,14 +330,7 @@ static void processButton(uint8_t bc)
 {
 	switch( bc )
 	{
-		case 3 : // up & down simultanoueously => reset to default time value
-			timerSeconds = DEFAULT_TIMER_SECONDS;
-			timerRemainingSeconds = DEFAULT_TIMER_SECONDS;
-			timerSecondsChanged = true;
-			backupTimerSeconds = true;
-			timerRemainingSecondsChanged = true;
-			break;
-		case 1 : // less delay 
+		case DOWN_BUTTON_MASK : // less delay 
 			if( timerSeconds > 9 ) { timerSeconds -= 5; }
 			if( timerRemainingSeconds > 5 ) timerRemainingSeconds -= 5;
 			else { timerRemainingSeconds = 0; }
@@ -302,19 +338,26 @@ static void processButton(uint8_t bc)
 			backupTimerSeconds = true;
 			timerRemainingSecondsChanged = true;
 			break;
-		case 2 : // more delay
-			if( timerSeconds < 3595 ) {timerSeconds += 5; }
-			timerRemainingSeconds += 5;
+		case UP_BUTTON_MASK : // more delay
+			timerSeconds += 5;
+			if( timerSeconds > 3595 ) { timerSeconds = 3595; }
+			else { timerRemainingSeconds += 5; }
 			timerSecondsChanged = true;
 			backupTimerSeconds = true;
 			timerRemainingSecondsChanged = true;
 			break;
-		case 4 : // poweroff
+		case DOWN_BUTTON_MASK|UP_BUTTON_MASK : // reset to default time value
+			timerSeconds = DEFAULT_TIMER_SECONDS;
+			timerRemainingSeconds = DEFAULT_TIMER_SECONDS;
+			timerSecondsChanged = true;
+			backupTimerSeconds = true;
+			timerRemainingSecondsChanged = true;
+			break;
+		case POWER_BUTTON_MASK : // poweroff
 			powerOff();
 			break;
 	}
 }
-
 
 void updateTime()
 {
