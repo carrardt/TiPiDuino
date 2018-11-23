@@ -29,7 +29,8 @@
 #define EEPROM_HEADER_FLAG	0x81
 #define EEPROM_DEBUG_FLAG	0x02
 #define EEPROM_FIRST_FLAG	0x04
-uint8_t EEMEM __UPLOAD_EEPROM_VALUES__[3] = { EEPROM_HEADER_FLAG|EEPROM_FIRST_FLAG , DEFAULT_TIMER_SECONDS>>8, DEFAULT_TIMER_SECONDS&0xFF };
+// the following produce a .eep file, which uploads the following content to the beginning of EPPROM
+uint8_t EEMEM __UPLOAD_EEPROM_VALUES__[] = { 0, 0, EEPROM_HEADER_FLAG|EEPROM_FIRST_FLAG , (DEFAULT_TIMER_SECONDS>>8)&0xFF, DEFAULT_TIMER_SECONDS&0xFF ,0 ,0 };
 
 using namespace avrtl;
 
@@ -207,21 +208,6 @@ static void writeLCDRemainingTime()
 		timerRemainingSecondsChanged = false;
 }
 
-static void writeLCDDebugInfo(const char* s, int16_t i)
-{
-		if( debugEnabled() )
-		{
-			char number_str[8];
-			ts.wallclock();
-			lcdIO.setCursor(0, 4);
-			ts.wallclock();
-			writeLCDMessage(s);
-			ts.wallclock();
-			writeLCDMessage(int2str(i,number_str));
-			ts.wallclock();
-		}
-}
-
 static void readEEPROMData()
 {
 	uint16_t addr = 0;
@@ -274,20 +260,24 @@ void setup()
 	
 	if( debugEnabled() )
 	{
-		if( g_firstRun )
-		{
-			writeLCDDebugInfo("1strun@",eeprom_address);
-		}
-		else
-		{
-			writeLCDDebugInfo("read@",eeprom_address);
-		}
+		// benchmark PCD8544 protocol speed
 		auto setCursorTime = ts.wallclock();
 		lcdIO.setCursor(0, 0);
 		setCursorTime = ts.wallclock() - setCursorTime;
 		auto writeByteTime = ts.wallclock();
 		lcdIO.writeByte('X');
 		writeByteTime = ts.wallclock() - writeByteTime;
+
+		lcdIO.setCursor(0, 4);
+		ts.wallclock();
+		lcdIO.writeByte( g_firstRun ? 'F' : 'f');
+		ts.wallclock();
+		lcdIO.writeByte( g_debugEnabled ? 'D' : 'd');
+		ts.wallclock();
+		lcdIO.writeByte( (!debugPin.Get()) ? 'P' : 'p');
+		ts.wallclock();
+		writeLCDInt(eeprom_address);
+
 		lcdIO.setCursor(0, 5);
 		ts.wallclock();
 		writeLCDInt(setCursorTime);
@@ -328,7 +318,12 @@ static void powerOff()
 		eeprom_write_byte( (uint8_t*)(eeprom_address++) , 0 );
 		eeprom_write_byte( (uint8_t*)(eeprom_address++) , 0 );
 		if(eeprom_address >= EEPROM_ADDR_MAX ) { eeprom_address = 0; }
-		writeLCDDebugInfo("backup@",eeprom_address);
+		if( debugEnabled() )
+		{
+			lcdIO.setCursor(0, 4);
+			writeLCDMessage("stor@");
+			writeLCDInt(eeprom_address);
+		}
 		uint8_t h = EEPROM_HEADER_FLAG;
 		if( g_debugEnabled ) { h |= EEPROM_DEBUG_FLAG; }
 		eeprom_write_byte( (uint8_t*)(eeprom_address++) , h );
@@ -344,21 +339,29 @@ static void processButton(uint8_t bc)
 	switch( bc )
 	{
 		case DOWN_BUTTON_MASK : // less delay 
-			if( timerSeconds > 9 ) { timerSeconds -= 5; }
-			if( timerRemainingSeconds > 5 ) timerRemainingSeconds -= 5;
-			else { timerRemainingSeconds = 0; }
+			if( timerSeconds > 15 ) { timerSeconds -= 5; }
+			else if( timerSeconds > 2 ) { timerSeconds -= 1; }
+			if( timerRemainingSeconds < 10 )
+			{
+				timerRemainingSeconds = 10;
+				timerRemainingSecondsChanged = true;
+			}
 			timerSecondsChanged = true;
 			backupOnPowerOff = true;
-			timerRemainingSecondsChanged = true;
+			
 			break;
 			
 		case UP_BUTTON_MASK : // more delay
-			timerSeconds += 5;
-			if( timerSeconds > 3595 ) { timerSeconds = 3595; }
-			else { timerRemainingSeconds += 5; }
+			if( timerSeconds < 3585 ) { timerSeconds += 5; }
+			else if( timerSeconds < 3598 ) { timerSeconds += 1; }
+			if( timerRemainingSeconds < 10 )
+			{
+				timerRemainingSeconds = 10;
+				timerRemainingSecondsChanged = true;
+			}
 			timerSecondsChanged = true;
 			backupOnPowerOff = true;
-			timerRemainingSecondsChanged = true;
+			//timerRemainingSecondsChanged = true;
 			break;
 			
 		case DOWN_BUTTON_MASK|UP_BUTTON_MASK : // reset to default time value
