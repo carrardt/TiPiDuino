@@ -25,9 +25,11 @@
 
 // eeprom management
 #define EEPROM_SIZE			512
-#define MAGICNUMBER_VALUE1 ((uint8_t)0x19)
-#define MAGICNUMBER_VALUE2 ((uint8_t)0x76)
-//uint8_t EEMEM default_nvm_values[4] = {MAGICNUMBER_VALUE1, MAGICNUMBER_VALUE2, DEFAULT_TIMER_SECONDS>>8, DEFAULT_TIMER_SECONDS&0xFF };
+#define EEPROM_ADDR_MAX		508
+#define EEPROM_HEADER_FLAG	0x81
+#define EEPROM_DEBUG_FLAG	0x02
+#define EEPROM_FIRST_FLAG	0x04
+uint8_t EEMEM __UPLOAD_EEPROM_VALUES__[3] = { EEPROM_HEADER_FLAG|EEPROM_FIRST_FLAG , DEFAULT_TIMER_SECONDS>>8, DEFAULT_TIMER_SECONDS&0xFF };
 
 using namespace avrtl;
 
@@ -45,7 +47,7 @@ static TimeSchedulerT< AvrTimer0 , int32_t > ts;
 static int16_t timerSeconds = DEFAULT_TIMER_SECONDS;
 static int16_t timerRemainingSeconds = DEFAULT_TIMER_SECONDS;
 static bool timerSecondsChanged = false;
-static bool backupTimerSeconds = false;
+static bool backupOnPowerOff = false;
 static bool timerRemainingSecondsChanged = false;
 static bool timerLedState = false;
 
@@ -80,9 +82,11 @@ const PROGMEM unsigned char digits_bitmap[] = {
 0x00,0x00,0x00,0x00,0x00,0x00,0x0E,0x0E,0x0E,0x00,0x00,0x00,0x00,0x00,0x00,0x00
 };
 
+static bool g_firstRun = false;
+static bool g_debugEnabled = false;
 static bool debugEnabled()
 {
-	return ! debugPin.Get();
+	return g_firstRun || g_debugEnabled || (!debugPin.Get());
 }
 
 static void writeBigDigit(uint16_t col, uint16_t line, uint16_t d)
@@ -155,12 +159,6 @@ static const char* int2str(int16_t i,char* number_str)
 	}
 	ts.wallclock();
 	int16_t d = 10000;
-	while( i < d )
-	{
-		d /= 10;
-		*s++ = ' ';
-		ts.wallclock();
-	}
 	do
 	{
 		uint8_t x =  (i/d);
@@ -227,31 +225,18 @@ static void writeLCDDebugInfo(const char* s, int16_t i)
 static void readEEPROMData()
 {
 	uint16_t addr = 0;
-	uint8_t m1 = 0;
-	uint8_t m2 = 0;
-	do
+	uint8_t eem = 0;
+	while( ( (eem=eeprom_read_byte((uint8_t*)addr)) & EEPROM_HEADER_FLAG ) != EEPROM_HEADER_FLAG && addr<EEPROM_ADDR_MAX ) ++addr;
+	
+	timerSeconds = eeprom_read_byte( (uint8_t*)(addr+1) )<<8 | eeprom_read_byte( (uint8_t*)(addr+2) );
+	if( timerSeconds > 3600 || timerSeconds < 5 )
 	{
-		while( (m1=eeprom_read_byte((uint8_t*)addr)) != MAGICNUMBER_VALUE1 && addr<(EEPROM_SIZE-2)) ++addr;
-		if(m1==MAGICNUMBER_VALUE1)
-		{
-			++addr;
-			m2 = eeprom_read_byte((uint8_t*)addr);
-		}
-	}
-	while(m2!=MAGICNUMBER_VALUE2 && addr<(EEPROM_SIZE-2));
-	++addr;
-	timerSeconds = eeprom_read_byte( (uint8_t*)addr )<<8 | eeprom_read_byte( (uint8_t*)(addr+1) );
-	if( timerSeconds > 3600 || timerSeconds < 5 || m1!=MAGICNUMBER_VALUE1 || m2!=MAGICNUMBER_VALUE2 )
-	{
-		eeprom_address = 0;
 		timerSeconds = DEFAULT_TIMER_SECONDS;
-		writeLCDDebugInfo("1st run",addr);
 	}
-	else
-	{
-		eeprom_address = addr - 2;
-		writeLCDDebugInfo("addr=",eeprom_address);
-	}
+	g_firstRun = (eem & EEPROM_FIRST_FLAG)!=0 || addr>=EEPROM_ADDR_MAX;
+	g_debugEnabled = (eem & EEPROM_DEBUG_FLAG)!=0 ;
+	
+	eeprom_address = addr;
 	timerRemainingSeconds = timerSeconds;
 }
 
@@ -286,6 +271,32 @@ void setup()
 	readEEPROMData();
 
 	ts.start();
+	
+	if( debugEnabled() )
+	{
+		if( g_firstRun )
+		{
+			writeLCDDebugInfo("1strun@",eeprom_address);
+		}
+		else
+		{
+			writeLCDDebugInfo("read@",eeprom_address);
+		}
+		auto setCursorTime = ts.wallclock();
+		lcdIO.setCursor(0, 0);
+		setCursorTime = ts.wallclock() - setCursorTime;
+		auto writeByteTime = ts.wallclock();
+		lcdIO.writeByte('X');
+		writeByteTime = ts.wallclock() - writeByteTime;
+		lcdIO.setCursor(0, 5);
+		ts.wallclock();
+		writeLCDInt(setCursorTime);
+		lcdIO.writeByte('/');
+		ts.wallclock();
+		writeLCDInt(writeByteTime);
+		ts.wallclock();
+	}
+	
 	writeLCDTotalTime();
 	writeLCDRemainingTime();
 }
@@ -311,14 +322,16 @@ static uint8_t getKeyCode()
 
 static void powerOff()
 {
-	if( backupTimerSeconds )
+	if( backupOnPowerOff )
 	{
 		eeprom_write_byte( (uint8_t*)(eeprom_address++) , 0 );
 		eeprom_write_byte( (uint8_t*)(eeprom_address++) , 0 );
-		if(eeprom_address >= (EEPROM_SIZE-4) ) { eeprom_address = 0; }
+		eeprom_write_byte( (uint8_t*)(eeprom_address++) , 0 );
+		if(eeprom_address >= EEPROM_ADDR_MAX ) { eeprom_address = 0; }
 		writeLCDDebugInfo("backup@",eeprom_address);
-		eeprom_write_byte( (uint8_t*)(eeprom_address++) , MAGICNUMBER_VALUE1 );
-		eeprom_write_byte( (uint8_t*)(eeprom_address++) , MAGICNUMBER_VALUE2 );
+		uint8_t h = EEPROM_HEADER_FLAG;
+		if( g_debugEnabled ) { h |= EEPROM_DEBUG_FLAG; }
+		eeprom_write_byte( (uint8_t*)(eeprom_address++) , h );
 		eeprom_write_byte( (uint8_t*)(eeprom_address++) , timerSeconds>>8 );
 		eeprom_write_byte( (uint8_t*)(eeprom_address++) , timerSeconds&0xFF );
 	}
@@ -335,26 +348,33 @@ static void processButton(uint8_t bc)
 			if( timerRemainingSeconds > 5 ) timerRemainingSeconds -= 5;
 			else { timerRemainingSeconds = 0; }
 			timerSecondsChanged = true;
-			backupTimerSeconds = true;
+			backupOnPowerOff = true;
 			timerRemainingSecondsChanged = true;
 			break;
+			
 		case UP_BUTTON_MASK : // more delay
 			timerSeconds += 5;
 			if( timerSeconds > 3595 ) { timerSeconds = 3595; }
 			else { timerRemainingSeconds += 5; }
 			timerSecondsChanged = true;
-			backupTimerSeconds = true;
+			backupOnPowerOff = true;
 			timerRemainingSecondsChanged = true;
 			break;
+			
 		case DOWN_BUTTON_MASK|UP_BUTTON_MASK : // reset to default time value
 			timerSeconds = DEFAULT_TIMER_SECONDS;
 			timerRemainingSeconds = DEFAULT_TIMER_SECONDS;
 			timerSecondsChanged = true;
-			backupTimerSeconds = true;
+			backupOnPowerOff = true;
 			timerRemainingSecondsChanged = true;
 			break;
+			
 		case POWER_BUTTON_MASK : // poweroff
 			powerOff();
+			
+		case DOWN_BUTTON_MASK|UP_BUTTON_MASK|POWER_BUTTON_MASK : // toggle debug mode
+			g_debugEnabled = ! g_debugEnabled;
+			backupOnPowerOff = true;
 			break;
 	}
 }
