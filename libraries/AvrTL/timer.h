@@ -18,10 +18,10 @@ struct AvrTimer0HW
 	{
 		saved_TCCR0A = TCCR0A;
 		saved_TCCR0B = TCCR0B;
-#ifdef TIMSK0
+#   ifdef TIMSK0
 		saved_TIMSK0 = TIMSK0;
 		TIMSK0 = 0;
-#endif
+#   endif
 		TCCR0A = 0;
 		switch(prescalerValue)
 		{
