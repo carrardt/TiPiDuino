@@ -7,8 +7,11 @@ set(ARDUINO_CXX_FLAGS "${ARDUINO_CXX_FLAGS} -std=c++11")
 cmake_minimum_required(VERSION 3.0)
 project(TiDuino C CXX)
 
-#print_board_list()
-#print_programmer_list()
+#message(STATUS "ARDUINO_SDK_PATH=${ARDUINO_SDK_PATH}")
+#message(STATUS "HARDWARE_PLATFORM_PATH=${HARDWARE_PLATFORM_PATH}")
+
+print_board_list()
+print_programmer_list()
 
 # set default board from list
 foreach(PLATFORM ${ARDUINO_PLATFORMS})

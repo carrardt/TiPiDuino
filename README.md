@@ -13,4 +13,11 @@ Contains :
   Linkuino, a PDuino replacement for accurate pwm generation with serial based communications
   and more ...
 
+# Arduino cmake tips :
+1. you need to install arduino package
+2. ARDUINO_SDK_PATH is /usr/share/arduino
+3. HARDWARE_PLATFORM_PATH is /usr/share/arduino/hardware/arduino
+4. HARDWARE_PLATFORM_PATH may not contain boards.txt bootloaders cores programmers.txt variants
+   as it should but an avr subdirectory instead, go to ARDWARE_PLATFORM_PATH and link avr/* to .
+
 
