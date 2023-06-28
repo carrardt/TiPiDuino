@@ -18,9 +18,11 @@
 //#warning ATtiny85
 #define CLK_PIN 4
 #define LED_PIN 3
-#else
+#elif defined(__AVR_ATmega328P__)
 #define CLK_PIN 8
 #define LED_PIN 13
+#else
+#error Unsupported MCU
 #endif
 
 auto clk = avrtl::StaticPin<CLK_PIN>();

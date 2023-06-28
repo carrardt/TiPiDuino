@@ -19,5 +19,5 @@ Contains :
 3. HARDWARE_PLATFORM_PATH is /usr/share/arduino/hardware/arduino
 4. HARDWARE_PLATFORM_PATH may not contain boards.txt bootloaders cores programmers.txt variants
    as it should but an avr subdirectory instead, go to ARDWARE_PLATFORM_PATH and link avr/* to .
-
+5. if needed, a custom boards.txt is available in misc/ArduinoIDE/boards.txt 
 

@@ -603,3 +603,23 @@ attiny85e16.build.mcu=attiny85
 attiny85e16.build.variant=tiny8
 attiny85e16.build.f_cpu=16000000L
 
+
+##############################################################
+m328p.name=Arduino Uno
+m328p.upload.protocol=arduino
+m328p.upload.maximum_size=32256
+m328p.upload.speed=19200
+m328p.bootloader.low_fuses=0xff
+m328p.bootloader.high_fuses=0xde
+m328p.bootloader.extended_fuses=0x05
+m328p.bootloader.path=optiboot
+m328p.bootloader.file=optiboot_atmega328.hex
+m328p.bootloader.unlock_bits=0x3F
+m328p.bootloader.lock_bits=0x0F
+m328p.build.board=atmega
+m328p.build.mcu=atmega328p
+m328p.build.f_cpu=16000000L
+m328p.build.core=arduino
+m328p.build.variant=standard
+
+

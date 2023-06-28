@@ -59,7 +59,7 @@ static avrtl::NullPin led;
 #elif defined(__AVR_ATtiny85__)
 #define LCD_PINS LCD_PINS_ATTINY85
 static avrtl::NullPin led;
-#elif defined(__AVR_ATmega328__)
+#elif defined(__AVR_ATmega328P__)
 #define LCD_PINS LCD_PINS_ATMEGA328
 static auto led = avrtl::StaticPin<13>();
 #else
