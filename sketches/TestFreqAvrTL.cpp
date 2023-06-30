@@ -14,13 +14,16 @@
 //#warning ATtiny84
 #define CLK_PIN 5
 #define LED_PIN 9
+using AvrTimer = avrtl::AvrTimer0;
 #elif defined(__AVR_ATtiny85__)
 //#warning ATtiny85
 #define CLK_PIN 4
 #define LED_PIN 3
+using AvrTimer = avrtl::AvrTimer0;
 #elif defined(__AVR_ATmega328P__)
 #define CLK_PIN 8
 #define LED_PIN 13
+using AvrTimer = avrtl::AvrTimer1;
 #else
 #error Unsupported MCU
 #endif
@@ -28,7 +31,7 @@
 auto clk = avrtl::StaticPin<CLK_PIN>();
 auto led = avrtl::StaticPin<LED_PIN>();
 
-avrtl::AvrTimer0 g_timer; // by default, prescaler is 8, so clock freq is divided by 8 already
+AvrTimer g_timer;
 
 // the setup function runs once when you press reset or power the board
 void setup()
@@ -43,7 +46,7 @@ void setup()
 void loop() {
   static uint16_t counter = 0;
   static uint8_t tick = 0;
-  uint8_t tock = (g_timer.counter()>>7) & 0x01;
+  const uint8_t tock = (g_timer.counter()>>7) & 0x01;
   counter += tick^tock;
   tick = tock;
   
