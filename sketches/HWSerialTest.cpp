@@ -14,7 +14,7 @@ PrintStream cout;
 
 void setup()
 {
-	serialIO.begin(57600);
+	serialIO.begin(19200);
 
 	cout.begin( &serialIO );
 	//cin.begin( &serialIO );
