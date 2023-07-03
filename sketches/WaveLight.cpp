@@ -24,7 +24,6 @@ void setup()
 	cout.begin( &serialIO );
 }
 
-
 void loop()
 {
   ws2811_pin.Set( false );
@@ -36,3 +35,5 @@ void loop()
 	n = ( n + 1 ) % 100;
 	cout << n << ", E="<<(T1-T0)<<", S="<<(T2-T1)<< '\n';
 }
+
+
