@@ -43,7 +43,7 @@ struct AvrTimer0HW
 #endif
 	}
 	
-	static inline [[always_inline]] TimerCounterType counter() { return TCNT0; }
+	static inline TimerCounterType counter() { return TCNT0; }
 	
 	uint8_t saved_TCCR0A, saved_TCCR0B;
 #ifdef TIMSK0
