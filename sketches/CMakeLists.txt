@@ -287,7 +287,7 @@ generate_avr_firmware(
 generate_avr_firmware(
 	WaveLight
     SRCS WaveLight.cpp
-    LIBS HWSerial BasicIO AvrTL WS2811 AvrApp
+    LIBS BasicIO PCD8544 WS2811 AvrTL AvrApp
     )
 
     

@@ -1,19 +1,20 @@
 #include <AvrTL.h>
 #include <AvrTLPin.h>
+#include <timer.h>
 
 avrtl::StaticPin<8> ws2811_pin(); // pin 8 => PB0 on atmega328p
 
 void ws2811_send_bytes_PB0( const uint8_t* s, uint16_t len)
 {
   const uint8_t zero = PORTB & 0xFE ;
-  //const uint8_t one =  zero | 0x01;
-  const uint8_t* end = buffer+len;
+  const uint8_t one =  zero | 0x01;
+  const uint8_t* end = s+len;
   uint8_t byte = 0;
   uint8_t bit = 0;
 
   PORTB = zero;
 
-  delayMicroseconds( 50 );
+  //avrtl::delayMicroseconds( 50 );
 
   do
   {
@@ -47,7 +48,6 @@ void ws2811_send_bytes_PB0( const uint8_t* s, uint16_t len)
     PORTB = zero;
     // wait to reach 1.3 µs period
 
-#if 0
     // bit 3
     PORTB = one;
     bit = zero | ( byte & 0x01 );
@@ -87,7 +87,6 @@ void ws2811_send_bytes_PB0( const uint8_t* s, uint16_t len)
     // wait to reach 0.7 µs period
     PORTB = zero;
     // wait to reach 1.3 µs period
-#endif
 
     // bit 7
     PORTB = one;
