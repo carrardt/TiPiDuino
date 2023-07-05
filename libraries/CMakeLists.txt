@@ -14,6 +14,7 @@ add_subdirectory(BasicIO)
 add_subdirectory(LCD1602)
 if(NOT "${ARDUINO_DEFAULT_BOARD}" MATCHES "attiny8.*" )
 	add_subdirectory(LCD12864) # Needs to be ported for attiny compatibility
+  add_subdirectory(WS2811)
 endif()
 add_subdirectory(RFSniffer)
 add_subdirectory(Linkuino)
