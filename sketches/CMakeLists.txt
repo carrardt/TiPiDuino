@@ -280,5 +280,15 @@ generate_avr_firmware(
     SRCS HWSerialNoIntTest.cpp
     LIBS HWSerialNoInt BasicIO AvrApp
     )
+
+#====================================================================#
+# Athletics stadium Wave Light
+#====================================================================#
+generate_avr_firmware(
+	WaveLight
+    SRCS WaveLight.cpp
+    LIBS HWSerial BasicIO AvrTL WS2811 AvrApp
+    )
+
     
 endif()
