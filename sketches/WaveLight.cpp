@@ -60,6 +60,9 @@ void setup()
 
   cout.begin(&lcdIO);
 
+  lcdIO.m_rawIO.setCursor(0, 0);
+  cout << "Hello, World!";
+
 	ws2811_pin.SetOutput();
 
   g_hires_timer.start();
@@ -71,7 +74,9 @@ void loop()
   uint16_t T0 = g_hires_timer.m_timerhw.counter();
   ws2811_send_bytes_PB0( test_buffer , 3 );
   uint16_t T1 = g_hires_timer.m_timerhw.counter();
-  cout << "T="<< (T1-T0) << '\n';
+
+  lcdIO.m_rawIO.setCursor(0, 1);
+  cout << "T="<< (T1-T0) << ' ' << '\1' << '\n';
   avrtl::delayMicroseconds( 1000000 );
 }
 
