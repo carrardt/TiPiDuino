@@ -46,7 +46,7 @@
 #endif
 
 #ifndef LED_STRIP_BUFFER_SIZE
-#define LED_STRIP_BUFFER_SIZE 256
+#define LED_STRIP_BUFFER_SIZE 512
 #endif
 
 // The order of primary colors in the NeoPixel data stream can vary among
@@ -168,7 +168,7 @@ class Adafruit_NeoPixel
 
   static constexpr int16_t pin = 8; // => PB0
   static constexpr uint8_t pinMask = 0x01;
-  static constexpr unsigned int pixel_buffer_size = LED_STRIP_BUFFER_SIZE;
+  static constexpr uint16_t pixel_buffer_size = LED_STRIP_BUFFER_SIZE;
 
 public:
   // Constructor: number of LEDs, pin number, LED type
@@ -256,6 +256,7 @@ public:
     @return  Pixel count (0 if not set).
   */
   inline uint16_t numPixels(void) const { return numLEDs; }
+  inline uint16_t bufferSize(void) const { return numBytes; }
   uint32_t getPixelColor(uint16_t n) const;
 
   /*!

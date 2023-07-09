@@ -6,11 +6,7 @@
 #include "BasicIO/PrintStream.h"
 
 #include <PCD8544.h>
-
-
-#define LED_STRIP_BUFFER_SIZE 384
 #include "WS2811/ws2811.h"
-
 #include <avr/interrupt.h>
 
 // PCD8544 pins : SCLK, SDIN, DC, RST, SCE (connect to ground)
@@ -31,10 +27,10 @@ struct TrackLights
 };
 
 static constexpr uint8_t MAX_PARTNERS = 4;
-static const uint8_t PROGMEM partner_color[MAX_PARTNERS*3] = { 0x7F,0xFF,0x7F , 0xFF,0xC0,0x7F , 0xFF,0x00,0x00 , 0xC0,0xC0,0xC0 };
+static const uint8_t PROGMEM partner_color[MAX_PARTNERS*3] = { 0x00,0xFF,0x00 , 0x7F,0x3F,0x00 , 0xFF,0x00,0x00 , 0xFF,0x00,0xFF };
 
 static Adafruit_NeoPixel strip(100);
-static TrackLights track_lights;
+static TrackLights track_lights = {};
 
 void setup()
 {
@@ -49,12 +45,17 @@ void setup()
   cout.begin(&lcdIO);
   lcdIO.m_rawIO.setCursor(0, 0);
   
-  cout << "WaveLight v1.0\n";
-
   strip.updateLength( track_lights.nb_lights );
   strip.begin();           // INITIALIZE NeoPixel strip object (REQUIRED)
   strip.show();            // Turn OFF all pixels ASAP
   strip.setBrightness(50); // Set BRIGHTNESS to about 1/5 (max = 255)
+
+  cout << "WaveLight 1.0\n";
+  cout << "TL="<< track_lights.nb_lights <<"\n";
+  cout << "BS="<< strip.bufferSize() <<"\n";
+  cout << "NL="<< strip.numPixels() <<"\n";
+
+  for(int i=0;i<30;i++) avrtl::delayMicroseconds( 100000 );
 }
 
 // positions given in decimeters, up to 6.5Km
@@ -71,8 +72,8 @@ void update_lights( const TrackLights& track, const uint16_t* pos, int n )
     const uint16_t l2 = (l+1) % track.nb_lights;
     
     const uint16_t R = pgm_read_byte( & partner_color[(i%MAX_PARTNERS)*3+0] );
-    const uint16_t G = pgm_read_byte( & partner_color[(i%MAX_PARTNERS)*3+1] );
-    const uint16_t B = pgm_read_byte( & partner_color[(i%MAX_PARTNERS)*3+2] );
+    const uint16_t B = pgm_read_byte( & partner_color[(i%MAX_PARTNERS)*3+1] );
+    const uint16_t G = pgm_read_byte( & partner_color[(i%MAX_PARTNERS)*3+2] );
     strip.setPixelColor( l2 , (R*frac)/16 , (G*frac)/16 , (B*frac)/16 );
     frac = 15 - frac;
     strip.setPixelColor( l , (R*frac)/16 , (G*frac)/16 , (B*frac)/16 );
@@ -82,7 +83,7 @@ void update_lights( const TrackLights& track, const uint16_t* pos, int n )
 }
 
 void loop()
-{  
+{
   static uint16_t counter = 0;
   avrtl::delayMicroseconds( 10000 );
 

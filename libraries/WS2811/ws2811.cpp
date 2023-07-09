@@ -129,11 +129,12 @@ void Adafruit_NeoPixel::updateLength(uint16_t n)
 //  free(pixels); // Free existing data (if any)
 
   // Allocate new data -- note: ALL PIXELS ARE CLEARED
-  numBytes = n * ((wOffset == rOffset) ? 3 : 4);
+  const uint16_t ncomp = ((wOffset == rOffset) ? 3 : 4);;
+  numBytes = n * ncomp;
   if( numBytes > pixel_buffer_size )
   {
-    n = pixel_buffer_size / 4;
-    numBytes = n * ((wOffset == rOffset) ? 3 : 4);
+    n = pixel_buffer_size / ncomp;
+    numBytes = n * ncomp;
   }
     
   clear();
