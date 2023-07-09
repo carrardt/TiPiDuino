@@ -45,6 +45,10 @@
 #error Unsupported MCU clock frequency
 #endif
 
+#ifndef LED_STRIP_BUFFER_SIZE
+#define LED_STRIP_BUFFER_SIZE 256
+#endif
+
 // The order of primary colors in the NeoPixel data stream can vary among
 // device types, manufacturers and even different revisions of the same
 // item.  The third parameter to the Adafruit_NeoPixel constructor encodes
@@ -164,7 +168,7 @@ class Adafruit_NeoPixel
 
   static constexpr int16_t pin = 8; // => PB0
   static constexpr uint8_t pinMask = 0x01;
-  static constexpr unsigned int pixel_buffer_size = 512;
+  static constexpr unsigned int pixel_buffer_size = LED_STRIP_BUFFER_SIZE;
 
 public:
   // Constructor: number of LEDs, pin number, LED type
