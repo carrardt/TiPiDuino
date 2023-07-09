@@ -79,7 +79,7 @@ void update_lights( const TrackLights& track, const uint16_t* pos, int n )
     strip.setPixelColor( l , (R*frac)/16 , (G*frac)/16 , (B*frac)/16 );
   }
   
-  strip.show();
+  strip.showCompressed();
 }
 
 void loop()
