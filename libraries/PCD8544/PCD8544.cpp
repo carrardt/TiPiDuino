@@ -312,37 +312,49 @@ bool PCD8544::writeByte(uint8_t chr)
         return false;
     }
 
-    const unsigned char *glyph;
-    unsigned char pgm_buffer[5];
 
-    if (chr >= ' ') {
-        // Regular ASCII characters are kept in flash to save RAM...
-        memcpy_P(pgm_buffer, &charset[chr - ' '], sizeof(pgm_buffer));
-        glyph = pgm_buffer;
-    } else {
-        // Custom glyphs, on the other hand, are stored in RAM...
-        if (this->custom[chr]) {
-            glyph = this->custom[chr];
-        } else {
-            // Default to a space character if unset...
-            memcpy_P(pgm_buffer, &charset[0], sizeof(pgm_buffer));
+    if( chr != '\n' && chr!='\r' )
+    {
+        const unsigned char *glyph;
+        unsigned char pgm_buffer[5];
+
+        if (chr >= ' ') {
+            // Regular ASCII characters are kept in flash to save RAM...
+            memcpy_P(pgm_buffer, &charset[chr - ' '], sizeof(pgm_buffer));
             glyph = pgm_buffer;
+        } else {
+            // Custom glyphs, on the other hand, are stored in RAM...
+            if (this->custom[chr]) {
+                glyph = this->custom[chr];
+            } else {
+                // Default to a space character if unset...
+                memcpy_P(pgm_buffer, &charset[0], sizeof(pgm_buffer));
+                glyph = pgm_buffer;
+            }
+        }
+
+        // Output one column at a time...
+        for (unsigned char i = 0; i < 5; i++) {
+            this->send(PCD8544_DATA, glyph[i]);
+        }
+
+        // One column between characters...
+        this->send(PCD8544_DATA, 0x00);
+
+        // Update the cursor position...
+        this->column = (this->column + 6) % this->width;
+
+        if (this->column == 0) {
+            this->line = (this->line + 1) % (this->height/9 + 1);
         }
     }
-
-    // Output one column at a time...
-    for (unsigned char i = 0; i < 5; i++) {
-        this->send(PCD8544_DATA, glyph[i]);
-    }
-
-    // One column between characters...
-    this->send(PCD8544_DATA, 0x00);
-
-    // Update the cursor position...
-    this->column = (this->column + 6) % this->width;
-
-    if (this->column == 0) {
-        this->line = (this->line + 1) % (this->height/9 + 1);
+    else
+    {
+        this->column = 0;
+        if( chr == '\n' )
+        {
+            this->line = (this->line + 1) % (this->height/9 + 1);
+        }
     }
 
     return true;
