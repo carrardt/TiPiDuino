@@ -5,6 +5,6 @@ generate_arduino_library(
 	AvrTL
     SRCS AvrTLPin.cpp
     HDRS AvrTL.h AvrTLPin.h AvrTLEEPROM.h timer.h
-    NO_AUTOLIBS MANUAL
+    MANUAL
 	)
 

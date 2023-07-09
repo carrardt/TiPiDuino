@@ -9,3 +9,4 @@ generate_arduino_library(
     LIBS TimeScheduler AvrTL
     NO_AUTOLIBS MANUAL
 	)
+
