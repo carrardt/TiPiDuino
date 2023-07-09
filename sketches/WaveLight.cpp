@@ -11,7 +11,7 @@
 
 #include <avr/interrupt.h>
 
-// PCD8544 pins : SCLK, SDIN, DC, RST, SCE
+// PCD8544 pins : SCLK, SDIN, DC, RST, SCE (connect to ground)
 #define LCD_PINS     2,    3,  4,   5, PCD8544_UNASSIGNED
 static PCD8544 lcd( LCD_PINS );
 
@@ -50,13 +50,18 @@ void setup()
 
 void loop()
 {
-  static const uint8_t test_buffer[] = { 0x05 , 0x0A , 0x05 };
-  uint16_t T0 = g_hires_timer.m_timerhw.counter();
-  ws2811_send_bytes_PB0( test_buffer , 3 );
-  uint16_t T1 = g_hires_timer.m_timerhw.counter();
+  static int counter = 0;
 
-  lcdIO.m_rawIO.setCursor(0, 1);
-  cout << "T="<< (T1-T0) << ' ' << '\1' << '\n';
-  avrtl::delayMicroseconds( 1000000 );
+  uint8_t tmp[6] = { 0xFF , 0xFF , 0xFF , 0xF0 , 0xF0 , 0xF0 };
+  ++ counter;
+  
+  //uint16_t T0 = g_hires_timer.m_timerhw.counter();
+  ws2811_send_bytes_PB0( tmp , 6 );
+  avrtl::delayMicroseconds( 150 );
+
+  //uint16_t T1 = g_hires_timer.m_timerhw.counter();
+
+  //lcdIO.m_rawIO.setCursor(0, 1);
+  //cout << "T="<< (T1-T0) << ' ' << '\1' << '\n';
 }
 

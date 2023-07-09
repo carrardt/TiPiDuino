@@ -2135,7 +2135,7 @@ set(ARDUINO_AVRDUDE_FLAGS -V                              CACHE STRING "")
 #                          Initialization                                     
 #=============================================================================#
 if(NOT ARDUINO_FOUND AND ARDUINO_SDK_PATH)
-    register_hardware_platform(${ARDUINO_SDK_PATH}/hardware/arduino/)
+    register_hardware_platform(${ARDUINO_SDK_PATH}/hardware/arduino)
 
     find_file(ARDUINO_LIBRARIES_PATH
         NAMES libraries
