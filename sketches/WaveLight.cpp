@@ -48,7 +48,7 @@ void setup()
   strip.updateLength( track_lights.nb_lights );
   strip.begin();           // INITIALIZE NeoPixel strip object (REQUIRED)
   strip.show();            // Turn OFF all pixels ASAP
-  strip.setBrightness(50); // Set BRIGHTNESS to about 1/5 (max = 255)
+  strip.setBrightness(0); // 1-255 or 0 to disable
 
   cout << "WaveLight 1.0\n";
   cout << "TL="<< track_lights.nb_lights <<"\n";

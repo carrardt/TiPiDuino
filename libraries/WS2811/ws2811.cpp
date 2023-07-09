@@ -131,10 +131,12 @@ void Adafruit_NeoPixel::updateLength(uint16_t n)
   // Allocate new data -- note: ALL PIXELS ARE CLEARED
   const uint16_t ncomp = ((wOffset == rOffset) ? 3 : 4);;
   numBytes = n * ncomp;
+  if( color_4bits ) numbytes = numbytes/2 + 1;
   if( numBytes > pixel_buffer_size )
   {
     n = pixel_buffer_size / ncomp;
     numBytes = n * ncomp;
+    if( color_4bits ) numbytes = numbytes/2 + 1;
   }
     
   clear();
@@ -187,7 +189,7 @@ void Adafruit_NeoPixel::updateType(neoPixelType t) {
            specialized alternative or companion libraries exist that use
            very device-specific peripherals to work around it.
 */
-void Adafruit_NeoPixel::show(void) {
+void Adafruit_NeoPixel::show8Bits(void) {
 
   if (!pixels)
     return;
@@ -315,7 +317,7 @@ void Adafruit_NeoPixel::show(void) {
            specialized alternative or companion libraries exist that use
            very device-specific peripherals to work around it.
 */
-void Adafruit_NeoPixel::showCompressed(void) {
+void Adafruit_NeoPixel::show4Bits(void) {
 
   if (!pixels)
     return;
@@ -525,16 +527,39 @@ void Adafruit_NeoPixel::setPixelColor(uint16_t n, uint8_t r, uint8_t g,
       g = (g * brightness) >> 8;
       b = (b * brightness) >> 8;
     }
-    uint8_t *p;
-    if (wOffset == rOffset) { // Is an RGB-type strip
-      p = &pixels[n * 3];     // 3 bytes per pixel
-    } else {                  // Is a WRGB-type strip
-      p = &pixels[n * 4];     // 4 bytes per pixel
-      p[wOffset] = 0;         // But only R,G,B passed -- set W to 0
-    }
+    uint8_t p[4];
     p[rOffset] = r; // R,G,B always stored
     p[gOffset] = g;
     p[bOffset] = b;
+    p[wOffset] = 0;         // But only R,G,B passed -- set W to 0
+    
+    int s = (wOffset == rOffset) ? 3 : 4;
+
+    if( color_4bits )
+    {
+      for(int i=0;i<s;i++)
+      {
+        int j = n * s + i;
+        bool half = j%2;
+        j = j/2;
+        if( half )
+        {
+          pixels[j] = ( pixels[j] & 0xF0 ) | ( (p[i]>>4) & 0x0F );
+        }
+        else
+        {
+          pixels[j] = ( pixels[j] & 0x0F ) | ( p[i] & 0xF0 );
+        }
+      }
+    }
+    else
+    {
+      for(int i=0;i<s;i++) pixels[n * s + i] = p[i];     // 3 bytes per pixel
+    }
+
+    p = &pixels[n * 4];     // 4 bytes per pixel
+
+    
   }
 }
 
