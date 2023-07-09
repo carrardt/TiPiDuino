@@ -7,6 +7,8 @@
 
 #include <PCD8544.h>
 
+
+#define LED_STRIP_BUFFER_SIZE 384
 #include "WS2811/ws2811.h"
 
 #include <avr/interrupt.h>
@@ -19,9 +21,20 @@ static ByteStreamAdapter<PCD8544> lcdIO;
 static PrintStream cout;
 
 // A custom glyph (a smiley)...
-static const uint8_t glyph[] = { 0b00010000, 0b00110100, 0b00110000, 0b00110100, 0b00010000 };
+// static const uint8_t glyph[] = { 0b00010000, 0b00110100, 0b00110000, 0b00110100, 0b00010000 };
+struct TrackLights
+{
+  uint16_t nb_lights = 100;
+  uint16_t length = 4000; // in decimeters
+  uint16_t run_distance = 0; // in decimeters
+  uint16_t run_time = 6*60*10; // in 1/10 seconds (default is a 6 minutes run)
+};
 
-static Adafruit_NeoPixel strip(16);
+static constexpr uint8_t MAX_PARTNERS = 4;
+static const uint8_t PROGMEM partner_color[MAX_PARTNERS*3] = { 0x7F,0xFF,0x7F , 0xFF,0xC0,0x7F , 0xFF,0x00,0x00 , 0xC0,0xC0,0xC0 };
+
+static Adafruit_NeoPixel strip(100);
+static TrackLights track_lights;
 
 void setup()
 {
@@ -32,37 +45,52 @@ void setup()
   // PCD8544-compatible displays may have a different resolution...
   lcdIO.m_rawIO.begin(84, 48);
 
-  // Add the smiley to position "0" of the ASCII table...
-  lcdIO.m_rawIO.createChar(1, glyph);
-  
-    // Use a potentiometer to set the LCD contrast...
-  // short level = map(analogRead(A0), 0, 1023, 0, 127);
   lcdIO.m_rawIO.setContrast(63);
-
   cout.begin(&lcdIO);
-
   lcdIO.m_rawIO.setCursor(0, 0);
-  cout << "Hello, World!";
+  
+  cout << "WaveLight v1.0\n";
 
+  strip.updateLength( track_lights.nb_lights );
   strip.begin();           // INITIALIZE NeoPixel strip object (REQUIRED)
   strip.show();            // Turn OFF all pixels ASAP
   strip.setBrightness(50); // Set BRIGHTNESS to about 1/5 (max = 255)
 }
 
+// positions given in decimeters, up to 6.5Km
+void update_lights( const TrackLights& track, const uint16_t* pos, int n )
+{
+  strip.clear();
+  
+  for(int i=0;i<n;i++)
+  {
+    const uint32_t p = pos[i];
+    const uint32_t lx16 = ( (p*track.nb_lights*16) / track.length ) % (track.nb_lights*16);
+    const uint16_t l = lx16 / 16;
+    uint8_t frac = lx16 % 16; // fraction between the light and the light after in [0;15]
+    const uint16_t l2 = (l+1) % track.nb_lights;
+    
+    const uint16_t R = pgm_read_byte( & partner_color[(i%MAX_PARTNERS)*3+0] );
+    const uint16_t G = pgm_read_byte( & partner_color[(i%MAX_PARTNERS)*3+1] );
+    const uint16_t B = pgm_read_byte( & partner_color[(i%MAX_PARTNERS)*3+2] );
+    strip.setPixelColor( l2 , (R*frac)/16 , (G*frac)/16 , (B*frac)/16 );
+    frac = 15 - frac;
+    strip.setPixelColor( l , (R*frac)/16 , (G*frac)/16 , (B*frac)/16 );
+  }
+  
+  strip.show();
+}
+
 void loop()
 {  
-  static int counter = 0;
-  
-  avrtl::delayMicroseconds( 100000 );
-
-  for(int i=0;i<16;i++)
-  {
-    strip.setPixelColor(i , counter%255 , (counter+128)%255 , (counter+64)%255 );
-  }
-  strip.show();
+  static uint16_t counter = 0;
+  avrtl::delayMicroseconds( 10000 );
 
   ++ counter;
-  lcdIO.m_rawIO.setCursor(0, 0);
-  cout << "STEP=" << counter;
+  cout << "dist=" << counter/10 <<"m    \n";
+
+  uint16_t pos[3] = { counter % track_lights.length , (counter+1000) % track_lights.length , (counter+2000) % track_lights.length };
+
+  update_lights( track_lights , pos , 3 );
 }
 
