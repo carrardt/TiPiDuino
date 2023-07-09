@@ -17,10 +17,11 @@ static PCD8544 lcd( LCD_PINS );
 
 static ByteStreamAdapter<PCD8544> lcdIO;
 static PrintStream cout;
-static avrtl::AvrTimer1NoPrescaler g_hires_timer;
 
 // A custom glyph (a smiley)...
 static const uint8_t glyph[] = { 0b00010000, 0b00110100, 0b00110000, 0b00110100, 0b00010000 };
+
+static Adafruit_NeoPixel strip(16);
 
 void setup()
 {
@@ -43,25 +44,25 @@ void setup()
   lcdIO.m_rawIO.setCursor(0, 0);
   cout << "Hello, World!";
 
-	ws2811_pin.SetOutput();
-
-  g_hires_timer.start();
+  strip.begin();           // INITIALIZE NeoPixel strip object (REQUIRED)
+  strip.show();            // Turn OFF all pixels ASAP
+  strip.setBrightness(50); // Set BRIGHTNESS to about 1/5 (max = 255)
 }
 
 void loop()
-{
+{  
   static int counter = 0;
-
-  uint8_t tmp[6] = { 0xFF , 0xFF , 0xFF , 0xF0 , 0xF0 , 0xF0 };
-  ++ counter;
   
-  //uint16_t T0 = g_hires_timer.m_timerhw.counter();
-  ws2811_send_bytes_PB0( tmp , 6 );
-  avrtl::delayMicroseconds( 150 );
+  avrtl::delayMicroseconds( 100000 );
 
-  //uint16_t T1 = g_hires_timer.m_timerhw.counter();
+  for(int i=0;i<16;i++)
+  {
+    strip.setPixelColor(i , counter%255 , (counter+128)%255 , (counter+64)%255 );
+  }
+  strip.show();
 
-  //lcdIO.m_rawIO.setCursor(0, 1);
-  //cout << "T="<< (T1-T0) << ' ' << '\1' << '\n';
+  ++ counter;
+  lcdIO.m_rawIO.setCursor(0, 0);
+  cout << "STEP=" << counter;
 }
 

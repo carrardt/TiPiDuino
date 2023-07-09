@@ -58,12 +58,14 @@
               pixel.
   @return  Adafruit_NeoPixel object. Call the begin() function before use.
 */
-Adafruit_NeoPixel::Adafruit_NeoPixel(uint16_t n, int16_t p, neoPixelType t)
-    : begun(false), brightness(0), pixels(nullptr), ticksSinceEnd(0)
+Adafruit_NeoPixel::Adafruit_NeoPixel(uint16_t n, neoPixelType t)
+  : begun(false)
+  , brightness(0)
+  , ticksSinceEnd(0)
 {
   updateType(t);
   updateLength(n);
-  setPin(p);
+//  setPin(p);
 }
 
 /*!
@@ -77,9 +79,15 @@ Adafruit_NeoPixel::Adafruit_NeoPixel(uint16_t n, int16_t p, neoPixelType t)
            type).
 */
 Adafruit_NeoPixel::Adafruit_NeoPixel()
-    :
-      begun(false), numLEDs(0), numBytes(0), pin(-1), brightness(0),
-      pixels(nullptr), rOffset(1), gOffset(0), bOffset(2), wOffset(1), ticksSinceEnd(0)
+  : begun(false)
+  , numLEDs(0)
+  , numBytes(0)
+  , brightness(0)
+  , rOffset(1)
+  , gOffset(0)
+  , bOffset(2)
+  , wOffset(1)
+  , ticksSinceEnd(0)
 {
 }
 
@@ -88,7 +96,7 @@ Adafruit_NeoPixel::Adafruit_NeoPixel()
 */
 Adafruit_NeoPixel::~Adafruit_NeoPixel() {
   timer.stop();
-  free(pixels);
+  //free(pixels);
   if (pin >= 0) pinMode(pin, INPUT);
 }
 
@@ -118,16 +126,18 @@ void Adafruit_NeoPixel::begin(void)
 */
 void Adafruit_NeoPixel::updateLength(uint16_t n)
 {
-  free(pixels); // Free existing data (if any)
+//  free(pixels); // Free existing data (if any)
 
   // Allocate new data -- note: ALL PIXELS ARE CLEARED
   numBytes = n * ((wOffset == rOffset) ? 3 : 4);
-  if ((pixels = (uint8_t *)malloc(numBytes))) {
-    memset(pixels, 0, numBytes);
-    numLEDs = n;
-  } else {
-    numLEDs = numBytes = 0;
+  if( numBytes > pixel_buffer_size )
+  {
+    n = pixel_buffer_size / 4;
+    numBytes = n * ((wOffset == rOffset) ? 3 : 4);
   }
+    
+  clear();
+  numLEDs = n;
 }
 
 /*!
@@ -298,6 +308,7 @@ void Adafruit_NeoPixel::show(void) {
            if any, is set to INPUT and the new pin is set to OUTPUT.
   @param   p  Arduino pin number (-1 = no pin).
 */
+/*
 void Adafruit_NeoPixel::setPin(int16_t p) {
   if (begun && (pin >= 0))
     pinMode(pin, INPUT); // Disable existing out pin
@@ -309,6 +320,7 @@ void Adafruit_NeoPixel::setPin(int16_t p) {
   port = portOutputRegister(digitalPinToPort(p));
   pinMask = digitalPinToBitMask(p);
 }
+*/
 
 /*!
   @brief   Set a pixel's color using separate red, green and blue
@@ -549,7 +561,7 @@ uint32_t Adafruit_NeoPixel::getPixelColor(uint16_t n) const {
   if (n >= numLEDs)
     return 0; // Out of bounds, return no color.
 
-  uint8_t *p;
+  const uint8_t *p;
 
   if (wOffset == rOffset) { // Is RGB-type device
     p = &pixels[n * 3];
@@ -641,7 +653,10 @@ uint8_t Adafruit_NeoPixel::getBrightness(void) const { return brightness - 1; }
 /*!
   @brief   Fill the whole NeoPixel strip with 0 / black / off.
 */
-void Adafruit_NeoPixel::clear(void) { memset(pixels, 0, numBytes); }
+void Adafruit_NeoPixel::clear(void)
+{
+  for(int i=0;i<numBytes;i++) pixels[i] = 0;
+}
 
 // A 32-bit variant of gamma8() that applies the same function
 // to all components of a packed RGB or WRGB value.

@@ -162,16 +162,19 @@ class Adafruit_NeoPixel
   using TimerT = avrtl::AvrTimer1;
   using TimerCounterType = typename TimerT::TimerCounterType;
 
+  static constexpr int16_t pin = 8; // => PB0
+  static constexpr uint8_t pinMask = 0x01;
+  static constexpr unsigned int pixel_buffer_size = 512;
+
 public:
   // Constructor: number of LEDs, pin number, LED type
-  Adafruit_NeoPixel(uint16_t n, int16_t pin = 6,
-                    neoPixelType type = NEO_GRB + NEO_KHZ800);
+  Adafruit_NeoPixel(uint16_t n, neoPixelType type = NEO_GRB + NEO_KHZ800);
   Adafruit_NeoPixel(void);
   ~Adafruit_NeoPixel();
 
   void begin(void);
   void show(void);
-  void setPin(int16_t p);
+  //void setPin(int16_t p);
   void setPixelColor(uint16_t n, uint8_t r, uint8_t g, uint8_t b);
   void setPixelColor(uint16_t n, uint8_t r, uint8_t g, uint8_t b, uint8_t w);
   void setPixelColor(uint16_t n, uint32_t c);
@@ -194,7 +197,8 @@ public:
     @return  1 or true if show() will start sending immediately, 0 or false
              if show() would block (meaning some idle time is available).
   */
-  inline bool canShow(void) {
+  inline bool canShow(void)
+  {
     // It's normal and possible for endTime to exceed micros() if the
     // 32-bit clock counter has rolled over (about every 70 minutes).
     // Since both are uint32_t, a negative delta correctly maps back to
@@ -236,13 +240,13 @@ public:
              writes past the ends of the buffer. Great power, great
              responsibility and all that.
   */
-  inline uint8_t *getPixels(void) const { return pixels; };
+  inline uint8_t *getPixels(void) { return pixels; };
   uint8_t getBrightness(void) const;
   /*!
     @brief   Retrieve the pin number used for NeoPixel data output.
     @return  Arduino pin number (-1 if not set).
   */
-  inline int16_t getPin(void) const { return pin; };
+  static inline constexpr int16_t getPin(void) { return pin; };
   /*!
     @brief   Return the number of pixels in an Adafruit_NeoPixel strip object.
     @return  Pixel count (0 if not set).
@@ -312,16 +316,16 @@ protected:
   bool begun;         ///< true if begin() previously called
   uint16_t numLEDs;   ///< Number of RGB LEDs in strip
   uint16_t numBytes;  ///< Size of 'pixels' buffer below
-  int16_t pin;        ///< Output pin number (-1 if not yet set)
+//  int16_t pin;        ///< Output pin number (-1 if not yet set)
   uint8_t brightness; ///< Strip brightness 0-255 (stored as +1)
-  uint8_t *pixels;    ///< Holds LED color values (3 or 4 bytes each)
+  uint8_t pixels[pixel_buffer_size];    ///< Holds LED color values (3 or 4 bytes each)
   uint8_t rOffset;    ///< Red index within each 3- or 4-byte pixel
   uint8_t gOffset;    ///< Index of green byte
   uint8_t bOffset;    ///< Index of blue byte
   uint8_t wOffset;    ///< Index of white (==rOffset if no white)
   
-  volatile uint8_t *port; ///< Output PORT register
-  uint8_t pinMask;        ///< Output PORT bitmask
+  volatile uint8_t * port = & PORTB; ///< Output PORT register
+//  uint8_t pinMask;        ///< Output PORT bitmask
   
   TimerT timer;
   uint32_t ticksSinceEnd;   ///< current time, to allow for low bitcount timer counters
