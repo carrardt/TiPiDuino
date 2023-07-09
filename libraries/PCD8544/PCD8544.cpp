@@ -312,6 +312,7 @@ bool PCD8544::writeByte(uint8_t chr)
         return false;
     }
 
+    bool cursor_jump = false;
 
     if( chr != '\n' && chr!='\r' )
     {
@@ -343,9 +344,10 @@ bool PCD8544::writeByte(uint8_t chr)
 
         // Update the cursor position...
         this->column = (this->column + 6) % this->width;
-
-        if (this->column == 0) {
+        if (this->column == 0)
+        {
             this->line = (this->line + 1) % (this->height/9 + 1);
+            cursor_jump = true;
         }
     }
     else
@@ -355,6 +357,12 @@ bool PCD8544::writeByte(uint8_t chr)
         {
             this->line = (this->line + 1) % (this->height/9 + 1);
         }
+        cursor_jump = true;
+    }
+
+    if( cursor_jump )
+    {
+        setCursor( this->column , this->line );
     }
 
     return true;
