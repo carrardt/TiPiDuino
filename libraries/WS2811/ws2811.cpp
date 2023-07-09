@@ -346,7 +346,7 @@ void Adafruit_NeoPixel::showCompressed(void) {
 
   volatile uint16_t i = numBytes; // Loop counter
   volatile uint8_t *ptr = pixels, // Pointer to next byte
-      b = *ptr++,                 // Current byte value
+      b = *ptr,                   // Current byte value
       hi,                         // PORT w/output bit set high
       lo;                         // PORT w/output bit set low
 
@@ -396,10 +396,12 @@ void Adafruit_NeoPixel::showCompressed(void) {
                  "\n\t" // 1    next = lo     (T =  8)
                  "breq cnextbyte20"
                  "\n\t" // 1-2  if(bit == 0) (from dec above)
+                 "and %[byte] , %[mask]"
+                 "\n\t" // 1    zero lower 4 bits (T = 10)
                  "rol  %[byte]"
-                 "\n\t" // 1    b <<= 1       (T = 10)
-                 "rjmp .+0"
-                 "\n\t" // 2    nop nop       (T = 12)
+                 "\n\t" // 1    b <<= 1       (T = 11)
+                 "nop"
+                 "\n\t" // 1    nop           (T = 12)
                  "nop"
                  "\n\t" // 1    nop           (T = 13)
                  "st   %a[port],  %[lo]"
@@ -415,17 +417,16 @@ void Adafruit_NeoPixel::showCompressed(void) {
                  "\n\t" //                    (T = 10)
                  "ldi  %[bit]  ,  8"
                  "\n\t" // 1    bit = 8       (T = 11)
-                 "ld   %[byte] ,  %a[ptr]+"
-                 "\n\t" // 2    b = *ptr++    (T = 13)
+                 "ld   %[byte] ,  %a[ptr]"
+                 "\n\t" // 2    b = *ptr      (T = 13)
                  "st   %a[port], %[lo]"
                  "\n\t" // 2    PORT = lo     (T = 15)
-                 "nop"
-                 "\n\t" // 1    nop           (T = 16)
+                 "swap %[byte]"
+                 "\n\t" // 1    swap bits (7-4) <-> (3-0)   (T = 16)
                  "sbiw %[count], 1"
                  "\n\t" // 2    i--           (T = 18)
                  "breq endofshow"   
                  "\n" // 2    if(i == 0) -> (end)
-                 
                  
                  "chead21:"
                  "\n\t" // Clk  Pseudocode    (T =  0)
@@ -443,10 +444,12 @@ void Adafruit_NeoPixel::showCompressed(void) {
                  "\n\t" // 1    next = lo     (T =  8)
                  "breq cnextbyte21"
                  "\n\t" // 1-2  if(bit == 0) (from dec above)
-                 "rol  %[byte]"
-                 "\n\t" // 1    b <<= 1       (T = 10)
-                 "rjmp .+0"
-                 "\n\t" // 2    nop nop       (T = 12)
+                 "and %[byte] , %[mask]"
+                 "\n\t" // 1    zero lower 4 bits (T = 10)
+                 "rol %[byte]"
+                 "\n\t" // 1    b <<= 1       (T = 11)
+                 "nop"
+                 "\n\t" // 1    nop           (T = 12)
                  "nop"
                  "\n\t" // 1    nop           (T = 13)
                  "st   %a[port],  %[lo]"
@@ -478,7 +481,7 @@ void Adafruit_NeoPixel::showCompressed(void) {
                  
                  : [port] "+e"(port), [byte] "+r"(b), [bit] "+r"(bit),
                    [next] "+r"(next), [count] "+w"(i)
-                 : [ptr] "e"(ptr), [hi] "r"(hi), [lo] "r"(lo));
+                 : [ptr] "e"(ptr), [hi] "r"(hi), [lo] "r"(lo), [mask] "r"(0xF0));
 
   // END AVR ----------------------------------------------------------------
 
