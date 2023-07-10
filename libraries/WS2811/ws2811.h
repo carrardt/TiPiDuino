@@ -177,9 +177,7 @@ public:
   ~Adafruit_NeoPixel();
 
   void begin(void);
-  void show8Bits(void);
-  void show4Bits(void);
-  inline void show() { if(color_4bits) show4Bits(); else show8Bits(); }
+  void show(void);
   //void setPin(int16_t p);
   void setPixelColor(uint16_t n, uint8_t r, uint8_t g, uint8_t b);
   void setPixelColor(uint16_t n, uint8_t r, uint8_t g, uint8_t b, uint8_t w);
@@ -187,8 +185,6 @@ public:
   void fill(uint32_t c = 0, uint16_t first = 0, uint16_t count = 0);
   void setBrightness(uint8_t);
   void clear(void);
-  
-  inline void set_color_4bits(bool b) { color_4bits=b; updateLength(numLEDs); }
   void updateLength(uint16_t n);
   void updateType(neoPixelType t);
     
@@ -332,7 +328,6 @@ protected:
   uint8_t gOffset;    ///< Index of green byte
   uint8_t bOffset;    ///< Index of blue byte
   uint8_t wOffset;    ///< Index of white (==rOffset if no white)
-  bool color_4bits = false;
   
   volatile uint8_t * port = & PORTB; ///< Output PORT register
 //  uint8_t pinMask;        ///< Output PORT bitmask

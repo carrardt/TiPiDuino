@@ -29,7 +29,7 @@ struct TrackLights
 static constexpr uint8_t MAX_PARTNERS = 4;
 static const uint8_t PROGMEM partner_color[MAX_PARTNERS*3] = { 0x00,0xFF,0x00 , 0x7F,0x3F,0x00 , 0xFF,0x00,0x00 , 0xFF,0x00,0xFF };
 
-static Adafruit_NeoPixel strip(100);
+static Adafruit_NeoPixel strip;
 static TrackLights track_lights = {};
 
 void setup()
@@ -48,7 +48,7 @@ void setup()
   strip.updateLength( track_lights.nb_lights );
   strip.begin();           // INITIALIZE NeoPixel strip object (REQUIRED)
   strip.show();            // Turn OFF all pixels ASAP
-  strip.setBrightness(0); // 1-255 or 0 to disable
+  strip.setBrightness(50); // 1-255 or 0 to disable
 
   cout << "WaveLight 1.0\n";
   cout << "TL="<< track_lights.nb_lights <<"\n";
@@ -79,7 +79,7 @@ void update_lights( const TrackLights& track, const uint16_t* pos, int n )
     strip.setPixelColor( l , (R*frac)/16 , (G*frac)/16 , (B*frac)/16 );
   }
   
-  strip.showCompressed();
+  strip.show();
 }
 
 void loop()
