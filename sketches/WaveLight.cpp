@@ -10,9 +10,11 @@
 #include <avr/interrupt.h>
 
 // PCD8544 pins : SCLK, SDIN, DC, RST, SCE (connect to ground)
-#define LCD_PINS     2,    3,  4,   5, PCD8544_UNASSIGNED
-static PCD8544 lcd( LCD_PINS );
+#define LCD_PINS     2,    3,  4,   6, PCD8544_UNASSIGNED
+// WS2811 pin = 8 a.k.a PB0
+#define DATA_FEEDBACK_PIN 5 // a.k.a T1 pin, external clock signal for timer 1
 
+static PCD8544 lcd( LCD_PINS );
 static ByteStreamAdapter<PCD8544> lcdIO;
 static PrintStream cout;
 
