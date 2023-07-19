@@ -61,7 +61,6 @@
 Adafruit_NeoPixel::Adafruit_NeoPixel(uint16_t n, neoPixelType t)
   : begun(false)
   , brightness(0)
-  , ticksSinceEnd(0)
 {
   updateType(t);
   updateLength(n);
@@ -87,15 +86,14 @@ Adafruit_NeoPixel::Adafruit_NeoPixel()
   , gOffset(0)
   , bOffset(2)
   , wOffset(1)
-  , ticksSinceEnd(0)
 {
 }
 
 /*!
   @brief   Deallocate Adafruit_NeoPixel object, set data pin back to INPUT.
 */
-Adafruit_NeoPixel::~Adafruit_NeoPixel() {
-  timer.stop();
+Adafruit_NeoPixel::~Adafruit_NeoPixel()
+{
   //free(pixels);
   if (pin >= 0) pinMode(pin, INPUT);
 }
@@ -110,7 +108,6 @@ void Adafruit_NeoPixel::begin(void)
     pinMode(pin, OUTPUT);
     digitalWrite(pin, LOW);
   }
-  timer.start();
   begun = true;
 }
 
@@ -198,8 +195,7 @@ void Adafruit_NeoPixel::show(void) {
   // subsequent round of data until the latch time has elapsed. This
   // allows the mainline code to start generating the next frame of data
   // rather than stalling for the latch.
-  while (!canShow())
-    ;
+//  while (!canShow()) ;
     // endTime is a private member (rather than global var) so that multiple
     // instances on different pins can be quickly issued in succession (each
     // instance doesn't delay the next).
@@ -301,7 +297,6 @@ void Adafruit_NeoPixel::show(void) {
 
   // END AVR ----------------------------------------------------------------
 
-  resetEndTimer(); // Save EOD time for latch on next call
 }
 
 /*!

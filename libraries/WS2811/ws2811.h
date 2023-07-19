@@ -163,9 +163,6 @@ static const uint8_t PROGMEM _NeoPixelGammaTable[256] = {
 */
 class Adafruit_NeoPixel
 {
-  using TimerT = avrtl::AvrTimer1;
-  using TimerCounterType = typename TimerT::TimerCounterType;
-
   static constexpr int16_t pin = 8; // => PB0
   static constexpr uint8_t pinMask = 0x01;
   static constexpr uint16_t pixel_buffer_size = LED_STRIP_BUFFER_SIZE;
@@ -187,49 +184,7 @@ public:
   void clear(void);
   void updateLength(uint16_t n);
   void updateType(neoPixelType t);
-    
-  /*!
-    @brief   Check whether a call to show() will start sending data
-             immediately or will 'block' for a required interval. NeoPixels
-             require a short quiet time (about 300 microseconds) after the
-             last bit is received before the data 'latches' and new data can
-             start being received. Usually one's sketch is implicitly using
-             this time to generate a new frame of animation...but if it
-             finishes very quickly, this function could be used to see if
-             there's some idle time available for some low-priority
-             concurrent task.
-    @return  1 or true if show() will start sending immediately, 0 or false
-             if show() would block (meaning some idle time is available).
-  */
-  inline bool canShow(void)
-  {
-    // It's normal and possible for endTime to exceed micros() if the
-    // 32-bit clock counter has rolled over (about every 70 minutes).
-    // Since both are uint32_t, a negative delta correctly maps back to
-    // positive space, and it would seem like the subtraction below would
-    // suffice. But a problem arises if code invokes show() very
-    // infrequently...the micros() counter may roll over MULTIPLE times in
-    // that interval, the delta calculation is no longer correct and the
-    // next update may stall for a very long time. The check below resets
-    // the latch counter if a rollover has occurred. This can cause an
-    // extra delay of up to 300 microseconds in the rare case where a
-    // show() call happens precisely around the rollover, but that's
-    // neither likely nor especially harmful, vs. other code that might
-    // stall for 30+ minutes, or having to document and frequently remind
-    // and/or provide tech support explaining an unintuitive need for
-    // show() calls at least once an hour.
-    TimerCounterType clk = timer.counter();
-    TimerCounterType elapsed = clk - last_clk;
-    last_clk = clk;
-    ticksSinceEnd += elapsed;
-    return timer.ticksToMicroseconds(ticksSinceEnd) >= 300L;
-  }
-  inline void resetEndTimer()
-  {
-    last_clk = timer.counter();
-    ticksSinceEnd = 0;
-  }
-  
+      
   /*!
     @brief   Get a pointer directly to the NeoPixel data buffer in RAM.
              Pixel data is stored in a device-native format (a la the NEO_*
@@ -331,10 +286,6 @@ protected:
   
   volatile uint8_t * port = & PORTB; ///< Output PORT register
 //  uint8_t pinMask;        ///< Output PORT bitmask
-  
-  TimerT timer;
-  uint32_t ticksSinceEnd;   ///< current time, to allow for low bitcount timer counters
-  TimerCounterType last_clk;
 };
 
 

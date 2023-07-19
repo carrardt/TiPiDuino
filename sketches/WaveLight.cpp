@@ -18,6 +18,8 @@ static PCD8544 lcd( LCD_PINS );
 static ByteStreamAdapter<PCD8544> lcdIO;
 static PrintStream cout;
 
+#define MAX_TRACK_LIGHTS 1024
+
 // A custom glyph (a smiley)...
 // static const uint8_t glyph[] = { 0b00010000, 0b00110100, 0b00110000, 0b00110100, 0b00010000 };
 struct TrackLights
@@ -33,6 +35,9 @@ static const uint8_t PROGMEM partner_color[MAX_PARTNERS*3] = { 0x00,0xFF,0x00 , 
 
 static Adafruit_NeoPixel strip;
 static TrackLights track_lights = {};
+static avrtl::AvrTimer<avrtl::AvrTimer0HW,256> delayTimer;
+static avrtl::AvrTimer<avrtl::AvrTimer1HW,avrtl::AvrTimer1HW::ExternalClockRising> loopBackSignalCounter;
+static avrtl::StaticPin<5> loopBackPin;
 
 void setup()
 {
@@ -46,18 +51,54 @@ void setup()
   lcdIO.m_rawIO.setContrast(63);
   cout.begin(&lcdIO);
   lcdIO.m_rawIO.setCursor(0, 0);
-  
-  strip.updateLength( track_lights.nb_lights );
+
+  delayTimer.start();
+  loopBackSignalCounter.start();
+  loopBackPin.SetInput();
+  loopBackSignalCounter.resetCounter();
+
+  strip.updateLength( MAX_TRACK_LIGHTS );
   strip.begin();           // INITIALIZE NeoPixel strip object (REQUIRED)
   strip.show();            // Turn OFF all pixels ASAP
-  strip.setBrightness(50); // 1-255 or 0 to disable
+  strip.setBrightness(50); // 1-255 or 0 to disable  
 
   cout << "WaveLight 1.0\n";
-  cout << "TL="<< track_lights.nb_lights <<"\n";
-  cout << "BS="<< strip.bufferSize() <<"\n";
-  cout << "NL="<< strip.numPixels() <<"\n";
+  cout << "BS="<< LED_STRIP_BUFFER_SIZE <<"\n";
+  const int maxLights = strip.numPixels();
+  cout << "ML="<<maxLights<<"\n";
+  cout << "detecting lights...\n";
+  
+  track_lights.nb_lights = 0;
+  for(int i=1;i<maxLights && track_lights.nb_lights==0;i++)
+  {
+    strip.updateLength(i);
+    strip.setBrightness(50);
+    strip.clear();
+    strip.setPixelColor( i-1 , 255 , 255 , 255 );
+    loopBackSignalCounter.resetCounter();
+    strip.show();
+    delayTimer.delayMicroseconds( 100000 );
+    int ticks = loopBackSignalCounter.counter();
+    if( ticks > 0 ) { track_lights.nb_lights = i; }
+  }
 
-  for(int i=0;i<30;i++) avrtl::delayMicroseconds( 100000 );
+  if( track_lights.nb_lights == 0 ) track_lights.nb_lights = maxLights;
+  cout << "Lights = "<<track_lights.nb_lights<<"\n";
+
+  delayTimer.delayMicroseconds( 5000000 );
+
+  strip.updateLength( track_lights.nb_lights );
+  strip.begin();           // INITIALIZE NeoPixel strip object (REQUIRED)
+  strip.setBrightness(50); // 1-255 or 0 to disable
+  strip.clear();
+  strip.show();            // Turn OFF all pixels ASAP
+
+/*  
+  cout << "WaveLight 1.0\n";
+  cout << "BUF="<< LED_STRIP_BUFFER_SIZE <<"\n";
+  cout << "TRK="<< track_lights.nb_lights <<"\n";
+  cout << "NL="<< strip.numPixels() <<"\n";
+*/
 }
 
 // positions given in decimeters, up to 6.5Km
@@ -87,7 +128,7 @@ void update_lights( const TrackLights& track, const uint16_t* pos, int n )
 void loop()
 {
   static uint16_t counter = 0;
-  avrtl::delayMicroseconds( 10000 );
+  delayTimer.delayMicroseconds( 100000 );
 
   ++ counter;
   cout << "dist=" << counter/10 <<"m    \n";
