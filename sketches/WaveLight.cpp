@@ -66,11 +66,13 @@ void setup()
   cout << "BS="<< LED_STRIP_BUFFER_SIZE <<"\n";
   const int maxLights = strip.numPixels();
   cout << "ML="<<maxLights<<"\n";
-  cout << "detecting lights...\n";
+  cout << "Test\r";
   
   track_lights.nb_lights = 0;
+  int ticks = 0;
   for(int i=1;i<maxLights && track_lights.nb_lights==0;i++)
   {
+    cout << "Test "<<i<<"\r";
     strip.updateLength(i);
     strip.setBrightness(50);
     strip.clear();
@@ -78,12 +80,17 @@ void setup()
     loopBackSignalCounter.resetCounter();
     strip.show();
     delayTimer.delayMicroseconds( 100000 );
-    int ticks = loopBackSignalCounter.counter();
-    if( ticks > 0 ) { track_lights.nb_lights = i; }
+    ticks = loopBackSignalCounter.counter();
+    if( ticks > 6 && ticks < 32 ) { track_lights.nb_lights = i; }
   }
+  lcdIO.m_rawIO.clear();
+  lcdIO.m_rawIO.setCursor(0, 0);
 
-  if( track_lights.nb_lights == 0 ) track_lights.nb_lights = maxLights;
-  cout << "Lights = "<<track_lights.nb_lights<<"\n";
+  if( track_lights.nb_lights > 0 ) -- track_lights.nb_lights;
+  if( track_lights.nb_lights <= 0 ) track_lights.nb_lights = maxLights;
+  if( ticks != 24 ) cout << "bad lb sig ("<<ticks<<")\n";
+  else cout << "lb Ok :-)\n";
+  cout << "Lights="<<track_lights.nb_lights<<"\n";
 
   delayTimer.delayMicroseconds( 5000000 );
 
@@ -131,7 +138,8 @@ void loop()
   delayTimer.delayMicroseconds( 100000 );
 
   ++ counter;
-  cout << "dist=" << counter/10 <<"m    \n";
+
+  cout << "Dist " << counter/10 <<'.' << (counter%10) <<"m    \r";
 
   uint16_t pos[3] = { counter % track_lights.length , (counter+1000) % track_lights.length , (counter+2000) % track_lights.length };
 
