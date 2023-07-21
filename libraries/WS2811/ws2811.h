@@ -46,7 +46,7 @@
 #endif
 
 #ifndef LED_STRIP_BUFFER_SIZE
-#define LED_STRIP_BUFFER_SIZE 512
+#define LED_STRIP_BUFFER_SIZE 320
 #endif
 
 // The order of primary colors in the NeoPixel data stream can vary among

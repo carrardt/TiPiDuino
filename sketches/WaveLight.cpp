@@ -7,6 +7,7 @@
 
 #include <PCD8544.h>
 #include "WS2811/ws2811.h"
+#include "DS1302/Ds1302.h"
 #include <avr/interrupt.h>
 
 // PCD8544 pins : SCLK, SDIN, DC, RST, SCE (connect to ground)
@@ -39,6 +40,13 @@ static avrtl::AvrTimer<avrtl::AvrTimer0HW,256> delayTimer;
 static avrtl::AvrTimer<avrtl::AvrTimer1HW,avrtl::AvrTimer1HW::ExternalClockRising> loopBackSignalCounter;
 static avrtl::StaticPin<5> loopBackPin;
 
+#define RTC_PIN_CLK 7
+#define RTC_PIN_DAT 9
+#define RTC_PIN_RST 10
+
+// DS1302 RTC instance
+static Ds1302 rtc(RTC_PIN_RST, RTC_PIN_CLK, RTC_PIN_DAT);
+
 void setup()
 {
 	cli();
@@ -66,6 +74,7 @@ void setup()
   cout << "BS="<< LED_STRIP_BUFFER_SIZE <<"\n";
   const int maxLights = strip.numPixels();
   cout << "ML="<<maxLights<<"\n";
+  cout << "RTC="<<!rtc.isHalted()<<"\n";
   cout << "Test\r";
   
   track_lights.nb_lights = 0;
