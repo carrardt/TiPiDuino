@@ -27,14 +27,14 @@
 #define REG_BURST             0xBE
 
 
-Ds1302::Ds1302(uint8_t pin_ena, uint8_t pin_clk, uint8_t pin_dat)
+Ds1302::Ds1302(avrtl::AvrTimer0 & t, uint8_t pin_ena, uint8_t pin_clk, uint8_t pin_dat)
+  : m_delayTimer(t)
+  , _pin_ena(pin_ena)
+  , _pin_clk(pin_clk)
+  , _pin_dat(pin_dat)
+  , _dat_direction(INPUT)
 {
-    _pin_ena = pin_ena;
-    _pin_clk = pin_clk;
-    _pin_dat = pin_dat;
-    _dat_direction = INPUT;
 }
-
 
 void Ds1302::init()
 {
@@ -148,11 +148,11 @@ void Ds1302::_writeByte(uint8_t value)
 
 void Ds1302::_nextBit()
 {
-        digitalWrite(_pin_clk, HIGH);
-        delayMicroseconds(1);
+  digitalWrite(_pin_clk, HIGH);
+  m_delayTimer.delayMicroseconds(1);
 
-        digitalWrite(_pin_clk, LOW);
-        delayMicroseconds(1);
+  digitalWrite(_pin_clk, LOW);
+  m_delayTimer.delayMicroseconds(1);
 }
 
 

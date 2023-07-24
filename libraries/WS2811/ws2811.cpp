@@ -60,7 +60,6 @@
 */
 Adafruit_NeoPixel::Adafruit_NeoPixel(uint16_t n, neoPixelType t)
   : begun(false)
-  , brightness(0)
 {
   updateType(t);
   updateLength(n);
@@ -81,7 +80,6 @@ Adafruit_NeoPixel::Adafruit_NeoPixel()
   : begun(false)
   , numLEDs(0)
   , numBytes(0)
-  , brightness(0)
   , rOffset(1)
   , gOffset(0)
   , bOffset(2)
@@ -330,11 +328,6 @@ void Adafruit_NeoPixel::setPixelColor(uint16_t n, uint8_t r, uint8_t g,
                                       uint8_t b) {
 
   if (n < numLEDs) {
-    if (brightness) { // See notes in setBrightness()
-      r = (r * brightness) >> 8;
-      g = (g * brightness) >> 8;
-      b = (b * brightness) >> 8;
-    }
     uint8_t *p;
     if (wOffset == rOffset) { // Is an RGB-type strip
       p = &pixels[n * 3];     // 3 bytes per pixel
@@ -362,12 +355,6 @@ void Adafruit_NeoPixel::setPixelColor(uint16_t n, uint8_t r, uint8_t g,
                                       uint8_t b, uint8_t w) {
 
   if (n < numLEDs) {
-    if (brightness) { // See notes in setBrightness()
-      r = (r * brightness) >> 8;
-      g = (g * brightness) >> 8;
-      b = (b * brightness) >> 8;
-      w = (w * brightness) >> 8;
-    }
     uint8_t *p;
     if (wOffset == rOffset) { // Is an RGB-type strip
       p = &pixels[n * 3];     // 3 bytes per pixel (ignore W)
@@ -391,17 +378,12 @@ void Adafruit_NeoPixel::setPixelColor(uint16_t n, uint8_t r, uint8_t g,
 void Adafruit_NeoPixel::setPixelColor(uint16_t n, uint32_t c) {
   if (n < numLEDs) {
     uint8_t *p, r = (uint8_t)(c >> 16), g = (uint8_t)(c >> 8), b = (uint8_t)c;
-    if (brightness) { // See notes in setBrightness()
-      r = (r * brightness) >> 8;
-      g = (g * brightness) >> 8;
-      b = (b * brightness) >> 8;
-    }
     if (wOffset == rOffset) {
       p = &pixels[n * 3];
     } else {
       p = &pixels[n * 4];
       uint8_t w = (uint8_t)(c >> 24);
-      p[wOffset] = brightness ? ((w * brightness) >> 8) : w;
+      p[wOffset] = w;
     }
     p[rOffset] = r;
     p[gOffset] = g;
@@ -543,132 +525,11 @@ uint32_t Adafruit_NeoPixel::ColorHSV(uint16_t hue, uint8_t sat, uint8_t val) {
 }
 
 /*!
-  @brief   Query the color of a previously-set pixel.
-  @param   n  Index of pixel to read (0 = first).
-  @return  'Packed' 32-bit RGB or WRGB value. Most significant byte is white
-           (for RGBW pixels) or 0 (for RGB pixels), next is red, then green,
-           and least significant byte is blue.
-  @note    If the strip brightness has been changed from the default value
-           of 255, the color read from a pixel may not exactly match what
-           was previously written with one of the setPixelColor() functions.
-           This gets more pronounced at lower brightness levels.
-*/
-uint32_t Adafruit_NeoPixel::getPixelColor(uint16_t n) const {
-  if (n >= numLEDs)
-    return 0; // Out of bounds, return no color.
-
-  const uint8_t *p;
-
-  if (wOffset == rOffset) { // Is RGB-type device
-    p = &pixels[n * 3];
-    if (brightness) {
-      // Stored color was decimated by setBrightness(). Returned value
-      // attempts to scale back to an approximation of the original 24-bit
-      // value used when setting the pixel color, but there will always be
-      // some error -- those bits are simply gone. Issue is most
-      // pronounced at low brightness levels.
-      return (((uint32_t)(p[rOffset] << 8) / brightness) << 16) |
-             (((uint32_t)(p[gOffset] << 8) / brightness) << 8) |
-             ((uint32_t)(p[bOffset] << 8) / brightness);
-    } else {
-      // No brightness adjustment has been made -- return 'raw' color
-      return ((uint32_t)p[rOffset] << 16) | ((uint32_t)p[gOffset] << 8) |
-             (uint32_t)p[bOffset];
-    }
-  } else { // Is RGBW-type device
-    p = &pixels[n * 4];
-    if (brightness) { // Return scaled color
-      return (((uint32_t)(p[wOffset] << 8) / brightness) << 24) |
-             (((uint32_t)(p[rOffset] << 8) / brightness) << 16) |
-             (((uint32_t)(p[gOffset] << 8) / brightness) << 8) |
-             ((uint32_t)(p[bOffset] << 8) / brightness);
-    } else { // Return raw color
-      return ((uint32_t)p[wOffset] << 24) | ((uint32_t)p[rOffset] << 16) |
-             ((uint32_t)p[gOffset] << 8) | (uint32_t)p[bOffset];
-    }
-  }
-}
-
-/*!
-  @brief   Adjust output brightness. Does not immediately affect what's
-           currently displayed on the LEDs. The next call to show() will
-           refresh the LEDs at this level.
-  @param   b  Brightness setting, 0=minimum (off), 255=brightest.
-  @note    This was intended for one-time use in one's setup() function,
-           not as an animation effect in itself. Because of the way this
-           library "pre-multiplies" LED colors in RAM, changing the
-           brightness is often a "lossy" operation -- what you write to
-           pixels isn't necessary the same as what you'll read back.
-           Repeated brightness changes using this function exacerbate the
-           problem. Smart programs therefore treat the strip as a
-           write-only resource, maintaining their own state to render each
-           frame of an animation, not relying on read-modify-write.
-*/
-void Adafruit_NeoPixel::setBrightness(uint8_t b) {
-  // Stored brightness value is different than what's passed.
-  // This simplifies the actual scaling math later, allowing a fast
-  // 8x8-bit multiply and taking the MSB. 'brightness' is a uint8_t,
-  // adding 1 here may (intentionally) roll over...so 0 = max brightness
-  // (color values are interpreted literally; no scaling), 1 = min
-  // brightness (off), 255 = just below max brightness.
-  uint8_t newBrightness = b + 1;
-  if (newBrightness != brightness) { // Compare against prior value
-    // Brightness has changed -- re-scale existing data in RAM,
-    // This process is potentially "lossy," especially when increasing
-    // brightness. The tight timing in the WS2811/WS2812 code means there
-    // aren't enough free cycles to perform this scaling on the fly as data
-    // is issued. So we make a pass through the existing color data in RAM
-    // and scale it (subsequent graphics commands also work at this
-    // brightness level). If there's a significant step up in brightness,
-    // the limited number of steps (quantization) in the old data will be
-    // quite visible in the re-scaled version. For a non-destructive
-    // change, you'll need to re-render the full strip data. C'est la vie.
-    uint8_t c, *ptr = pixels,
-               oldBrightness = brightness - 1; // De-wrap old brightness value
-    uint16_t scale;
-    if (oldBrightness == 0)
-      scale = 0; // Avoid /0
-    else if (b == 255)
-      scale = 65535 / oldBrightness;
-    else
-      scale = (((uint16_t)newBrightness << 8) - 1) / oldBrightness;
-    for (uint16_t i = 0; i < numBytes; i++) {
-      c = *ptr;
-      *ptr++ = (c * scale) >> 8;
-    }
-    brightness = newBrightness;
-  }
-}
-
-/*!
-  @brief   Retrieve the last-set brightness value for the strip.
-  @return  Brightness value: 0 = minimum (off), 255 = maximum.
-*/
-uint8_t Adafruit_NeoPixel::getBrightness(void) const { return brightness - 1; }
-
-/*!
   @brief   Fill the whole NeoPixel strip with 0 / black / off.
 */
 void Adafruit_NeoPixel::clear(void)
 {
   for(int i=0;i<numBytes;i++) pixels[i] = 0;
-}
-
-// A 32-bit variant of gamma8() that applies the same function
-// to all components of a packed RGB or WRGB value.
-uint32_t Adafruit_NeoPixel::gamma32(uint32_t x) {
-  uint8_t *y = (uint8_t *)&x;
-  // All four bytes of a 32-bit value are filtered even if RGB (not WRGB),
-  // to avoid a bunch of shifting and masking that would be necessary for
-  // properly handling different endianisms (and each byte is a fairly
-  // trivial operation, so it might not even be wasting cycles vs a check
-  // and branch for the RGB case). In theory this might cause trouble *if*
-  // someone's storing information in the unused most significant byte
-  // of an RGB value, but this seems exceedingly rare and if it's
-  // encountered in reality they can mask values going in or coming out.
-  for (uint8_t i = 0; i < 4; i++)
-    y[i] = gamma8(y[i]);
-  return x; // Packed 32-bit return
 }
 
 

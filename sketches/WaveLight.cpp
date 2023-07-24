@@ -32,12 +32,15 @@ struct TrackLights
 };
 
 static constexpr uint8_t MAX_PARTNERS = 4;
-static const uint8_t PROGMEM partner_color[MAX_PARTNERS*3] = { 0x00,0xFF,0x00 , 0x7F,0x3F,0x00 , 0xFF,0x00,0x00 , 0xFF,0x00,0xFF };
+static constexpr uint8_t BRIGHTNESS_DIV = 4;
+static const uint8_t PROGMEM partner_color[MAX_PARTNERS*3] = {   0/BRIGHTNESS_DIV , 255/BRIGHTNESS_DIV ,   0/BRIGHTNESS_DIV
+                                                             , 127/BRIGHTNESS_DIV ,  63/BRIGHTNESS_DIV ,   0/BRIGHTNESS_DIV
+                                                             , 255/BRIGHTNESS_DIV ,   0/BRIGHTNESS_DIV ,   0/BRIGHTNESS_DIV
+                                                             , 255/BRIGHTNESS_DIV ,   0/BRIGHTNESS_DIV , 255/BRIGHTNESS_DIV };
 
 static Adafruit_NeoPixel strip;
 static TrackLights track_lights = {};
-static avrtl::AvrTimer<avrtl::AvrTimer0HW,256> delayTimer;
-static avrtl::AvrTimer<avrtl::AvrTimer1HW,avrtl::AvrTimer1HW::ExternalClockRising> loopBackSignalCounter;
+static avrtl::AvrTimer0 delayTimer; // precise timer with 8-bit counter, to use only for delays (do not use to measure >128uS elapsed time)
 static avrtl::StaticPin<5> loopBackPin;
 
 #define RTC_PIN_CLK 7
@@ -45,10 +48,12 @@ static avrtl::StaticPin<5> loopBackPin;
 #define RTC_PIN_RST 10
 
 // DS1302 RTC instance
-static Ds1302 rtc(RTC_PIN_RST, RTC_PIN_CLK, RTC_PIN_DAT);
+static Ds1302 rtc(delayTimer, RTC_PIN_RST, RTC_PIN_CLK, RTC_PIN_DAT);
 
 void setup()
 {
+  using ExtClockTimer = avrtl::AvrTimer<avrtl::AvrTimer1HW,avrtl::AvrTimer1HW::ExternalClockRising>;
+
 	cli();
 
   lcdIO.m_rawIO.setPins( LCD_PINS );
@@ -60,6 +65,8 @@ void setup()
   cout.begin(&lcdIO);
   lcdIO.m_rawIO.setCursor(0, 0);
 
+  ExtClockTimer loopBackSignalCounter;
+
   delayTimer.start();
   loopBackSignalCounter.start();
   loopBackPin.SetInput();
@@ -68,13 +75,11 @@ void setup()
   strip.updateLength( MAX_TRACK_LIGHTS );
   strip.begin();           // INITIALIZE NeoPixel strip object (REQUIRED)
   strip.show();            // Turn OFF all pixels ASAP
-  strip.setBrightness(50); // 1-255 or 0 to disable  
 
   cout << "WaveLight 1.0\n";
-  cout << "BS="<< LED_STRIP_BUFFER_SIZE <<"\n";
+  //cout << "BS="<< LED_STRIP_BUFFER_SIZE <<"\n";
   const int maxLights = strip.numPixels();
-  cout << "ML="<<maxLights<<"\n";
-  cout << "RTC="<<!rtc.isHalted()<<"\n";
+  //cout << "ML="<<maxLights<<"\n";
   cout << "Test\r";
   
   track_lights.nb_lights = 0;
@@ -83,15 +88,17 @@ void setup()
   {
     cout << "Test "<<i<<"\r";
     strip.updateLength(i);
-    strip.setBrightness(50);
     strip.clear();
-    strip.setPixelColor( i-1 , 255 , 255 , 255 );
+    strip.setPixelColor( i-1 , 63 , 63 , 63 );
     loopBackSignalCounter.resetCounter();
     strip.show();
     delayTimer.delayMicroseconds( 100000 );
     ticks = loopBackSignalCounter.counter();
     if( ticks > 6 && ticks < 32 ) { track_lights.nb_lights = i; }
   }
+
+  loopBackSignalCounter.stop();
+
   lcdIO.m_rawIO.clear();
   lcdIO.m_rawIO.setCursor(0, 0);
 
@@ -101,11 +108,22 @@ void setup()
   else cout << "lb Ok :-)\n";
   cout << "Lights="<<track_lights.nb_lights<<"\n";
 
+  Ds1302::DateTime dt = { 0, 0, 0, 0, 0, 0, 0 };
+  rtc.init();
+  if( rtc.isHalted() )
+  {
+    cout << "init RTC\n";
+    dt = Ds1302::DateTime { 2023-1970, 07, 24, 19, 04, 0, 1 };
+    rtc.setDateTime(&dt);
+  }
+  rtc.getDateTime(&dt);
+  cout<< dt.day<<'/'<<dt.month<<'/'<<dt.year<<'\n';
+  cout<< dt.hour<<'h'<<dt.minute<<':'<<dt.second<<'\n';
+
   delayTimer.delayMicroseconds( 5000000 );
 
   strip.updateLength( track_lights.nb_lights );
   strip.begin();           // INITIALIZE NeoPixel strip object (REQUIRED)
-  strip.setBrightness(50); // 1-255 or 0 to disable
   strip.clear();
   strip.show();            // Turn OFF all pixels ASAP
 

@@ -13,12 +13,14 @@
 #define _DS_1302_H
 
 #include <stdint.h>
+#include <AvrTL/timer.h>
 
 class Ds1302
 {
     public:
 
-        typedef struct {
+        struct DateTime
+        {
             uint8_t year;
             uint8_t month;
             uint8_t day;
@@ -26,12 +28,13 @@ class Ds1302
             uint8_t minute;
             uint8_t second;
             uint8_t dow;
-        } DateTime;
+        } ;
 
         /**
          * Months of year
          */
-        enum MONTH : uint8_t {
+        enum MONTH : uint8_t
+        {
             MONTH_JAN = 1,
             MONTH_FEB = 2,
             MONTH_MAR = 3,
@@ -49,7 +52,8 @@ class Ds1302
         /**
          * Days of week
          */
-        enum DOW : uint8_t {
+        enum DOW : uint8_t
+        {
             DOW_MON = 1,
             DOW_TUE = 2,
             DOW_WED = 3,
@@ -62,7 +66,7 @@ class Ds1302
         /**
          * Constructor (pin configuration).
          */
-        Ds1302(uint8_t pin_ena, uint8_t pin_clk, uint8_t pin_dat);
+        Ds1302(avrtl::AvrTimer0 & t, uint8_t pin_ena, uint8_t pin_clk, uint8_t pin_dat);
 
         /**
          * Initializes the DW1302 chip.
@@ -82,7 +86,7 @@ class Ds1302
         /**
          * Returns the current date and time.
          */
-        void getDateTime(DateTime* dt);;
+        void getDateTime(DateTime* dt);
 
         /**
          * Sets the current date and time.
@@ -90,6 +94,8 @@ class Ds1302
         void setDateTime(DateTime* dt);
 
     private:
+
+        avrtl::AvrTimer0 & m_delayTimer;
 
         uint8_t _pin_ena;
         uint8_t _pin_clk;

@@ -129,34 +129,6 @@
 typedef uint8_t neoPixelType; ///< 3rd arg to Adafruit_NeoPixel constructor
 
 
-/* Similar to above, but for an 8-bit gamma-correction table.
-   Copy & paste this snippet into a Python REPL to regenerate:
-import math
-gamma=2.6
-for x in range(256):
-    print("{:3},".format(int(math.pow((x)/255.0,gamma)*255.0+0.5))),
-    if x&15 == 15: print
-*/
-static const uint8_t PROGMEM _NeoPixelGammaTable[256] = {
-    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
-    0,   0,   0,   0,   0,   0,   0,   0,   0,   1,   1,   1,   1,   1,   1,
-    1,   1,   1,   1,   1,   1,   2,   2,   2,   2,   2,   2,   2,   2,   3,
-    3,   3,   3,   3,   3,   4,   4,   4,   4,   5,   5,   5,   5,   5,   6,
-    6,   6,   6,   7,   7,   7,   8,   8,   8,   9,   9,   9,   10,  10,  10,
-    11,  11,  11,  12,  12,  13,  13,  13,  14,  14,  15,  15,  16,  16,  17,
-    17,  18,  18,  19,  19,  20,  20,  21,  21,  22,  22,  23,  24,  24,  25,
-    25,  26,  27,  27,  28,  29,  29,  30,  31,  31,  32,  33,  34,  34,  35,
-    36,  37,  38,  38,  39,  40,  41,  42,  42,  43,  44,  45,  46,  47,  48,
-    49,  50,  51,  52,  53,  54,  55,  56,  57,  58,  59,  60,  61,  62,  63,
-    64,  65,  66,  68,  69,  70,  71,  72,  73,  75,  76,  77,  78,  80,  81,
-    82,  84,  85,  86,  88,  89,  90,  92,  93,  94,  96,  97,  99,  100, 102,
-    103, 105, 106, 108, 109, 111, 112, 114, 115, 117, 119, 120, 122, 124, 125,
-    127, 129, 130, 132, 134, 136, 137, 139, 141, 143, 145, 146, 148, 150, 152,
-    154, 156, 158, 160, 162, 164, 166, 168, 170, 172, 174, 176, 178, 180, 182,
-    184, 186, 188, 191, 193, 195, 197, 199, 202, 204, 206, 209, 211, 213, 215,
-    218, 220, 223, 225, 227, 230, 232, 235, 237, 240, 242, 245, 247, 250, 252,
-    255};
-
 /*!
     @brief  Class that stores state and functions for interacting with
             Adafruit NeoPixels and compatible devices.
@@ -180,7 +152,6 @@ public:
   void setPixelColor(uint16_t n, uint8_t r, uint8_t g, uint8_t b, uint8_t w);
   void setPixelColor(uint16_t n, uint32_t c);
   void fill(uint32_t c = 0, uint16_t first = 0, uint16_t count = 0);
-  void setBrightness(uint8_t);
   void clear(void);
   void updateLength(uint16_t n);
   void updateType(neoPixelType t);
@@ -200,7 +171,7 @@ public:
              responsibility and all that.
   */
   inline uint8_t *getPixels(void) { return pixels; };
-  uint8_t getBrightness(void) const;
+
   /*!
     @brief   Retrieve the pin number used for NeoPixel data output.
     @return  Arduino pin number (-1 if not set).
@@ -212,22 +183,7 @@ public:
   */
   inline uint16_t numPixels(void) const { return numLEDs; }
   inline uint16_t bufferSize(void) const { return numBytes; }
-  uint32_t getPixelColor(uint16_t n) const;
 
-  /*!
-    @brief   An 8-bit gamma-correction function for basic pixel brightness
-             adjustment. Makes color transitions appear more perceptially
-             correct.
-    @param   x  Input brightness, 0 (minimum or off/black) to 255 (maximum).
-    @return  Gamma-adjusted brightness, can then be passed to one of the
-             setPixelColor() functions. This uses a fixed gamma correction
-             exponent of 2.6, which seems reasonably okay for average
-             NeoPixels in average tasks. If you need finer control you'll
-             need to provide your own gamma-correction function instead.
-  */
-  static inline uint8_t gamma8(uint8_t x) {
-    return pgm_read_byte(&_NeoPixelGammaTable[x]); // 0-255 in, 0-255 out
-  }
   /*!
     @brief   Convert separate red, green and blue values into a single
              "packed" 32-bit RGB color.
@@ -258,26 +214,12 @@ public:
     return ((uint32_t)w << 24) | ((uint32_t)r << 16) | ((uint32_t)g << 8) | b;
   }
   static inline uint32_t ColorHSV(uint16_t hue, uint8_t sat = 255, uint8_t val = 255);
-  /*!
-    @brief   A gamma-correction function for 32-bit packed RGB or WRGB
-             colors. Makes color transitions appear more perceptially
-             correct.
-    @param   x  32-bit packed RGB or WRGB color.
-    @return  Gamma-adjusted packed color, can then be passed in one of the
-             setPixelColor() functions. Like gamma8(), this uses a fixed
-             gamma correction exponent of 2.6, which seems reasonably okay
-             for average NeoPixels in average tasks. If you need finer
-             control you'll need to provide your own gamma-correction
-             function instead.
-  */
-  static uint32_t gamma32(uint32_t x);
 
 protected:
   bool begun;         ///< true if begin() previously called
   uint16_t numLEDs;   ///< Number of RGB LEDs in strip
   uint16_t numBytes;  ///< Size of 'pixels' buffer below
 //  int16_t pin;        ///< Output pin number (-1 if not yet set)
-  uint8_t brightness; ///< Strip brightness 0-255 (stored as +1)
   uint8_t pixels[pixel_buffer_size];    ///< Holds LED color values (3 or 4 bytes each)
   uint8_t rOffset;    ///< Red index within each 3- or 4-byte pixel
   uint8_t gOffset;    ///< Index of green byte
