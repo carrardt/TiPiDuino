@@ -92,7 +92,7 @@ void setup()
     strip.setPixelColor( i-1 , 63 , 63 , 63 );
     loopBackSignalCounter.resetCounter();
     strip.show();
-    delayTimer.delayMicroseconds( 100000 );
+    delayTimer.delayMicroseconds( 10000 );
     ticks = loopBackSignalCounter.counter();
     if( ticks > 6 && ticks < 32 ) { track_lights.nb_lights = i; }
   }
@@ -108,19 +108,29 @@ void setup()
   else cout << "lb Ok :-)\n";
   cout << "Lights="<<track_lights.nb_lights<<"\n";
 
-  Ds1302::DateTime dt = { 0, 0, 0, 0, 0, 0, 0 };
   rtc.init();
+  //cout << "RTC "<< ! rtc.isHalted() <<'\n';
   if( rtc.isHalted() )
   {
     cout << "init RTC\n";
-    dt = Ds1302::DateTime { 2023-1970, 07, 24, 19, 04, 0, 1 };
+    Ds1302::DateTime dt = {
+            .year = 23,
+            .month = Ds1302::MONTH_JUL,
+            .day = 24,
+            .hour = 20,
+            .minute = 21,
+            .second = 30,
+            .dow = Ds1302::DOW_MON
+        };
     rtc.setDateTime(&dt);
   }
-  rtc.getDateTime(&dt);
-  cout<< dt.day<<'/'<<dt.month<<'/'<<dt.year<<'\n';
-  cout<< dt.hour<<'h'<<dt.minute<<':'<<dt.second<<'\n';
-
-  delayTimer.delayMicroseconds( 5000000 );
+  for(int i=0;i<20;i++)
+  {
+    Ds1302::DateTime dt = { 0, 0, 0, 0, 0, 0, 0 };
+    rtc.getDateTime(&dt);
+    cout<< dt.hour/10 << dt.hour%10 <<'h' << dt.minute/10 << dt.minute%10 << ( (i%2==0) ? ':' : ' ' ) << dt.second/10 << dt.second%10 <<'\r';
+    delayTimer.delayMicroseconds( 1000000 );
+  }
 
   strip.updateLength( track_lights.nb_lights );
   strip.begin();           // INITIALIZE NeoPixel strip object (REQUIRED)
@@ -166,7 +176,7 @@ void loop()
 
   ++ counter;
 
-  cout << "Dist " << counter/10 <<'.' << (counter%10) <<"m    \r";
+  cout << "Dist " << counter/10 <<'.' << (counter%10) <<"m\r";
 
   uint16_t pos[3] = { counter % track_lights.length , (counter+1000) % track_lights.length , (counter+2000) % track_lights.length };
 
