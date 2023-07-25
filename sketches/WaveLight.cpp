@@ -7,6 +7,7 @@
 
 #include <PCD8544.h>
 #include "WS2811/ws2811.h"
+#include "DS1302/Ds1302.h"
 #include <avr/interrupt.h>
 
 // PCD8544 pins : SCLK, SDIN, DC, RST, SCE (connect to ground)
@@ -17,6 +18,8 @@
 static PCD8544 lcd( LCD_PINS );
 static ByteStreamAdapter<PCD8544> lcdIO;
 static PrintStream cout;
+
+#define MAX_TRACK_LIGHTS 1024
 
 // A custom glyph (a smiley)...
 // static const uint8_t glyph[] = { 0b00010000, 0b00110100, 0b00110000, 0b00110100, 0b00010000 };
@@ -29,13 +32,28 @@ struct TrackLights
 };
 
 static constexpr uint8_t MAX_PARTNERS = 4;
-static const uint8_t PROGMEM partner_color[MAX_PARTNERS*3] = { 0x00,0xFF,0x00 , 0x7F,0x3F,0x00 , 0xFF,0x00,0x00 , 0xFF,0x00,0xFF };
+static constexpr uint8_t BRIGHTNESS_DIV = 4;
+static const uint8_t PROGMEM partner_color[MAX_PARTNERS*3] = {   0/BRIGHTNESS_DIV , 255/BRIGHTNESS_DIV ,   0/BRIGHTNESS_DIV
+                                                             , 127/BRIGHTNESS_DIV ,  63/BRIGHTNESS_DIV ,   0/BRIGHTNESS_DIV
+                                                             , 255/BRIGHTNESS_DIV ,   0/BRIGHTNESS_DIV ,   0/BRIGHTNESS_DIV
+                                                             , 255/BRIGHTNESS_DIV ,   0/BRIGHTNESS_DIV , 255/BRIGHTNESS_DIV };
 
 static Adafruit_NeoPixel strip;
 static TrackLights track_lights = {};
+static avrtl::AvrTimer0 delayTimer; // precise timer with 8-bit counter, to use only for delays (do not use to measure >128uS elapsed time)
+static avrtl::StaticPin<5> loopBackPin;
+
+#define RTC_PIN_CLK 7
+#define RTC_PIN_DAT 9
+#define RTC_PIN_RST 10
+
+// DS1302 RTC instance
+static Ds1302 rtc(delayTimer, RTC_PIN_RST, RTC_PIN_CLK, RTC_PIN_DAT);
 
 void setup()
 {
+  using ExtClockTimer = avrtl::AvrTimer<avrtl::AvrTimer1HW,avrtl::AvrTimer1HW::ExternalClockRising>;
+
 	cli();
 
   lcdIO.m_rawIO.setPins( LCD_PINS );
@@ -46,18 +64,85 @@ void setup()
   lcdIO.m_rawIO.setContrast(63);
   cout.begin(&lcdIO);
   lcdIO.m_rawIO.setCursor(0, 0);
-  
-  strip.updateLength( track_lights.nb_lights );
+
+  ExtClockTimer loopBackSignalCounter;
+
+  delayTimer.start();
+  loopBackSignalCounter.start();
+  loopBackPin.SetInput();
+  loopBackSignalCounter.resetCounter();
+
+  strip.updateLength( MAX_TRACK_LIGHTS );
   strip.begin();           // INITIALIZE NeoPixel strip object (REQUIRED)
   strip.show();            // Turn OFF all pixels ASAP
-  strip.setBrightness(50); // 1-255 or 0 to disable
 
   cout << "WaveLight 1.0\n";
-  cout << "TL="<< track_lights.nb_lights <<"\n";
-  cout << "BS="<< strip.bufferSize() <<"\n";
-  cout << "NL="<< strip.numPixels() <<"\n";
+  //cout << "BS="<< LED_STRIP_BUFFER_SIZE <<"\n";
+  const int maxLights = strip.numPixels();
+  //cout << "ML="<<maxLights<<"\n";
+  cout << "Test\r";
+  
+  track_lights.nb_lights = 0;
+  int ticks = 0;
+  for(int i=1;i<maxLights && track_lights.nb_lights==0;i++)
+  {
+    cout << "Test "<<i<<"\r";
+    strip.updateLength(i);
+    strip.clear();
+    strip.setPixelColor( i-1 , 63 , 63 , 63 );
+    loopBackSignalCounter.resetCounter();
+    strip.show();
+    delayTimer.delayMicroseconds( 10000 );
+    ticks = loopBackSignalCounter.counter();
+    if( ticks > 6 && ticks < 32 ) { track_lights.nb_lights = i; }
+  }
 
-  for(int i=0;i<30;i++) avrtl::delayMicroseconds( 100000 );
+  loopBackSignalCounter.stop();
+
+  lcdIO.m_rawIO.clear();
+  lcdIO.m_rawIO.setCursor(0, 0);
+
+  if( track_lights.nb_lights > 0 ) -- track_lights.nb_lights;
+  if( track_lights.nb_lights <= 0 ) track_lights.nb_lights = maxLights;
+  if( ticks != 24 ) cout << "bad lb sig ("<<ticks<<")\n";
+  else cout << "lb Ok :-)\n";
+  cout << "Lights="<<track_lights.nb_lights<<"\n";
+
+  rtc.init();
+  //cout << "RTC "<< ! rtc.isHalted() <<'\n';
+  if( rtc.isHalted() )
+  {
+    cout << "init RTC\n";
+    Ds1302::DateTime dt = {
+            .year = 23,
+            .month = Ds1302::MONTH_JUL,
+            .day = 24,
+            .hour = 20,
+            .minute = 21,
+            .second = 30,
+            .dow = Ds1302::DOW_MON
+        };
+    rtc.setDateTime(&dt);
+  }
+  for(int i=0;i<20;i++)
+  {
+    Ds1302::DateTime dt = { 0, 0, 0, 0, 0, 0, 0 };
+    rtc.getDateTime(&dt);
+    cout<< dt.hour/10 << dt.hour%10 <<'h' << dt.minute/10 << dt.minute%10 << ( (i%2==0) ? ':' : ' ' ) << dt.second/10 << dt.second%10 <<'\r';
+    delayTimer.delayMicroseconds( 1000000 );
+  }
+
+  strip.updateLength( track_lights.nb_lights );
+  strip.begin();           // INITIALIZE NeoPixel strip object (REQUIRED)
+  strip.clear();
+  strip.show();            // Turn OFF all pixels ASAP
+
+/*  
+  cout << "WaveLight 1.0\n";
+  cout << "BUF="<< LED_STRIP_BUFFER_SIZE <<"\n";
+  cout << "TRK="<< track_lights.nb_lights <<"\n";
+  cout << "NL="<< strip.numPixels() <<"\n";
+*/
 }
 
 // positions given in decimeters, up to 6.5Km
@@ -87,10 +172,11 @@ void update_lights( const TrackLights& track, const uint16_t* pos, int n )
 void loop()
 {
   static uint16_t counter = 0;
-  avrtl::delayMicroseconds( 10000 );
+  delayTimer.delayMicroseconds( 100000 );
 
   ++ counter;
-  cout << "dist=" << counter/10 <<"m    \n";
+
+  cout << "Dist " << counter/10 <<'.' << (counter%10) <<"m\r";
 
   uint16_t pos[3] = { counter % track_lights.length , (counter+1000) % track_lights.length , (counter+2000) % track_lights.length };
 

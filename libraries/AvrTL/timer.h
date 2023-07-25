@@ -43,6 +43,11 @@ struct AvrTimer0HW
 #endif
 	}
 	
+  static inline void resetCounter()
+  {
+    TCNT0 = 0;
+  }
+
 	static inline TimerCounterType counter() { return TCNT0; }
 	
 	uint8_t saved_TCCR0A, saved_TCCR0B;
@@ -60,6 +65,14 @@ struct AvrTimer1HW
 	static constexpr uint32_t TimerCounterResolution = 65536;
 	static constexpr uint32_t TimerCounterMax = TimerCounterResolution - 1;
 
+  static constexpr uint32_t ExternalClockRising = 3;
+  static constexpr uint32_t ExternalClockFalling = 5;
+
+  static inline void resetCounter()
+  {
+    TCNT1 = 0;
+  }
+
 	inline void pushState(uint32_t prescalerValue)
 	{
 		saved_TCCR1A = TCCR1A;
@@ -76,8 +89,11 @@ struct AvrTimer1HW
 			case 64   : TCCR1B = 0b00000011; break;
 			case 256  : TCCR1B = 0b00000100; break;
 			case 1024 : TCCR1B = 0b00000101; break;
+			case ExternalClockRising : TCCR1B = 0b00000111; break;
+			case ExternalClockFalling : TCCR1B = 0b00000110; break;
 			default   : TCCR1B = 0b00000000; break; // sopped
 		}
+    resetCounter();
 	}
 
 	inline void popState() const
@@ -119,6 +135,11 @@ struct AvrTimer
 		return counter();
 	}
 	
+	inline void resetCounter()
+	{
+	  m_timerhw.resetCounter();
+	}
+	
 	inline TimerCounterType counter() const
 	{
 		return m_timerhw.counter();
@@ -149,6 +170,11 @@ struct AvrTimer
 			t = t2;
 		} while( ticks > 0 );
 	}
+
+	inline void delayMicroseconds(int32_t uS) const
+	{
+	  this->delay( microsecondsToTicks(uS) );
+  }
 
 	TimerHW m_timerhw;
 };
