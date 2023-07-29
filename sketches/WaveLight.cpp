@@ -7,7 +7,7 @@
 
 #include <PCD8544.h>
 #include "WS2811/ws2811.h"
-#include "DS1302/Ds1302.h"
+#include "uRTCLib/uRTCLib.h"
 #include <avr/interrupt.h>
 
 // PCD8544 pins : SCLK, SDIN, DC, RST, SCE (connect to ground)
@@ -43,12 +43,8 @@ static TrackLights track_lights = {};
 static avrtl::AvrTimer0 delayTimer; // precise timer with 8-bit counter, to use only for delays (do not use to measure >128uS elapsed time)
 static avrtl::StaticPin<5> loopBackPin;
 
-#define RTC_PIN_CLK 7
-#define RTC_PIN_DAT 9
-#define RTC_PIN_RST 10
-
-// DS1302 RTC instance
-static Ds1302 rtc(delayTimer, RTC_PIN_RST, RTC_PIN_CLK, RTC_PIN_DAT);
+// DS1307 RTC instance
+static uRTCLib rtc(0x68,URTCLIB_MODEL_DS1307);
 
 void setup()
 {
@@ -108,27 +104,13 @@ void setup()
   else cout << "lb Ok :-)\n";
   cout << "Lights="<<track_lights.nb_lights<<"\n";
 
-  rtc.init();
-  //cout << "RTC "<< ! rtc.isHalted() <<'\n';
-  if( rtc.isHalted() )
-  {
-    cout << "init RTC\n";
-    Ds1302::DateTime dt = {
-            .year = 23,
-            .month = Ds1302::MONTH_JUL,
-            .day = 24,
-            .hour = 20,
-            .minute = 21,
-            .second = 30,
-            .dow = Ds1302::DOW_MON
-        };
-    rtc.setDateTime(&dt);
-  }
+  URTCLIB_WIRE.begin();
+  rtc.refresh();
   for(int i=0;i<20;i++)
   {
-    Ds1302::DateTime dt = { 0, 0, 0, 0, 0, 0, 0 };
-    rtc.getDateTime(&dt);
-    cout<< dt.hour/10 << dt.hour%10 <<'h' << dt.minute/10 << dt.minute%10 << ( (i%2==0) ? ':' : ' ' ) << dt.second/10 << dt.second%10 <<'\r';
+    rtc.refresh();
+    int h=rtc.hour(), m=rtc.minute(), s=rtc.second();
+    cout<< h/10 << h%10 <<'h' << m/10 << m%10 << ( (i%2==0) ? ':' : ' ' ) << s/10 << s%10 <<'\r';
     delayTimer.delayMicroseconds( 1000000 );
   }
 

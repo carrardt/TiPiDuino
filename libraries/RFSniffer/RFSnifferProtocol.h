@@ -63,10 +63,11 @@ struct RFSnifferProtocol
 		return flags & MODULATION_MASK;
 	}
 	
-	uint8_t setPulseModulation(uint8_t m)
+	void setPulseModulation(uint8_t m)
 	{
 		flags &= ~MODULATION_MASK;
 		flags |= m;
+
 	}
 
 	bool mediumRF() const 

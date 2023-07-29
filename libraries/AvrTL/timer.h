@@ -4,6 +4,20 @@
 
 namespace avrtl
 {
+
+template<class TimerCounterType>
+struct TimeOutWatcher
+{
+  int32_t m_ticks = 0;
+  TimerCounterType m_last = 0;
+  inline void update( TimerCounterType cur )
+  {
+    m_ticks -= (TimerCounterType)( cur - m_last );
+    m_last = cur;
+  }
+  inline bool exhausted() const { return m_ticks < 0 ; }
+};
+
 /*!
  * Timer 0 is an 8-bit timer available on all atmel chips with selectable 1 or 8 prescaler.
  * This class represents the HW resources for this timer.
@@ -174,6 +188,20 @@ struct AvrTimer
 	inline void delayMicroseconds(int32_t uS) const
 	{
 	  this->delay( microsecondsToTicks(uS) );
+  }
+
+  inline TimeOutWatcher<TimerCounterType> startTimeout(int32_t uS)
+  {
+    TimeOutWatcher<TimerCounterType> timeout;
+    timeout.m_ticks = microsecondsToTicks(uS);
+    timeout.m_last = counter();
+    return timeout;
+  }
+  
+  inline bool isExhausted( TimeOutWatcher<TimerCounterType> & timeout )
+  {
+    timeout.update( counter() );
+    return timeout.exhausted();
   }
 
 	TimerHW m_timerhw;
