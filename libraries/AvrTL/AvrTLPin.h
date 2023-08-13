@@ -111,6 +111,10 @@ namespace avrtl
 	template<> struct PinMapping<17> { using PinGroup = PinGroupC; static constexpr uint8_t PinBit = 3; };
 	template<> struct PinMapping<18> { using PinGroup = PinGroupC; static constexpr uint8_t PinBit = 4; };
 	template<> struct PinMapping<19> { using PinGroup = PinGroupC; static constexpr uint8_t PinBit = 5; };
+
+# define SDA 18
+# define SCL 19
+
 #	endif // __AVR_ATmega328P__
 
 	// TODO: change StaticPin name to something like 'ArduinoStaticPin'
