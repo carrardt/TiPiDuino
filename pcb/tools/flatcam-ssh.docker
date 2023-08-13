@@ -1,0 +1,35 @@
+
+# Use the official image as a parent image
+FROM ubuntu:18.04
+
+# Update the system
+RUN apt-get update && apt-get upgrade -y
+
+# install flatcamp prerequisites
+#RUN apt-get install libpng-dev libfreetype6 libfreetype6-dev python3-dev python3-simplejson python3-pyqt4 python3-numpy \
+#                    python3-scipy python3-matplotlib libgeos-dev python-shapely python-pip libspatialindex-dev \
+#                    python3-tk python3-shapely python3-rtree python3-svg.path git
+
+# download flatcam
+#RUN git clone https://bitbucket.org/jpcgt/flatcam.git
+
+# Install OpenSSH Server
+RUN apt-get install -y openssh-server
+
+# Set up configuration for SSH
+RUN mkdir /var/run/sshd
+RUN echo 'root:flatcam' | chpasswd
+RUN sed -i 's/PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
+
+# SSH login fix. Otherwise, user is kicked off after login
+RUN sed 's@session\s*required\s*pam_loginuid.so@session optional pam_loginuid.so@g' -i /etc/pam.d/sshd
+
+ENV NOTVISIBLE "in users profile"
+RUN echo "export VISIBLE=now" >> /etc/profile
+
+# Expose the SSH port
+EXPOSE 22
+
+# Run SSH
+CMD ["/usr/sbin/sshd", "-D"]
+

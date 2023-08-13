@@ -175,6 +175,7 @@ struct TimeSchedulerT
 		{
 			reset();
 		}
+		return true;
 	}
 	
 	inline void endCycle()

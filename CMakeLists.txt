@@ -2,10 +2,13 @@
 
 set(ARDUINO_CMAKE_PATH "${CMAKE_SOURCE_DIR}" CACHE STRING "arduino-cmake root path")
 set(CMAKE_TOOLCHAIN_FILE ${ARDUINO_CMAKE_PATH}/cmake/ArduinoToolchain.cmake) # Arduino Toolchain
-set(ARDUINO_CXX_FLAGS "${ARDUINO_CXX_FLAGS} -std=c++17")
+#set(ARDUINO_CXX_FLAGS "${ARDUINO_CXX_FLAGS} -std=c++17")
 
 cmake_minimum_required(VERSION 3.0)
 project(TiDuino C CXX)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS NO)
 
 #message(STATUS "ARDUINO_SDK_PATH=${ARDUINO_SDK_PATH}")
 #message(STATUS "HARDWARE_PLATFORM_PATH=${HARDWARE_PLATFORM_PATH}")
@@ -44,7 +47,7 @@ add_definitions(${BUILD_TIMSESTAMP_DEFINITION})
 # tell arduino-cmake where to find our libraries
 link_directories(${CMAKE_SOURCE_DIR}/libraries)
 include_directories(${CMAKE_SOURCE_DIR}/libraries)
-add_compile_options("-std=c++11")
+#add_compile_options("-std=c++11")
 
 # finally, compile home made libraries
 add_subdirectory(libraries)
