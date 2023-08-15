@@ -27,24 +27,25 @@
  * @version 6.6.1
  */
 
-#include <Wire/Wire.h>
-#define URTCLIB_WIRE Wire
-
+#include <WireI2C/WireI2C.h>
 #include "uRTCLib.h"
+
+#define URTCLIB_WIRE m_wire
 
 /**
  * \brief Constructor
  */
-uRTCLib::uRTCLib() { }
+uRTCLib::uRTCLib()
+{}
 
 /**
  * \brief Constructor
  *
  * @param rtc_address I2C address of RTC
  */
-uRTCLib::uRTCLib(const int rtc_address) {
-	_rtc_address = rtc_address;
-}
+uRTCLib::uRTCLib(const int rtc_address)
+  : _rtc_address(rtc_address)
+{}
 
 /**
  * \brief Constructor
@@ -55,9 +56,15 @@ uRTCLib::uRTCLib(const int rtc_address) {
  *	 - #URTCLIB_MODEL_DS3231
  *	 - #URTCLIB_MODEL_DS3232
  */
-uRTCLib::uRTCLib(const int rtc_address, const uint8_t model) {
-	_rtc_address = rtc_address;
-	_model = model;
+uRTCLib::uRTCLib(const int rtc_address, const uint8_t model)
+  : _rtc_address(rtc_address)
+  , _model(model)
+{
+}
+
+void uRTCLib::begin()
+{
+  m_wire.begin();
 }
 
 /**

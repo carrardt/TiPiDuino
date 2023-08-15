@@ -20,6 +20,6 @@ add_subdirectory(RFSniffer)
 add_subdirectory(Linkuino)
 add_subdirectory(PCD8544)
 add_subdirectory(DS1302)
-add_subdirectory(Wire)
+add_subdirectory(WireI2C)
 add_subdirectory(uRTCLib)
 

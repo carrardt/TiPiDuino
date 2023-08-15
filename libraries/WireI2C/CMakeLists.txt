@@ -3,8 +3,8 @@
 #====================================================================#
 generate_arduino_library(
 	WireI2C
-	SRCS Wire.cpp twi.cpp
-	HDRS Wire.h twi.h
+	SRCS WireI2C.cpp twi.cpp
+	HDRS WireI2C.h twi.h
     LIBS AvrTL
     NO_AUTOLIBS MANUAL
     )

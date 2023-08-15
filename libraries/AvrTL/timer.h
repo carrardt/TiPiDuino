@@ -215,6 +215,15 @@ using AvrTimer1            = AvrTimer<AvrTimer1HW,8>;
 using AvrTimer1NoPrescaler = AvrTimer<AvrTimer1HW,1>;
 #endif
 
+template<class TimerT>
+struct ScopedTimer
+{
+  TimerT & m_timer;
+  inline ScopedTimer(TimerT & tm) : m_timer(tm) { m_timer.start(); }
+  inline ~ScopedTimer() { m_timer.stop(); }
+};
+
+
 static inline void delayMicroseconds(uint32_t us)
 {
 	AvrTimer0 timer;
