@@ -161,6 +161,7 @@ void twi_setFrequency(uint32_t frequency)
 uint8_t twi_readFrom(uint8_t address, uint8_t* data, uint8_t length, uint8_t sendStop)
 {
   avrtl::AvrTimer0 timer;
+  avrtl::ScopedTimer<avrtl::AvrTimer0> tm_scope(timer);
   uint8_t i;
 
   // ensure data will fit into buffer
@@ -168,15 +169,11 @@ uint8_t twi_readFrom(uint8_t address, uint8_t* data, uint8_t length, uint8_t sen
     return 0;
   }
 
-  // prepare timer
-  timer.start();  
-
   // wait until twi is ready, become master receiver
   auto twi_timeout = timer.startTimeout( twi_timeout_us );
   while(TWI_READY != twi_state){
     if((twi_timeout_us > 0ul) && timer.isExhausted(twi_timeout) ) {
       twi_handleTimeout(twi_do_reset_on_timeout);
-      timer.stop();
       return 0;
     }
   }
@@ -211,7 +208,6 @@ uint8_t twi_readFrom(uint8_t address, uint8_t* data, uint8_t length, uint8_t sen
       TWDR = twi_slarw;
       if((twi_timeout_us > 0ul) && timer.isExhausted(twi_timeout) ) {
         twi_handleTimeout(twi_do_reset_on_timeout);
-        timer.stop();
         return 0;
       }
     } while(TWCR & _BV(TWWC));
@@ -226,7 +222,6 @@ uint8_t twi_readFrom(uint8_t address, uint8_t* data, uint8_t length, uint8_t sen
   while(TWI_MRX == twi_state){
     if((twi_timeout_us > 0ul) && timer.isExhausted(twi_timeout) ) {
       twi_handleTimeout(twi_do_reset_on_timeout);
-      timer.stop();
       return 0;
     }
   }
@@ -240,7 +235,6 @@ uint8_t twi_readFrom(uint8_t address, uint8_t* data, uint8_t length, uint8_t sen
     data[i] = twi_masterBuffer[i];
   }
 
-  timer.stop();
   return length;
 }
 
@@ -263,6 +257,7 @@ uint8_t twi_readFrom(uint8_t address, uint8_t* data, uint8_t length, uint8_t sen
 uint8_t twi_writeTo(uint8_t address, uint8_t* data, uint8_t length, uint8_t wait, uint8_t sendStop)
 {
   avrtl::AvrTimer0 timer;
+  avrtl::ScopedTimer<avrtl::AvrTimer0> tm_scope(timer);
   uint8_t i;
 
   // ensure data will fit into buffer
@@ -270,16 +265,11 @@ uint8_t twi_writeTo(uint8_t address, uint8_t* data, uint8_t length, uint8_t wait
     return 1;
   }
 
-  // prepare timer
-  timer.start();  
-
-
   // wait until twi is ready, become master transmitter
   auto twi_timeout = timer.startTimeout( twi_timeout_us );
   while(TWI_READY != twi_state){
     if((twi_timeout_us > 0ul) && timer.isExhausted(twi_timeout) ) {
       twi_handleTimeout(twi_do_reset_on_timeout);
-      timer.stop();
       return (5);
     }
   }
@@ -317,7 +307,6 @@ uint8_t twi_writeTo(uint8_t address, uint8_t* data, uint8_t length, uint8_t wait
       TWDR = twi_slarw;
       if((twi_timeout_us > 0ul) && timer.isExhausted(twi_timeout) ) {
         twi_handleTimeout(twi_do_reset_on_timeout);
-        timer.stop();
         return (5);
       }
     } while(TWCR & _BV(TWWC));
@@ -332,12 +321,9 @@ uint8_t twi_writeTo(uint8_t address, uint8_t* data, uint8_t length, uint8_t wait
   while(wait && (TWI_MTX == twi_state)){
     if((twi_timeout_us > 0ul) && timer.isExhausted(twi_timeout) ) {
       twi_handleTimeout(twi_do_reset_on_timeout);
-      timer.stop();
       return (5);
     }
   }
-  
-  timer.stop();
 
   if (twi_error == 0xFF)
     return 0;	// success

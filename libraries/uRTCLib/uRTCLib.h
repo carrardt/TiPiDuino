@@ -29,8 +29,7 @@
 
 #pragma once
 
-#include <Wire/Wire.h>
-#define URTCLIB_WIRE Wire
+#include <WireI2C/WireI2C.h>
 
 	/**
 	 * \brief Default RTC I2C address
@@ -288,6 +287,7 @@
 			uRTCLib(const int, const uint8_t);
 
 			/******* RTC functions ********/
+			void begin();
 			void refresh();
 			uint8_t second();
 			uint8_t minute();
@@ -345,8 +345,13 @@
 
 
 		private:
+		  TwoWire m_wire;
+				
 			// Address
 			int _rtc_address = URTCLIB_ADDRESS;
+
+			// Model, for alarms and RAM
+			uint8_t _model = URTCLIB_MODEL_DS3232;
 
 			// RTC read data
 			uint8_t _second = 0;
@@ -357,9 +362,6 @@
 			uint8_t _year = 0;
 			uint8_t _dayOfWeek = 0;
 			int16_t _temp = 9999;
-
-			// Model, for alarms and RAM
-			uint8_t _model = URTCLIB_MODEL_DS3232;
 
 			// Alarms:
 			uint8_t _a1_mode = URTCLIB_ALARM_TYPE_1_NONE;
@@ -386,7 +388,6 @@
 
 			// 32K output Flag
 			bool _32k = false;
-
 	};
 
 

@@ -25,7 +25,7 @@
 #include <string.h>
 #include <inttypes.h>
 #include "twi.h"
-#include "Wire.h"
+#include "WireI2C.h"
 
 // Initialize Class Variables //////////////////////////////////////////////////
 

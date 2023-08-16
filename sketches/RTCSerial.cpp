@@ -7,7 +7,6 @@
 
 #include <uRTCLib/uRTCLib.h>
 
-
 using namespace avrtl;
 
 HWSerialIO serialIO;
@@ -16,7 +15,7 @@ PrintStream cout;
 //InputStream cin;
 
 // DS1307 RTC instance
-static uRTCLib rtc(0x68/*,URTCLIB_MODEL_DS1307*/);
+static uRTCLib rtc(0x68,URTCLIB_MODEL_DS1307);
 
 void setup()
 {
@@ -25,9 +24,9 @@ void setup()
 	cout.begin( &serialIO );
 	//cin.begin( &serialIO );
 	
-	URTCLIB_WIRE.begin();
-	rtc.refresh();
-	cout<<"Ready"<<endl;
+	rtc.begin();
+	
+	cout<<"Ready="<< rtc.sqwgSetMode( URTCLIB_SQWG_4096H )<<'\n';
 }
 
 static uint32_t counter = 0;

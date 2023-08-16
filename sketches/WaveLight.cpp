@@ -76,13 +76,15 @@ void setup()
   //cout << "BS="<< LED_STRIP_BUFFER_SIZE <<"\n";
   const int maxLights = strip.numPixels();
   //cout << "ML="<<maxLights<<"\n";
-  cout << "Test\r";
+  //cout << "Test\r";
+
+  delayTimer.delayMicroseconds( 1000000 );
+  loopBackSignalCounter.resetCounter();
   
   track_lights.nb_lights = 0;
   int ticks = 0;
   for(int i=1;i<maxLights && track_lights.nb_lights==0;i++)
   {
-    cout << "Test "<<i<<"\r";
     strip.updateLength(i);
     strip.clear();
     strip.setPixelColor( i-1 , 63 , 63 , 63 );
@@ -90,13 +92,11 @@ void setup()
     strip.show();
     delayTimer.delayMicroseconds( 10000 );
     ticks = loopBackSignalCounter.counter();
+    cout << "Test "<<i<<' '<<ticks<<"\n";
     if( ticks > 6 && ticks < 32 ) { track_lights.nb_lights = i; }
   }
 
   loopBackSignalCounter.stop();
-
-  lcdIO.m_rawIO.clear();
-  lcdIO.m_rawIO.setCursor(0, 0);
 
   if( track_lights.nb_lights > 0 ) -- track_lights.nb_lights;
   if( track_lights.nb_lights <= 0 ) track_lights.nb_lights = maxLights;
@@ -104,9 +104,12 @@ void setup()
   else cout << "lb Ok :-)\n";
   cout << "Lights="<<track_lights.nb_lights<<"\n";
 
-  URTCLIB_WIRE.begin();
-  rtc.refresh();
-  for(int i=0;i<20;i++)
+  delayTimer.delayMicroseconds( 3000000 );
+  lcdIO.m_rawIO.clear();
+  lcdIO.m_rawIO.setCursor(0, 0);
+
+  rtc.begin();
+  for(int i=0;i<6;i++)
   {
     rtc.refresh();
     int h=rtc.hour(), m=rtc.minute(), s=rtc.second();

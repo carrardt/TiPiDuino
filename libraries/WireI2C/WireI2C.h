@@ -50,6 +50,7 @@ class TwoWire
     static void (*user_onReceive)(int);
     static void onRequestService(void);
     static void onReceiveService(uint8_t*, int);
+    
   public:
     TwoWire();
     void begin();
@@ -84,7 +85,7 @@ class TwoWire
     inline size_t write(int n) { return write((uint8_t)n); }
 };
 
-extern TwoWire Wire;
+//extern TwoWire Wire;
 
 #endif
 
