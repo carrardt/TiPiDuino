@@ -1,8 +1,7 @@
-#include <AvrTL.h>
-#include <AvrTLPin.h>
-
-#include "BasicIO/PrintStream.h"
-#include "BasicIO/InputStream.h"
+#include <AvrTL/AvrTL.h>
+#include <AvrTL/AvrTLPin.h>
+#include <BasicIO/PrintStream.h>
+#include <BasicIO/InputStream.h>
 
 #include <avr/interrupt.h>
 
