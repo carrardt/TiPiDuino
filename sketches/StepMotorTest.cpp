@@ -8,10 +8,10 @@
 // #define USE_HW_SERIAL 1
 
 #ifdef USE_HW_SERIAL
-#include "HWSerialNoInt/HWSerialNoInt.h"
+#include <HWSerialNoInt/HWSerialNoInt.h>
 ByteStreamAdapter<HWSerialNoInt,100000UL> serialIO;
 #else
-#include <SoftSerial.h>
+#include <SoftSerial/SoftSerial.h>
 static auto rx = avrtl::StaticPin<0>();
 static auto tx = avrtl::StaticPin<1>();
 using SerialScheduler = TimeScheduler;

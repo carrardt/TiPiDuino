@@ -5,6 +5,6 @@ generate_avr_library(
 	AvrTL
     SRCS AvrTLPin.cpp
     HDRS AvrTL.h AvrTLPin.h AvrTLEEPROM.h timer.h
-    BOARDS arduino nano attiny84 attiny85
+    ALL_BOARDS
 	)
 

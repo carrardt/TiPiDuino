@@ -2,8 +2,8 @@
 # AVR Template Library, low-level avr access, no Arduino/Wire dependency
 #====================================================================#
 add_subdirectory(AvrTL)
-#add_subdirectory(TimeScheduler)
-#add_subdirectory(SoftSerial)
+add_subdirectory(TimeScheduler)
+add_subdirectory(SoftSerial)
 #add_subdirectory(FastSerial)
 
 #if(NOT "${ARDUINO_DEFAULT_BOARD}" MATCHES "attiny8.*" )

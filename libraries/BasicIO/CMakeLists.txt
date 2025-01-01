@@ -7,5 +7,5 @@ generate_avr_library(
 	SRCS PrintStream.cpp
     HDRS ByteStream.h InputStream.h PrintStream.h
     LIBS AvrTL
-    BOARDS arduino nano attiny84 attiny85
+    ALL_BOARDS
 	)

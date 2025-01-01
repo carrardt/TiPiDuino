@@ -6,5 +6,5 @@ generate_avr_library(
 	AvrApp
     SRCS AvrApp.cpp
     HDRS AvrApp.h
-    BOARDS arduino nano attiny84 attiny85
+    ALL_BOARDS
 	)

@@ -21,9 +21,9 @@
 namespace avrtl
 {	
 	template<typename T>
-	static inline T abs(T x) { return (x<0) ? (-x) : x ; }
+	inline T abs(T x) { return (x<0) ? (-x) : x ; }
 
-	static uint8_t checksum8(const uint8_t* buf, int nbytes)
+	inline uint8_t checksum8(const uint8_t* buf, int nbytes)
 	{
 		uint8_t cs = 0;
 		for(int i=0;i<nbytes;i++)
@@ -34,7 +34,7 @@ namespace avrtl
 	}
 
 	template<typename T>
-	static void rotateBufferLeft1(T * ptr, int n)
+	inline void rotateBufferLeft1(T * ptr, int n)
 	{
 		T first = ptr[0];
 		for(int i=0;i<(n-1);i++)
@@ -45,7 +45,7 @@ namespace avrtl
 	}
 
 	template<typename T>
-	static void rotateBufferLeft(T * ptr, int n, int disp)
+	inline void rotateBufferLeft(T * ptr, int n, int disp)
 	{
 		for(int i=0;i<disp;i++)
 		{
@@ -54,7 +54,7 @@ namespace avrtl
 	}
 	
 	template<typename T>
-	static int findOccurence(const T* pattern, int psize, const T* buf, int bsize)
+	inline int findOccurence(const T* pattern, int psize, const T* buf, int bsize)
 	{
 		int j = 0;
 		int start = 0;

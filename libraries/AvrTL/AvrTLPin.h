@@ -194,7 +194,7 @@ namespace avrtl
 
 	inline DynamicPinT<DynamicPinGroup> make_pin(uint8_t p)
 	{
-		uint8_t g = WdigitalPinToPort(p);
+		[[maybe_unused]] const uint8_t g = WdigitalPinToPort(p);
 		DynamicPinGroup pg( WportModeRegister(g), WportInputRegister(g), WportOutputRegister(g) );
 		return DynamicPinT<DynamicPinGroup>( pg, WdigitalPinToBit(p) );
 	}
