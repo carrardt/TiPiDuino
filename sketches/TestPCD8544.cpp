@@ -39,9 +39,10 @@
  * using a 3.3V variant of the Arduino, such as Sparkfun's Arduino Pro).
  */
 
-#include <PCD8544.h>
-#include "BasicIO/PrintStream.h"
-#include "AvrTL/timer.h"
+#include <PCD8544/PCD8544.h>
+#include <BasicIO/PrintStream.h>
+#include <AvrTL/timer.h>
+#include <AvrTL/AvrApp.h>
 
 /*
  * Important Note : if you connect screen's SCE pin to ground, it just works !

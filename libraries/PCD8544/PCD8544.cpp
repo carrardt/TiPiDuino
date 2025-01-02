@@ -23,8 +23,7 @@
  */
 
 
-#include "PCD8544.h"
-
+#include <PCD8544/PCD8544.h>
 #include <avr/pgmspace.h>
 #include <AvrTL/timer.h>
 
@@ -160,7 +159,7 @@ void PCD8544::begin(unsigned char width, unsigned char height, unsigned char mod
     this->line = 0;
 
     // Sanitize the custom glyphs...
-    for(int i=0;i<sizeof(this->custom);i++) { this->custom[i]=0; }
+    for(unsigned int i=0;i<sizeof(this->custom);i++) { this->custom[i]=0; }
 
     // All pins are outputs (these displays cannot be read)...
     pinMode(this->pin_sclk, OUTPUT);
