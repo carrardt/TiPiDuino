@@ -9,10 +9,10 @@ namespace avrtl
 
 #	define DECLARE_PIN_GROUP(G) 								\
 	struct PinGroup##G { 									\
-		static void SetOutput(uint8_t mask) { DDR##G |= mask; } \
-		static void SetInput(uint8_t mask) { DDR##G &= ~mask; } \
-		static uint8_t Get() { return PIN##G ; } 				\
-		static void Set(uint8_t x , uint8_t mask=0xFF) 			\
+		static inline void SetOutput(uint8_t mask) { DDR##G |= mask; } \
+		static inline void SetInput(uint8_t mask) { DDR##G &= ~mask; } \
+		static inline uint8_t Get() { return PIN##G ; } 				\
+		static inline void Set(uint8_t x , uint8_t mask=0xFF) 			\
 		{														\
 			PORT##G |= mask&x;									\
 			PORT##G &= (~mask)|x; 								\
@@ -40,25 +40,21 @@ namespace avrtl
 		static constexpr uint8_t pinbit = _pinBit;
 		static constexpr uint8_t setmask = 1<<pinbit;
 		static constexpr uint8_t clearmask = ~setmask;
+		using PinGroup = PinGroupT;
 
-		inline StaticPinT() : m_pg() {}
-		inline StaticPinT( PinGroupT _pg ) : m_pg(_pg) {}
-
-		inline void SetOutput() const { m_pg.SetOutput(setmask); }
-		inline void SetInput() const { m_pg.SetInput(setmask); }
-		inline void Set(bool b) const
+		static inline void SetOutput() { PinGroup::SetOutput(setmask); }
+		static inline void SetInput() { PinGroup::SetInput(setmask); }
+		static inline void Set(bool b) 
 		{
 			uint8_t x = b; // guaranteed to be 0 or 1 only
-			m_pg.Set( x<<pinbit, setmask );
+			PinGroup::Set( x<<pinbit, setmask );
 		}
-		inline bool Get() const
+		static inline bool Get() 
 		{ 
-			return m_pg.Get() & setmask;
+			return PinGroup::Get() & setmask;
 		}
 		inline operator bool() const { return Get(); }
 		inline bool operator = (bool b) const { Set(b); return b; }
-
-		const PinGroupT m_pg;
 	};
 
 	template<uint8_t pinId> struct PinMapping {};
