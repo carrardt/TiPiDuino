@@ -1,8 +1,13 @@
-#include "AvrApp.h"
+#pragma once
+
 #include <avr/io.h>
 #include <avr/interrupt.h>
 
-int main(void)
+// some wiring compatibility tricks
+void loop();
+void setup();
+
+int main()
 {
 	// Sets the timer prescale factor to 64;
 	// for compatibility with Wiring/Arduino
@@ -18,3 +23,4 @@ int main(void)
 	
 	return 0;
 }
+

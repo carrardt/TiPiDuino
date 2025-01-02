@@ -1,5 +1,4 @@
-#ifndef __AVRTL_PIN_H
-#define __AVRTL_PIN_H
+#pragma once
 
 #include <stdint.h>
 #include <avr/io.h>
@@ -212,12 +211,9 @@ namespace avrtl
 }
 
 // compatibility layer
-#if !defined(ARDUINO_MAIN) && !defined(Arduino_h)
-void pinMode(uint8_t pId, uint8_t mode);
-void digitalWrite(uint8_t pId, bool level);
-bool digitalRead(uint8_t pId);
-uint8_t shiftIn(uint8_t dataPin, uint8_t clockPin, uint8_t bitOrder);
-void shiftOut(uint8_t dataPin, uint8_t clockPin, uint8_t bitOrder, uint8_t val);
-#endif
+extern void pinMode(uint8_t pId, uint8_t mode);
+extern void digitalWrite(uint8_t pId, bool level);
+extern bool digitalRead(uint8_t pId);
+extern uint8_t shiftIn(uint8_t dataPin, uint8_t clockPin, uint8_t bitOrder);
+extern void shiftOut(uint8_t dataPin, uint8_t clockPin, uint8_t bitOrder, uint8_t val);
 
-#endif

@@ -1,5 +1,6 @@
 #include <AvrTL/AvrTL.h>
 #include <AvrTL/AvrTLPin.h>
+#include <AvrTL/AvrApp.h>
 #include <BasicIO/PrintStream.h>
 #include <BasicIO/InputStream.h>
 

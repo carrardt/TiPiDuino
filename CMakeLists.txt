@@ -9,7 +9,7 @@ set(CMAKE_C_COMPILER avr-gcc)
 set(CMAKE_ASM_COMPILER avr-gcc)
 
 project(TiDuino C CXX)
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS NO)
 
@@ -19,6 +19,9 @@ string(TIMESTAMP BUILD_TIMSESTAMP "%Y%j%HUL")
 unset(AVAILABE_MCU_BOARDS)
 
 set(SERIAL_PORT "/dev/ttyUSB0" CACHE STRING "Serial port")
+set(AVR_COMPILE_OPTIONS -std=gnu++17 -Os -Wall -fpermissive -fno-exceptions -ffunction-sections -fdata-sections -fno-threadsafe-statics -Wno-error=narrowing -MMD)
+set(AVR_LINK_OPTIONS -Os -Wl,--gc-sections)
+
 
 macro(add_avr_board BOARDNAME F_CPU MCU BAUD PROG_TYPE E_FUSE H_FUSE L_FUSE LOCK_BIT)
 
@@ -71,31 +74,24 @@ function(generate_avr_firmware SKETCH_NAME)
     add_executable(${SKETCH_NAME}_${BOARD} ${${SKETCH_NAME}_SRCS})
 
     target_compile_definitions(${SKETCH_NAME}_${BOARD} PRIVATE F_CPU=${${BOARD}_F_CPU} BAUD=${${BOARD}_BAUD} BUILD_TIMSESTAMP=${BUILD_TIMSESTAMP})
-    target_compile_options(${SKETCH_NAME}_${BOARD} PRIVATE
-        -mmcu=${${BOARD}_MCU} # MCU
-        -std=gnu++11 # C++ dialect
-        -Os # optimize
-        -Wall # enable warnings
-        -fpermissive 
-        -fno-exceptions 
-        -ffunction-sections 
-        -fdata-sections 
-        -fno-threadsafe-statics 
-        -Wno-error=narrowing 
-        -MMD 
-        -flto
-        )
+    target_compile_options(${SKETCH_NAME}_${BOARD} PRIVATE -mmcu=${${BOARD}_MCU} ${AVR_COMPILE_OPTIONS})
     target_include_directories(${SKETCH_NAME}_${BOARD} PRIVATE ${PROJECT_SOURCE_DIR}/libraries)
-
+    target_link_options(${SKETCH_NAME}_${BOARD} PRIVATE -mmcu=${${BOARD}_MCU} ${AVR_LINK_OPTIONS})
     target_link_libraries(${SKETCH_NAME}_${BOARD} PRIVATE ${${SKETCH_NAME}_${BOARD}_LIBS})
 
     add_custom_target(${SKETCH_NAME}_${BOARD}_strip COMMAND avr-strip ${SKETCH_NAME}_${BOARD} -o ${SKETCH_NAME}_${BOARD}.elf DEPENDS ${SKETCH_NAME}_${BOARD} BYPRODUCTS ${SKETCH_NAME}_${BOARD}.elf)
-    add_custom_target(${SKETCH_NAME}_${BOARD}_hex COMMAND avr-objcopy -R .eeprom -O ihex ${SKETCH_NAME}_${BOARD}.elf ${SKETCH_NAME}_${BOARD}.hex DEPENDS ${SKETCH_NAME}_${BOARD}_strip BYPRODUCTS ${SKETCH_NAME}_${BOARD}.hex)
-    add_custom_target(${SKETCH_NAME}_${BOARD}_eeprom COMMAND avr-objcopy -j .eeprom  --set-section-flags=.eeprom="alloc,load" --change-section-lma .eeprom=0 -O ihex ${SKETCH_NAME}_${BOARD}.elf ${SKETCH_NAME}_${BOARD}.eep DEPENDS ${SKETCH_NAME}_${BOARD}_strip)
+    add_custom_target(${SKETCH_NAME}_${BOARD}_eeprom
+      COMMAND avr-objcopy -O ihex -j .eeprom --set-section-flags=.eeprom=alloc,load --no-change-warnings --change-section-lma .eeprom=0 ${SKETCH_NAME}_${BOARD}.elf ${SKETCH_NAME}_${BOARD}.eep
+      DEPENDS ${SKETCH_NAME}_${BOARD}_strip
+      BYPRODUCTS ${SKETCH_NAME}_${BOARD}.eep)
+    add_custom_target(${SKETCH_NAME}_${BOARD}_hex
+      COMMAND avr-objcopy -O ihex -R .eeprom ${SKETCH_NAME}_${BOARD}.elf ${SKETCH_NAME}_${BOARD}.hex
+      DEPENDS ${SKETCH_NAME}_${BOARD}_strip
+      BYPRODUCTS ${SKETCH_NAME}_${BOARD}.hex)
 
     # Upload the firmware with avrdude
     add_custom_target(${SKETCH_NAME}_${BOARD}_upload
-      COMMAND avrdude -P ${SERIAL_PORT} -c ${${BOARD}_PROG_TYPE} -p ${${BOARD}_MCU} -U flash:w:${SKETCH_NAME}_${BOARD}.hex -U eeprom:w:${SKETCH_NAME}_${BOARD}.eep -U lfuse:w:${${BOARD}_L_FUSE}:m -U hfuse:w:${${BOARD}_H_FUSE}:m -U efuse:w:${${BOARD}_E_FUSE}:m -U lock:w:${${BOARD}_LOCK_BIT}:m
+      COMMAND avrdude -P ${SERIAL_PORT} -c ${${BOARD}_PROG_TYPE} -p ${${BOARD}_MCU} -b ${${BOARD}_BAUD} -U flash:w:${SKETCH_NAME}_${BOARD}.hex -U eeprom:w:${SKETCH_NAME}_${BOARD}.eep -U lfuse:w:${${BOARD}_L_FUSE}:m -U hfuse:w:${${BOARD}_H_FUSE}:m -U efuse:w:${${BOARD}_E_FUSE}:m -U lock:w:${${BOARD}_LOCK_BIT}:m
       DEPENDS ${SKETCH_NAME}_${BOARD}_hex ${SKETCH_NAME}_${BOARD}_eeprom)
 
   endforeach()
@@ -125,21 +121,9 @@ function(generate_avr_library LIBRARY_NAME)
       message(STATUS "add ${LIBRARY_NAME}_${BOARD} library : LIBS=${${LIBRARY_NAME}_${BOARD}_LIBS} F_CPU=${${BOARD}_F_CPU} BAUD=${${BOARD}_BAUD} MCU=${${BOARD}_MCU} L_FUSE=${${BOARD}_L_FUSE} H_FUSE=${${BOARD}_H_FUSE} E_FUSE=${${BOARD}_E_FUSE} LOCK_BIT=${${BOARD}_LOCK_BIT}")
       add_library(${LIBRARY_NAME}_${BOARD} STATIC ${${LIBRARY_NAME}_SRCS})
       target_compile_definitions(${LIBRARY_NAME}_${BOARD} PRIVATE F_CPU=${${BOARD}_F_CPU} BAUD=${${BOARD}_BAUD} BUILD_TIMSESTAMP=${BUILD_TIMSESTAMP})
-      target_compile_options(${LIBRARY_NAME}_${BOARD} PUBLIC
-        -mmcu=${${BOARD}_MCU} # MCU
-        -std=gnu++11 # C++ dialect
-        -Os # optimize
-        -Wall # enable warnings
-        -fpermissive 
-        -fno-exceptions 
-        -ffunction-sections 
-        -fdata-sections 
-        -fno-threadsafe-statics 
-        -Wno-error=narrowing 
-        -MMD 
-        -flto
-        )
+      target_compile_options(${LIBRARY_NAME}_${BOARD} PRIVATE -mmcu=${${BOARD}_MCU} ${AVR_COMPILE_OPTIONS})
       target_include_directories(${LIBRARY_NAME}_${BOARD} PRIVATE ${PROJECT_SOURCE_DIR}/libraries)
+      target_link_options(${LIBRARY_NAME}_${BOARD} PRIVATE -mmcu=${${BOARD}_MCU} ${AVR_LINK_OPTIONS})
       target_link_libraries(${LIBRARY_NAME}_${BOARD} PUBLIC ${${LIBRARY_NAME}_${BOARD}_LIBS})
     else()
       message(STATUS "add ${LIBRARY_NAME}_${BOARD} interface : LIBS=${${LIBRARY_NAME}_${BOARD}_LIBS} F_CPU=${${BOARD}_F_CPU} BAUD=${${BOARD}_BAUD} MCU=${${BOARD}_MCU} L_FUSE=${${BOARD}_L_FUSE} H_FUSE=${${BOARD}_H_FUSE} E_FUSE=${${BOARD}_E_FUSE} LOCK_BIT=${${BOARD}_LOCK_BIT}")

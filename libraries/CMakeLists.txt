@@ -11,7 +11,6 @@ add_subdirectory(SoftSerial)
 #	add_subdirectory(HWSerialNoInt)
 #endif()
 
-add_subdirectory(AvrApp)
 add_subdirectory(BasicIO)
 
 #add_subdirectory(LCD1602)

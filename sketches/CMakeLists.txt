@@ -5,7 +5,7 @@
 generate_avr_firmware(
 	StepMotorTest
 	SRCS StepMotorTest.cpp
-	LIBS SoftSerial BasicIO AvrTL AvrApp
+	LIBS SoftSerial BasicIO AvrTL
 	ALL_BOARDS
 	)
 
