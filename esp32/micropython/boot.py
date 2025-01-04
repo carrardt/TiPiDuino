@@ -29,9 +29,21 @@ if sta_if.isconnected():
 else:
   print('Connection failed')
 
+import requests
 try:
   WANIP = [ s.strip() for s in open('wanip.txt').readlines() ]
-  print('Current wan IP for %s is %s' % (WANIP[0],WANIP[1]) )
+  print('last configured wan IP for %s was %s' % (WANIP[0],WANIP[1]) )
+  curwanip = requests.get('https://api.ipify.org').content.decode('utf8')
+  print('current wan IP is %s' % curwanip )
+  if curwanip==WANIP[1]:
+    print('wan IP is unchanged, no update')
+  else:
+    print('update wan IP to %s' % curwanip)
+    WANIP[1]=curwanip
+    print(requests.get(WANIP[2]).content.decode('utf8'))
+    f=open('wanip.txt','w')
+    f.write('\n'.join(WANIP))
+    f.close()
 except:
   print('no dynamic wan IP configuration found')
 
