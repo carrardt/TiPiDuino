@@ -35,7 +35,7 @@ def mkfile():
 def chkfile(fname):
   ln=1
   for l in open(fname).readlines():
-    print("[% 3d] %s" % (ln,l.strip()) )
+    print("[% 3d] %s" % (ln,l) , end='')
     ln=ln+1
 
 # Wifi connection
