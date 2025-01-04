@@ -1,4 +1,4 @@
-#<main.py
+#$https://raw.githubusercontent.com/carrardt/TiPiDuino/refs/heads/main/esp32/micropython/main.py
 
 print("-= Relay controller web interface =-")
 
