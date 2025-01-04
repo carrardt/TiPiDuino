@@ -1,4 +1,5 @@
 #$https://raw.githubusercontent.com/carrardt/TiPiDuino/refs/heads/main/esp32/micropython/boot.py
+#<boot.py
 
 print('-- Import modules --')
 import socket

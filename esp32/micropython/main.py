@@ -1,8 +1,15 @@
 #$https://raw.githubusercontent.com/carrardt/TiPiDuino/refs/heads/main/esp32/micropython/main.py
+#<main.py
 
 print("-= Relay controller web interface =-")
 
 led=machine.Pin(2,machine.Pin.OUT)
+
+for i in range(2):
+  machine.sleep(500)
+  led.value(1)
+  machine.sleep(500)
+  led.value(0)
 
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 s.bind(('', 80))
