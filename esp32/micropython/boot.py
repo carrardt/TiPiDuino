@@ -7,8 +7,9 @@ dmesg_out = machine.UART(2,19200)
 dmesg_out.init(19200,bits=8,parity=None,stop=1)
 
 def dmesg(s,end="\n"):
-  print(s+end)
-  dmesg_out.write(s+end)
+  s=str(s)+end
+  print(s)
+  dmesg_out.write(s)
   machine.sleep(250)
 
 def clear():
@@ -56,38 +57,37 @@ def chkfile(fname):
 def wifi_connect():
   dmesg('-- Wifi connection --')
   WIFICON = [ s.strip() for s in open('wifi.txt').readlines() ]
-  ssid = WIFICON[0]
-  password = WIFICON[1]
-  hostname = WIFICON[2]
+  (ssid,password,hostname) = WIFICON
   sta_if.active(True)
-  dmesg(sta_if.scan())
-  dmesg('Configure hostname to %s' % hostname)
+  for wap in [ap[0].decode('utf8') for ap in sta_if.scan()]:
+    dmesg(wap)
+  dmesg('hname=%s' % hostname)
   sta_if.config(dhcp_hostname=hostname)
-  dmesg('Connecting to %s with key %s' % (ssid,password) )
+  dmesg('%s,p=%s' % (ssid,password) )
   sta_if.connect(ssid,password)
   machine.sleep(5000)
-  dmesg(sta_if.ifconfig())
+  dmesg(sta_if.ifconfig()[0])
   return sta_if.isconnected()
 
 # Check / update wan IP address
 def setup_wanip():
-  dmesg('-- Setup wan interface --')
   try:
     WANIP = [ s.strip() for s in open('wanip.txt').readlines() ]
-    dmesg('last configured wan IP for %s was %s' % (WANIP[0],WANIP[1]) )
+    dmesg(WANIP[0])
+    dmesg('wan=%s' % WANIP[1] )
     curwanip = requests.get('https://api.ipify.org').content.decode('utf8')
-    dmesg('current wan IP is %s' % curwanip )
+    dmesg('chk=%s' % curwanip )
     if curwanip==WANIP[1]:
-      dmesg('wan IP is unchanged, no update')
+      dmesg('wan IP ok')
     else:
-      dmesg('update wan IP to %s' % curwanip)
+      dmesg('wan>%s' % curwanip)
       WANIP[1]=curwanip
       dmesg(requests.get(WANIP[2]).content.decode('utf8'))
       f=open('wanip.txt','w')
       f.write('\n'.join(WANIP))
       f.close()
   except:
-    dmesg('no dynamic wan IP configuration found')
+    dmesg('no wan conf')
 
 gc.collect()
 dmesg('* %d/%d' % (gc.mem_alloc()/1024,gc.mem_free()/1024) )
