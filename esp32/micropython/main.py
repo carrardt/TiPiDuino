@@ -5,7 +5,7 @@ print("-= Relay controller web interface =-")
 
 led=machine.Pin(2,machine.Pin.OUT)
 
-for i in range(2):
+for i in range(5):
   machine.sleep(500)
   led.value(1)
   machine.sleep(500)

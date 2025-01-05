@@ -8,7 +8,7 @@ import gc
 gc.enable()
 import network
 import machine
-from requests import get
+import requests
 sta_if = network.WLAN(network.STA_IF)
 gc.collect()
 print('Mem: used=%d , free=%d' % (gc.mem_alloc(),gc.mem_free()) )
@@ -64,14 +64,14 @@ def setup_wanip():
   try:
     WANIP = [ s.strip() for s in open('wanip.txt').readlines() ]
     print('last configured wan IP for %s was %s' % (WANIP[0],WANIP[1]) )
-    curwanip = get('https://api.ipify.org').content.decode('utf8')
+    curwanip = requests.get('https://api.ipify.org').content.decode('utf8')
     print('current wan IP is %s' % curwanip )
     if curwanip==WANIP[1]:
       print('wan IP is unchanged, no update')
     else:
       print('update wan IP to %s' % curwanip)
       WANIP[1]=curwanip
-      print(get(WANIP[2]).content.decode('utf8'))
+      print(requests.get(WANIP[2]).content.decode('utf8'))
       f=open('wanip.txt','w')
       f.write('\n'.join(WANIP))
       f.close()

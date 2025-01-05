@@ -1,5 +1,4 @@
-#ifndef __TIDUINO_HWSerialNoInt_h
-#define __TIDUINO_HWSerialNoInt_h
+#pragma once
 
 #include <avr/io.h>
 
@@ -73,4 +72,4 @@ struct HWSerialNoInt
 
 };
 
-#endif
+
