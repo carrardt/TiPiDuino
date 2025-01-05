@@ -1,5 +1,6 @@
 #include <PCD8544/PCD8544.h>
 #include <SoftSerial/SoftSerial.h>
+#include <HWSerialNoInt/HWSerialNoInt.h>
 #include <BasicIO/ByteStream.h>
 #include <BasicIO/InputStream.h>
 #include <avr/interrupt.h>
@@ -33,10 +34,15 @@ static auto led = avrtl::StaticPin<13>();
 
 #define SERIAL_SPEED 19200
 
+#ifdef __AVR_ATmega328P__
+static HWSerialNoInt serialIO = {};
+#else
+using SerialScheduler = TimeSchedulerT<avrtl::AvrTimer0NoPrescaler>;
 static auto rx = avrtl::StaticPin<0>();
 static auto tx = avrtl::NullPin();
-using SerialScheduler = TimeSchedulerT<avrtl::AvrTimer0NoPrescaler>;
 static auto serialIO = make_softserial_hr<SERIAL_SPEED,SerialScheduler>(rx,tx);
+#endif
+
 static PCD8544 lcd( LCD_PINS );
 
 #define LCD_WIDTH 		84
@@ -75,14 +81,13 @@ void setup()
 	// set medium contrast
 	lcd.setContrast(63);
 
-	serialIO.begin();
 	
   static const char* welcome = "Ready to recv";
   const char*p=welcome; int i=0; while(*p!='\0') lcd_buffer[i++]=*(p++);
   lcd_row=1;
 	renderText();
-	
-	serialIO.ts.start();
+
+	serialIO.begin(19200);
 }
 
 void loop()

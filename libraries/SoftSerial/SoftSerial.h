@@ -27,11 +27,17 @@ struct SoftSerialIO
 
 	SoftSerialIO(RxPin _rx, TxPin _tx) : rx(_rx), tx(_tx) {}
 
-	void begin()
+	inline void begin()
 	{
 		rx.SetInput();
 		tx.SetOutput();
 		tx = HIGH;
+	}
+
+	inline void begin(int /*baud*/)
+	{
+	  begin();
+	  ts.start();
 	}
 
 	inline uint8_t readByte()
