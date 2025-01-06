@@ -1,8 +1,10 @@
-#include <PCD8544.h>
-#include <SoftSerial.h>
-#include "BasicIO/ByteStream.h"
-#include "BasicIO/InputStream.h"
+#include <PCD8544/PCD8544.h>
+#include <SoftSerial/SoftSerial.h>
+#include <HWSerialNoInt/HWSerialNoInt.h>
+#include <BasicIO/ByteStream.h>
+#include <BasicIO/InputStream.h>
 #include <avr/interrupt.h>
+#include <AvrTL/AvrApp.h>
 
 //#include "BasicIO/PrintStream.h"
 
@@ -14,19 +16,39 @@
 
 // PCD8544 pins :         SCLK, SDIN, DC, RST, SCE
 #define LCD_PINS_ATTINY85    1,    2,  3,   4, PCD8544_UNASSIGNED
-#define LCD_PINS_ATMEGA328   2,    3,  4,   5, 6
+#define LCD_PINS_ATTINY84    5,    4,  3,   1, 2
+#define LCD_PINS_ATMEGA328   8,    7,  6,   5, PCD8544_UNASSIGNED
+
+#if defined(__AVR_ATtiny84__)
+#define LCD_PINS LCD_PINS_ATTINY84
+static avrtl::NullPin led;
+#elif defined(__AVR_ATtiny85__)
+#define LCD_PINS LCD_PINS_ATTINY85
+static avrtl::NullPin led;
+#elif defined(__AVR_ATmega328P__)
+#define LCD_PINS LCD_PINS_ATMEGA328
+static auto led = avrtl::StaticPin<13>();
+#else
+#error MCU not supported
+#endif
+
 #define SERIAL_SPEED 19200
 
+#ifdef __AVR_ATmega328P__
+static HWSerialNoInt serialIO = {};
+#else
+using SerialScheduler = TimeSchedulerT<avrtl::AvrTimer0NoPrescaler>;
 static auto rx = avrtl::StaticPin<0>();
 static auto tx = avrtl::NullPin();
-using SerialScheduler = TimeSchedulerT<avrtl::AvrTimer0NoPrescaler>;
 static auto serialIO = make_softserial_hr<SERIAL_SPEED,SerialScheduler>(rx,tx);
-static PCD8544 lcd( LCD_PINS_ATTINY85 );
+#endif
+
+static PCD8544 lcd( LCD_PINS );
 
 #define LCD_WIDTH 		84
 #define LCD_HEIGHT 		48
-#define CHARS_PER_ROW 	14
-#define NB_ROWS       	 6
+#define CHARS_PER_ROW 14
+#define NB_ROWS       6
 
 static uint8_t lcd_buffer[NB_ROWS*CHARS_PER_ROW];
 static int lcd_row = 0;
@@ -59,15 +81,13 @@ void setup()
 	// set medium contrast
 	lcd.setContrast(63);
 
-	serialIO.begin();
-/*	clearText();
-	BufferStream bufStream(lcd_buffer[0],CHARS_PER_ROW);
-	PrintStream cout;
-	cout.begin(&bufStream);
-	cout<<"Ready @"<<SERIAL_SPEED;
+	
+  static const char* welcome = "Ready to recv";
+  const char*p=welcome; int i=0; while(*p!='\0') lcd_buffer[i++]=*(p++);
+  lcd_row=1;
 	renderText();
-*/
-	serialIO.ts.start();
+
+	serialIO.begin(19200);
 }
 
 void loop()
@@ -83,6 +103,7 @@ void loop()
 		}
 		while(c!='\n') { c = serialIO.readByteFast(); }
 		for(;i<CHARS_PER_ROW;i++) buf[i]=' ';
+		led = ! led;
 	}
 	
 	//buf = lcd_buffer + lcd_row*CHARS_PER_ROW;

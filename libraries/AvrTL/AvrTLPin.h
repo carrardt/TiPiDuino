@@ -1,5 +1,4 @@
-#ifndef __AVRTL_PIN_H
-#define __AVRTL_PIN_H
+#pragma once
 
 #include <stdint.h>
 #include <avr/io.h>
@@ -10,10 +9,10 @@ namespace avrtl
 
 #	define DECLARE_PIN_GROUP(G) 								\
 	struct PinGroup##G { 									\
-		static void SetOutput(uint8_t mask) { DDR##G |= mask; } \
-		static void SetInput(uint8_t mask) { DDR##G &= ~mask; } \
-		static uint8_t Get() { return PIN##G ; } 				\
-		static void Set(uint8_t x , uint8_t mask=0xFF) 			\
+		static inline void SetOutput(uint8_t mask) { DDR##G |= mask; } \
+		static inline void SetInput(uint8_t mask) { DDR##G &= ~mask; } \
+		static inline uint8_t Get() { return PIN##G ; } 				\
+		static inline void Set(uint8_t x , uint8_t mask=0xFF) 			\
 		{														\
 			PORT##G |= mask&x;									\
 			PORT##G &= (~mask)|x; 								\
@@ -41,25 +40,21 @@ namespace avrtl
 		static constexpr uint8_t pinbit = _pinBit;
 		static constexpr uint8_t setmask = 1<<pinbit;
 		static constexpr uint8_t clearmask = ~setmask;
+		using PinGroup = PinGroupT;
 
-		inline StaticPinT() : m_pg() {}
-		inline StaticPinT( PinGroupT _pg ) : m_pg(_pg) {}
-
-		inline void SetOutput() const { m_pg.SetOutput(setmask); }
-		inline void SetInput() const { m_pg.SetInput(setmask); }
-		inline void Set(bool b) const
+		static inline void SetOutput() { PinGroup::SetOutput(setmask); }
+		static inline void SetInput() { PinGroup::SetInput(setmask); }
+		static inline void Set(bool b) 
 		{
 			uint8_t x = b; // guaranteed to be 0 or 1 only
-			m_pg.Set( x<<pinbit, setmask );
+			PinGroup::Set( x<<pinbit, setmask );
 		}
-		inline bool Get() const
+		static inline bool Get() 
 		{ 
-			return m_pg.Get() & setmask;
+			return PinGroup::Get() & setmask;
 		}
 		inline operator bool() const { return Get(); }
 		inline bool operator = (bool b) const { Set(b); return b; }
-
-		const PinGroupT m_pg;
 	};
 
 	template<uint8_t pinId> struct PinMapping {};
@@ -194,7 +189,7 @@ namespace avrtl
 
 	inline DynamicPinT<DynamicPinGroup> make_pin(uint8_t p)
 	{
-		uint8_t g = WdigitalPinToPort(p);
+		[[maybe_unused]] const uint8_t g = WdigitalPinToPort(p);
 		DynamicPinGroup pg( WportModeRegister(g), WportInputRegister(g), WportOutputRegister(g) );
 		return DynamicPinT<DynamicPinGroup>( pg, WdigitalPinToBit(p) );
 	}
@@ -212,12 +207,9 @@ namespace avrtl
 }
 
 // compatibility layer
-#if !defined(ARDUINO_MAIN) && !defined(Arduino_h)
-void pinMode(uint8_t pId, uint8_t mode);
-void digitalWrite(uint8_t pId, bool level);
-bool digitalRead(uint8_t pId);
-uint8_t shiftIn(uint8_t dataPin, uint8_t clockPin, uint8_t bitOrder);
-void shiftOut(uint8_t dataPin, uint8_t clockPin, uint8_t bitOrder, uint8_t val);
-#endif
+extern void pinMode(uint8_t pId, uint8_t mode);
+extern void digitalWrite(uint8_t pId, bool level);
+extern bool digitalRead(uint8_t pId);
+extern uint8_t shiftIn(uint8_t dataPin, uint8_t clockPin, uint8_t bitOrder);
+extern void shiftOut(uint8_t dataPin, uint8_t clockPin, uint8_t bitOrder, uint8_t val);
 
-#endif

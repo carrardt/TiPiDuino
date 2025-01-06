@@ -1,7 +1,8 @@
-#ifndef __TIDUINO_HWSerialNoInt_h
-#define __TIDUINO_HWSerialNoInt_h
+#pragma once
 
 #include <avr/io.h>
+
+#if defined(__AVR_ATmega328P__)
 
 struct HWSerialNoInt
 {
@@ -63,14 +64,19 @@ struct HWSerialNoInt
 		return x;
 	}
 
-	static uint8_t readByte()
+	static inline uint8_t readByteFast()
 	{
 		// Wait for byte to be received
 		while(!(UCSR0A&(1<<RXC0))){};
 		// Return received data
 		return UDR0;
 	}
+	static inline uint8_t readByte()
+	{
+	  return readByteFast();
+	}
 
 };
 
 #endif
+

@@ -1,7 +1,7 @@
 #pragma once
 
 #include <avr/io.h>
-#include "AvrTL/timer.h"
+#include <AvrTL/timer.h>
 
 // TODO: replace 'Fast' suffix by 'Ticks' suffix
 

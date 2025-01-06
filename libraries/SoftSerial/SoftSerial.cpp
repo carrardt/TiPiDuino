@@ -1,1 +1,0 @@
-char __SoftSerial_dummy_var;

@@ -224,7 +224,7 @@ struct ScopedTimer
 };
 
 
-static inline void delayMicroseconds(uint32_t us)
+inline void delayMicroseconds(uint32_t us)
 {
 	AvrTimer0 timer;
 	timer.start();
@@ -232,23 +232,10 @@ static inline void delayMicroseconds(uint32_t us)
 	timer.stop();
 }
 
-static inline void delay(unsigned long ms)
+inline void delay(unsigned long ms)
 {
 	delayMicroseconds( static_cast<uint32_t>(ms) * 1000 );
 }
 
 } // namespace avrtl
-
-
-#if !defined(ARDUINO_MAIN) && !defined(Arduino_h)
-static inline void delayMicroseconds(uint32_t us)
-{
-	avrtl::delayMicroseconds(us);
-}
-
-static inline void delay(unsigned long ms)
-{
-	avrtl::delayMicroseconds( static_cast<uint32_t>(ms) * 1000 );
-}
-#endif
 

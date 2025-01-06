@@ -1,8 +1,6 @@
-#include "AvrTLPin.h"
+#include <AvrTL/AvrTLPin.h>
 
 // compatibility layer
-#if !defined(ARDUINO_MAIN) && !defined(Arduino_h)
-
 void pinMode(uint8_t pId, uint8_t mode)
 {
 	auto p = avrtl::make_pin(pId);
@@ -50,5 +48,4 @@ void shiftOut(uint8_t dataPin, uint8_t clockPin, uint8_t bitOrder, uint8_t val)
         }
 }
 
-#endif
 

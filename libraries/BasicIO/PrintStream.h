@@ -1,5 +1,4 @@
-#ifndef __TIPIDUINO_PrintStream_h
-#define __TIPIDUINO_PrintStream_h
+#pragma once
 
 #include <BasicIO/ByteStream.h>
 #include <AvrTL/AvrTL.h>
@@ -103,4 +102,3 @@ struct PrintStream
 
 //extern PrintStream dbgout;
 
-#endif

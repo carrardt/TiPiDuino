@@ -1,5 +1,4 @@
-#ifndef __TIPIDUINO_ByteStream_h
-#define __TIPIDUINO_ByteStream_h
+#pragma once
 
 #include <stdint.h>
 #include <AvrTL/timer.h>
@@ -86,4 +85,3 @@ struct ByteStreamAdapter : public ByteStream
 	const char* m_endl = "\n";
 };
 
-#endif
