@@ -3,18 +3,19 @@
 import esp
 esp.osdebug(None)
 import machine
-dmesg_out = machine.UART(2,19200)
-dmesg_out.init(19200,bits=8,parity=None,stop=1)
+#dmesg_out = machine.UART(2,19200)
+#dmesg_out.init(19200,bits=8,parity=None,stop=1)
 
 def dmesg(s,end="\n"):
   s=str(s)+end
   print(s)
-  dmesg_out.write(s)
-  machine.sleep(250)
+#  dmesg_out.write(s)
+#  machine.sleep(250)
 
 def clear():
-  dmesg_out.write("&~C\n")
-  machine.sleep(500)
+  print("---")
+#  dmesg_out.write("&~C\n")
+#  machine.sleep(500)
 
 clear()
 import gc
@@ -55,8 +56,8 @@ def chkfile(fname):
 
 # Wifi connection
 def wifi_connect():
-  dmesg('-- Wifi connection --')
-  WIFICON = [ s.strip() for s in open('wifi.txt').readlines() ]
+  dmesg('Wifi con')
+  WIFICON = [ s.strip() for s in open('config/wifi.txt').readlines() ]
   (ssid,password,hostname) = WIFICON
   sta_if.active(True)
   for wap in [ap[0].decode('utf8') for ap in sta_if.scan()]:
@@ -72,7 +73,7 @@ def wifi_connect():
 # Check / update wan IP address
 def setup_wanip():
   try:
-    WANIP = [ s.strip() for s in open('wanip.txt').readlines() ]
+    WANIP = [ s.strip() for s in open('config/wanip.txt').readlines() ]
     dmesg(WANIP[0])
     dmesg('wan=%s' % WANIP[1] )
     curwanip = requests.get('https://api.ipify.org').content.decode('utf8')
@@ -93,5 +94,5 @@ gc.collect()
 dmesg('* %d/%d' % (gc.mem_alloc()/1024,gc.mem_free()/1024) )
 
 wifi_connect()
-machine.sleep(3000)
-setup_wanip()
+#machine.sleep(3000)
+#setup_wanip()
