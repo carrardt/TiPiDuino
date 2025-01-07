@@ -11,6 +11,14 @@ for i in range(5):
   machine.sleep(500)
   led.value(0)
 
+import json
+home=json.load(open('home.json'))
+# print( json.dumps(home) )
+#home.heatzone[0].state="E"
+#f=open('home.json','w')
+#json.dump(home,f)
+#f.close()
+
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 s.bind(('', 80))
 s.listen(5)
