@@ -45,5 +45,5 @@ while True:
   conn.send('Content-Type: text/html\n') # use text/javascript for .js files
   #conn.send('Cache-Control: public, max-age=604800\n')
   conn.send('Connection: close\n\n')
-  conn.sendall( open('index.html').read() % gpio_state )
+  conn.sendall( open('web/index.html').read() % gpio_state )
   conn.close()
