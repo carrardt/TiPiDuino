@@ -1,0 +1,5 @@
+10W RGB led, model 3C3B, 300ma, chip 35mli :
+RED: 620-630nm , 300mA , input 6.0-6.6v
+GREEN: 520-530nm , 300mA , input 9.0-9.6v
+BLUE: 620-630nm , 300mA , input 9.0-9.6v
+
