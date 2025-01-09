@@ -50,6 +50,8 @@ while True:
       mimetype="text/html"
     elif fext=="js":
       mimetype="text/javascript"
+    elif fext=="json"
+      mimetype="application/json"
     print("mime=%s"%mimetype)
     conn.send('HTTP/1.1 200 OK\n')
     conn.send('Content-Type: %s\n'%mimetype)
