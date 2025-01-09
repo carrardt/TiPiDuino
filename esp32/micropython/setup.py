@@ -1,6 +1,7 @@
 # install files
 
 import os
+import requests
 
 os.mkdir('config')
 
@@ -22,11 +23,11 @@ f.close()
 
 os.mkdir('web')
 
-f=open('web/index.html','w')
-f.write(requests.get('https://raw.githubusercontent.com/carrardt/TiPiDuino/refs/heads/main/esp32/web/led_on_off.html').content.decode('utf8'))
+f=open('web/TiHomeManager.html','w')
+f.write(requests.get('https://raw.githubusercontent.com/carrardt/TiPiDuino/refs/heads/main/esp32/web/TiHomeManager.html').content.decode('utf8'))
 f.close()
 
-f=open('web/server.js','w')
-f.write(requests.get('https://raw.githubusercontent.com/carrardt/TiPiDuino/refs/heads/main/esp32/web/server.js').content.decode('utf8'))
+f=open('web/TiHomeManager.js','w')
+f.write(requests.get('https://raw.githubusercontent.com/carrardt/TiPiDuino/refs/heads/main/esp32/web/TiHomeManager.js').content.decode('utf8'))
 f.close()
 

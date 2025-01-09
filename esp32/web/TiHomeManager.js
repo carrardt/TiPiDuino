@@ -68,5 +68,7 @@ function heatZoneTable(home)
   }
   return tbl;
 }
-let home = JSON.parse( document.getElementById("home_json").innerHTML );
-document.body.appendChild( heatZoneTable(home) );
+//let rawstr = document.getElementById("home_json").innerHTML;
+console.log(`home = ${home}`);
+//let home = JSON.parse( document.getElementById("home_json").innerHTML );
+//document.body.appendChild( heatZoneTable(home) );
