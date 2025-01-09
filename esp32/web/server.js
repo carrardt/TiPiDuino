@@ -50,5 +50,5 @@ function heatZoneTable(home)
   }
   return tbl;
 }
+let home = JSON.parse( document.getElementById("home_json").innerHTML );
 document.body.appendChild( heatZoneTable(home) );
-
