@@ -3,19 +3,27 @@
 import esp
 esp.osdebug(None)
 import machine
-#dmesg_out = machine.UART(2,19200)
-#dmesg_out.init(19200,bits=8,parity=None,stop=1)
+
+#SERIAL_CONSOLE=None
+SERIAL_CONSOLE=(2,19200)
+
+dmesg_out = None
+if SERIAL_CONSOLE:
+  dmesg_out = machine.UART(SERIAL_CONSOLE[0],SERIAL_CONSOLE[1])
+  dmesg_out.init(SERIAL_CONSOLE[1],bits=8,parity=None,stop=1)
 
 def dmesg(s,end="\n"):
   s=str(s)+end
   print(s)
-#  dmesg_out.write(s)
-#  machine.sleep(250)
+  if dmesg_out:
+    dmesg_out.write(s)
+    machine.sleep(250)
 
 def clear():
   print("---")
-#  dmesg_out.write("&~C\n")
-#  machine.sleep(500)
+  if dmesg_out:  
+    dmesg_out.write("&~C\n")
+    machine.sleep(500)
 
 clear()
 import gc
@@ -94,5 +102,5 @@ gc.collect()
 dmesg('* %d/%d' % (gc.mem_alloc()/1024,gc.mem_free()/1024) )
 
 wifi_connect()
-#machine.sleep(3000)
-#setup_wanip()
+machine.sleep(3000)
+setup_wanip()
