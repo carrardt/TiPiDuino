@@ -74,7 +74,11 @@ def wifi_connect():
   sta_if.config(dhcp_hostname=hostname)
   dmesg("%s,p=%s"%(ssid,password))
   sta_if.connect(ssid,password)
-  machine.sleep(5000)
+  retry=5
+  while not sta_if.isconnected() and retry>0:
+    dmesg("wifi wait %d"%retry)
+    time.sleep(5)
+    retry = retry - 1
   dmesg(sta_if.ifconfig()[0])
   return sta_if.isconnected()
 
