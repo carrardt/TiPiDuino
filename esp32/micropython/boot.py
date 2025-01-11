@@ -3,6 +3,7 @@
 import esp
 esp.osdebug(None)
 import machine
+import time
 
 #SERIAL_CONSOLE=None
 SERIAL_CONSOLE=(2,19200)
@@ -12,18 +13,17 @@ if SERIAL_CONSOLE:
   dmesg_out = machine.UART(SERIAL_CONSOLE[0],SERIAL_CONSOLE[1])
   dmesg_out.init(SERIAL_CONSOLE[1],bits=8,parity=None,stop=1)
 
-def dmesg(s,end="\n"):
-  s=str(s)+end
-  print(s)
+def dmesg(s,mend="\n"):
+  print(s,end=mend)
   if dmesg_out:
-    dmesg_out.write(s)
-    machine.sleep(250)
+    dmesg_out.write(s+mend)
+    time.sleep_ms(250)
 
 def clear():
   print("---")
   if dmesg_out:  
     dmesg_out.write("&~C\n")
-    machine.sleep(500)
+    time.sleep_ms(250)
 
 clear()
 import gc
@@ -39,7 +39,7 @@ def mkfile():
   l = input()
   if l[0:2] == "#<":
     fname=l[2:]
-    dmesg('Write %s from user input (end input with CTRL-D)' % fname)
+    dmesg("W %s"%fname)
     f=open(l[2:],"w")
     while True:
       try:
@@ -51,7 +51,7 @@ def mkfile():
   elif l[0:2] == "#$":
     url=l[2:]
     fname=url[url.rfind('/')+1:]
-    dmesg('Write %s from URL %s' % (fname,url) )
+    dmesg("w %s"%fname)
     f=open(fname,"w")
     f.write(requests.get(url).content.decode('utf8'))
     f.close()
@@ -70,9 +70,9 @@ def wifi_connect():
   sta_if.active(True)
   for wap in [ap[0].decode('utf8') for ap in sta_if.scan()]:
     dmesg(wap)
-  dmesg('hname=%s' % hostname)
+  dmesg("hname=%s"% hostname)
   sta_if.config(dhcp_hostname=hostname)
-  dmesg('%s,p=%s' % (ssid,password) )
+  dmesg("%s,p=%s"%(ssid,password))
   sta_if.connect(ssid,password)
   machine.sleep(5000)
   dmesg(sta_if.ifconfig()[0])
@@ -82,25 +82,21 @@ def wifi_connect():
 def setup_wanip():
   try:
     WANIP = [ s.strip() for s in open('config/wanip.txt').readlines() ]
-    dmesg(WANIP[0])
-    dmesg('wan=%s' % WANIP[1] )
-    curwanip = requests.get('https://api.ipify.org').content.decode('utf8')
-    dmesg('chk=%s' % curwanip )
-    if curwanip==WANIP[1]:
-      dmesg('wan IP ok')
-    else:
-      dmesg('wan>%s' % curwanip)
+    curwanip=requests.get("https://api.ipify.org").content.decode("utf8")
+    if WANIP[1]!=curwanip:
       WANIP[1]=curwanip
-      dmesg(requests.get(WANIP[2]).content.decode('utf8'))
-      f=open('wanip.txt','w')
+      requests.get(WANIP[2]).content.decode('utf8')
+      f=open('config/wanip.txt','w')
       f.write('\n'.join(WANIP))
       f.close()
-  except:
-    dmesg('no wan conf')
+    dmesg("WAN=%s"%curwanip)
+  except OSError as e:
+    dmesg("Can't setup WAN")
 
 gc.collect()
 dmesg('* %d/%d' % (gc.mem_alloc()/1024,gc.mem_free()/1024) )
 
 wifi_connect()
-machine.sleep(3000)
-setup_wanip()
+#machine.sleep(3000)
+#setup_wanip()
+
