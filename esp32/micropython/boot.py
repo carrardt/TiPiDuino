@@ -68,7 +68,7 @@ def wifi_connect():
   WIFICON = [ s.strip() for s in open('config/wifi.txt').readlines() ]
   (ssid,password,hostname) = WIFICON
   sta_if.active(True)
-  for wap in [ap[0].decode('utf8') for ap in sta_if.scan()]:
+  for wap in [ap[0].decode('utf8') for ap in sta_if.scan()[:3]]:
     dmesg(wap)
   dmesg("hname=%s"% hostname)
   sta_if.config(dhcp_hostname=hostname)
