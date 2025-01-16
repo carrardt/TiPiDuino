@@ -64,43 +64,43 @@ def chkfile(fname):
 
 # Wifi connection
 def wifi_connect():
-  sta_if = None
-  dmesg('Wifi init')
+  wlan = None
   wificonf = None
   try:
     wificonf = open('config/wifi.txt')
   except:
     wificonf = None
   if wificonf:
+    dmesg('Wifi STA')
     WIFICON = [ s.strip() for s in open('config/wifi.txt').readlines() ]
-    (ssid,password,hostname) = WIFICON
-    sta_if = network.WLAN(network.STA_IF)
-    sta_if.active(True)
-    for wap in [ap[0].decode('utf8') for ap in sta_if.scan()[:3]]:
+    (ssid,password,hname) = WIFICON
+    dmesg("hname=%s"%name)
+    network.hostname(hostname)
+    wlan = network.WLAN(network.STA_IF)
+    wlan.active(True)
+    for wap in [ap[0].decode('utf8') for ap in wlan.scan()[:3]]:
       dmesg(wap)
-    dmesg("hname=%s"% hostname)
-    sta_if.config(dhcp_hostname=hostname)
     dmesg("%s,p=%s"%(ssid,password))
-    sta_if.connect(ssid,password)
+    wlan.connect(ssid,password)
     retry=5    
-    while not sta_if.isconnected() and retry>0:
+    while not wlan.isconnected() and retry>0:
       dmesg("Wait con. %ds"%(retry*5))
       time.sleep(5)
       retry = retry - 1
   else:
-    dmesg('AP mode')
-    sta_if = network.WLAN(network.AP_IF)
-    sta_if.active(True)
+    dmesg('Wifi AP')
+    wlan = network.WLAN(network.AP_IF)
     ap_id = 0
-    for b in sta_if.config('mac'):
+    for b in wlan.config('mac'):
       ap_id = (ap_id*7) ^ int(b)
     ap_password="%08X"%ap_id
     ap_ssid="TH%s"%ap_password
     dmesg("AP=%s"%ap_ssid)
     dmesg("PW=%s"%ap_password)
-    sta_if.config(ssid=ap_ssid,password=ap_password)
-  dmesg(sta_if.ifconfig()[0])
-  return sta_if
+    wlan.config(ssid=ap_ssid,password=ap_password)
+    wlan.active(True)
+  dmesg(wlan.ifconfig()[0])
+  return wlan
 
 # Check / update wan IP address
 def setup_wanip():
@@ -118,8 +118,6 @@ def setup_wanip():
     dmesg("Can't setup WAN")
 
 wlan = wifi_connect()
-print("connected")
-print(wlan)
 
 gc.collect()
 dmesg('* %d/%d' % (gc.mem_alloc()/1024,gc.mem_free()/1024) )
