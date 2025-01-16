@@ -4,9 +4,10 @@ import esp
 esp.osdebug(None)
 import machine
 import time
+import os
 
-#SERIAL_CONSOLE=None
-SERIAL_CONSOLE=(2,19200)
+SERIAL_CONSOLE=None
+#SERIAL_CONSOLE=(2,19200)
 
 dmesg_out = None
 if SERIAL_CONSOLE:
@@ -31,7 +32,6 @@ gc.enable()
 
 import network
 import requests
-sta_if = network.WLAN(network.STA_IF)
 gc.collect()
 dmesg('* %d/%d' % ( gc.mem_alloc()/1024 , gc.mem_free()/1024 ) )
 
@@ -64,23 +64,43 @@ def chkfile(fname):
 
 # Wifi connection
 def wifi_connect():
-  dmesg('Wifi con')
-  WIFICON = [ s.strip() for s in open('config/wifi.txt').readlines() ]
-  (ssid,password,hostname) = WIFICON
-  sta_if.active(True)
-  for wap in [ap[0].decode('utf8') for ap in sta_if.scan()[:3]]:
-    dmesg(wap)
-  dmesg("hname=%s"% hostname)
-  sta_if.config(dhcp_hostname=hostname)
-  dmesg("%s,p=%s"%(ssid,password))
-  sta_if.connect(ssid,password)
-  retry=5
-  while not sta_if.isconnected() and retry>0:
-    dmesg("wifi wait %d"%retry)
-    time.sleep(5)
-    retry = retry - 1
+  sta_if = None
+  dmesg('Wifi init')
+  wificonf = None
+  try:
+    wificonf = open('config/wifi.txt')
+  except:
+    wificonf = None
+  if wificonf:
+    WIFICON = [ s.strip() for s in open('config/wifi.txt').readlines() ]
+    (ssid,password,hostname) = WIFICON
+    sta_if = network.WLAN(network.STA_IF)
+    sta_if.active(True)
+    for wap in [ap[0].decode('utf8') for ap in sta_if.scan()[:3]]:
+      dmesg(wap)
+    dmesg("hname=%s"% hostname)
+    sta_if.config(dhcp_hostname=hostname)
+    dmesg("%s,p=%s"%(ssid,password))
+    sta_if.connect(ssid,password)
+    retry=5    
+    while not sta_if.isconnected() and retry>0:
+      dmesg("Wait con. %ds"%(retry*5))
+      time.sleep(5)
+      retry = retry - 1
+  else:
+    dmesg('AP mode')
+    sta_if = network.WLAN(network.AP_IF)
+    sta_if.active(True)
+    ap_id = 0
+    for b in sta_if.config('mac'):
+      ap_id = (ap_id*7) ^ int(b)
+    ap_password="%08X"%ap_id
+    ap_ssid="TH%s"%ap_password
+    dmesg("AP=%s"%ap_ssid)
+    dmesg("PW=%s"%ap_password)
+    sta_if.config(ssid=ap_ssid,password=ap_password)
   dmesg(sta_if.ifconfig()[0])
-  return sta_if.isconnected()
+  return sta_if
 
 # Check / update wan IP address
 def setup_wanip():
@@ -97,10 +117,13 @@ def setup_wanip():
   except OSError as e:
     dmesg("Can't setup WAN")
 
+wlan = wifi_connect()
+print("connected")
+print(wlan)
+
 gc.collect()
 dmesg('* %d/%d' % (gc.mem_alloc()/1024,gc.mem_free()/1024) )
 
-wifi_connect()
 #machine.sleep(3000)
 #setup_wanip()
 
