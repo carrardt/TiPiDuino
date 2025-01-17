@@ -13,15 +13,3 @@ lcd.init()
 lcd.contrast(0x3f, pcd8544.BIAS_1_48, pcd8544.TEMP_COEFF_0) # displays best on ESP32 WROOM with VCC on 3v3
 lcd.clear()
 
-lcd_line = 0
-def lcd_print_line(l):
-  lcd_line=globals()['lcd_line']
-  while lcd_line>5:
-    for i in range(8):
-      lcd.scroll(0,-1)
-      lcd.show()
-    lcd_line = lcd_line - 1
-  lcd.text(l,0,lcd_line*8,1)
-  lcd.show()
-  lcd_line = lcd_line + 1
-

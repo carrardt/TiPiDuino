@@ -204,6 +204,7 @@ class PCD8544_FRAMEBUF(PCD8544):
 	def println(self,string):
 	  if self.trow > 5:
 	    self.scroll(0,-8)
+	    self.fill_rect(0,5*8,84,8,0)
 	    self.trow = 5
 	  self.text(string, 0, self.trow*8, 1)
 	  self.show()
