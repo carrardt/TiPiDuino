@@ -168,6 +168,7 @@ class PCD8544_FRAMEBUF(PCD8544):
 		super().__init__(spi, cs, dc, rst)
 		self.buf = bytearray((HEIGHT // 8) * WIDTH)
 		self.fbuf = framebuf.FrameBuffer(self.buf, WIDTH, HEIGHT, framebuf.MONO_VLSB)
+		self.trow = 0
 
 	def fill(self, col):
 		self.fbuf.fill(col)
@@ -199,3 +200,12 @@ class PCD8544_FRAMEBUF(PCD8544):
 
 	def show(self):
 		self.data(self.buf)
+
+	def println(self,string):
+	  if self.trow > 5:
+	    self.scroll(0,-8)
+	    self.trow = 5
+	  self.text(string, 0, self.trow*8, 1)
+	  self.show()
+	  self.trow = self.trow + 1
+
