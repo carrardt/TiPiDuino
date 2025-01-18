@@ -1,7 +1,7 @@
 import time
 import network
 import requests
-
+  
 def wifi_connect():
   wlan = None
   wificonf = None
