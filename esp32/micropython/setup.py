@@ -4,30 +4,18 @@ import os
 import requests
 
 os.mkdir('config')
-
-f=open('config/wifi.txt','w')
-f.write("SSID\nPassWord\nTiHomeManager")
-f.close()
-
-f=open('config/wanip.txt','w')
-f.write("myserver.org\n10.0.0.1\nhttp://UpdateWanURL")
-f.close()
-
-f=open('boot.py','w')
-f.write(requests.get('https://raw.githubusercontent.com/carrardt/TiPiDuino/refs/heads/main/esp32/micropython/boot.py').content.decode('utf8'))
-f.close()
-
-f=open('main.py','w')
-f.write(requests.get('https://raw.githubusercontent.com/carrardt/TiPiDuino/refs/heads/main/esp32/micropython/main.py').content.decode('utf8'))
-f.close()
-
 os.mkdir('web')
 
-f=open('web/TiHomeManager.html','w')
-f.write(requests.get('https://raw.githubusercontent.com/carrardt/TiPiDuino/refs/heads/main/esp32/web/TiHomeManager.html').content.decode('utf8'))
-f.close()
+for fname in ['boot.py','console.py','http_server.py','main.py','tools.py','wanip.py','wifi.py','pcd8544/pcd8544.py']:
+  bname=f.split('/')[-1]
+  print("Download %s ..."%bname)
+  f=open(bname,'w')
+  f.write(requests.get("https://raw.githubusercontent.com/carrardt/TiPiDuino/refs/heads/main/esp32/micropython/%s"%fname).content.decode('utf8'))
+  f.close()
 
-f=open('web/TiHomeManager.js','w')
-f.write(requests.get('https://raw.githubusercontent.com/carrardt/TiPiDuino/refs/heads/main/esp32/web/TiHomeManager.js').content.decode('utf8'))
-f.close()
+for webfile in ['index.html','setup-wifi.html','setup-wan.html','TiHomeManager.html','TiHomeManager.js','home.js']:
+  print("Download %s ..."%webfile)
+  f=open("web/%s"%webfile,'w')
+  f.write(requests.get("https://raw.githubusercontent.com/carrardt/TiPiDuino/refs/heads/main/esp32/web/%s"%webfile).content.decode('utf8'))
+  f.close()
 
