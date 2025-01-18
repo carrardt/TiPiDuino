@@ -163,18 +163,28 @@ class PCD8544:
 		self.spi.write(pack('B'*len(data), *data))
 		self.cs(1)
 
-class PCD8544_BM8x5(pcd8544.PCD8544):
+
+class PCD8544_BM8x5(PCD8544):
   def __init__(self, spi, cs, dc, rst=None):
-		super().__init__(spi, cs, dc, rst)
-		self.font8x5 = open('font8x5.bin','rb').read()
+    super().__init__(spi, cs, dc, rst)
+    self.font8x5 = open('font8x5.bin','rb').read()
+    self.screen = []
 
   def text(self, col, row, s):
-		self.position(col,row)
-	  for c in s:
-	    ci = (ord(c)-ord(' '))*5
-	    if (ci+5)>len(self.font8x5): ci = 0
-	    cbm=bytearray(self.font8x5[ci:ci+5])
-	    cbm.append(0x00)
-	    self.data(cbm)
+    self.position(col,row)
+    for c in s:
+      ci = (ord(c)-ord(' '))*5
+      if (ci+5)>len(self.font8x5): ci = 0
+      cbm=bytearray(self.font8x5[ci:ci+5])
+      cbm.append(0x00)
+      self.data(cbm)
 
+  def println(self,s):
+    self.screen = self.screen[:5]
+    self.screen.append(s[:14])
+    r=0
+    self.clear()
+    for l in self.screen:
+      self.text(0,r,l)
+      r=r+1
 

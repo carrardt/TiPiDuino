@@ -13,6 +13,6 @@ def dmesg(s,mend="\n"):
   lcd.println(s)
 
 def clear():
-  lcd.fill(0)
-  lcd.show()
+  lcd.clear()
+
 
