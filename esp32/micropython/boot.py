@@ -3,20 +3,24 @@ esp.osdebug(None)
 import machine
 import time
 
-exec(open('console.py').read())
+def include(fname):
+  bc=compile(open(fname).read(),fname,'exec')
+  exec(bc)
+
+include('console.py')
 
 clear()
 import gc
 gc.enable()
 gc.collect()
 
-exec(open('wifi.py').read())
+include('wifi.py')
 wlan = wifi_connect()
 wifi_sta=None
 wifi_ap=None
 wifi_connect=None
 
-exec(open('wanip.py').read())  
+include('wanip.py')
 if wlan.isconnected():
   setup_wanip()
 setup_wanip=None

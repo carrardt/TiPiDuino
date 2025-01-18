@@ -1,5 +1,4 @@
-# start http server
-exec(open('http_server.py').read())
+include('http_server.py')
 dmesg('http ready')
-mini_http_server()
+http_server()
 

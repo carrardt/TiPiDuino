@@ -1,6 +1,3 @@
-#$https://raw.githubusercontent.com/carrardt/TiPiDuino/refs/heads/main/esp32/micropython/main.py
-#<main.py
-
 def http_file_read(conn,fname,parameters):
   try:
     f=open('web/'+fname)
@@ -33,7 +30,7 @@ http_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 http_sock.bind(('', 80))
 http_sock.listen(5)
 
-def mini_http_server():
+def http_server():
   while True:
     conn, addr = http_sock.accept()
     print('<%s' % str(addr[0]))
@@ -47,8 +44,8 @@ def mini_http_server():
       parameters={}
       if len(freq)>1:
         for kv in freq[1].split("&"):
-          (k,v) = kv.split("=")
-          parameters[k] = v
+          kvl=kv.split("=")
+          parameters[kvl[0]] = kvl[1:]
       if fname=="": fname="index.html"
       mimetype="text"
       server_func = http_file_read
