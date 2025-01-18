@@ -180,7 +180,8 @@ class PCD8544_BM8x5(PCD8544):
       self.data(cbm)
 
   def println(self,s):
-    self.screen.pop(0)
+    if len(self.screen)>=6:
+      self.screen.pop(0)
     self.screen.append(s[:14])
     r=0
     self.clear()
