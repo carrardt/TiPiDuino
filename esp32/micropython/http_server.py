@@ -1,19 +1,31 @@
 #$https://raw.githubusercontent.com/carrardt/TiPiDuino/refs/heads/main/esp32/micropython/main.py
 #<main.py
 
-#def http_file_read(conn,fname,parameters):
-#  try:
-#    f=open('web/'+fname)
-#    conn.sendall(f.read())
-#  except:
-#    conn.sendall("<html><head><title>page not found</title></head><body>page '%s' not found</body></html>" % fname)  
-
 def http_file_read(conn,fname,parameters):
-  conn.sendall("<html><head><title>mini debugger</title></head><body>requested '%s'<br>parameters<br>%s</body></html>" % (fname,str(parameters)) )
+  try:
+    f=open('web/'+fname)
+    conn.sendall(f.read())
+  except:
+    conn.sendall("<html><head><title>page not found</title></head><body>page '%s' not found</body></html>" % fname)  
 
-def setup_wifi_config(conn,fname,parameters):
-  print("Setup wifi config: parameters =",parameters)
-  conn.sendall("<html><head><title>Wifi setup success</title></head><body>WIFI setup complete</body></html>")
+def setup_wifi_config(conn,fname,params):
+  if not 'ssid' in params.keys():
+    dmesg('missing ssid')
+    conn.sendall("<html><head><title>Wifi setup failed</title></head><body>WIFI setup failed</body></html>")
+    return False
+  ssid=params['ssid']
+  seckey=''
+  if 'key' in params.keys():
+    seckey=params['key']
+  host='TiHome'
+  if 'host' in params.keys():
+    host=params['host']
+  f=open('config/wifi.txt','w')
+  f.write("%s\n%s\n%s\n"%(ssid,seckey,host))
+  f.close()
+  conn.sendall("<html><head><title>Wifi setup success</title></head><body>WIFI setup complete<br>SSID=%s<br>key=%s<br>host=%s</body></html>"%(ssid,seckey,host) )
+  dmesg("Wifi setup")
+  return True
 
 import socket
 http_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

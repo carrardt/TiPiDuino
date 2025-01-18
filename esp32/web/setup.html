@@ -4,17 +4,15 @@
 
 <h2>TiHome configuration</h2>
 
-<!--DBJS-->
-
 <form action="/setup_wifi_config.py">
   <label for="ssid">Wifi SSID:</label><br>
   <input type="text" id="ssid" name="ssid" value="<wifi SSID>"><br>
-  <label for="key">Last name:</label><br>
+  <label for="key">Password:</label><br>
   <input type="text" id="key" name="key" value="<wifi password>"><br><br>
+  <label for="host">Host name:</label><br>
+  <input type="text" id="host" name="host" value="TiHomeManager"><br><br>
   <input type="submit" value="Submit">
 </form> 
-
-<p>will call setup_wifi_config function</p>
 
 </body>
 </html>
