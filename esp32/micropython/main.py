@@ -1,30 +1,11 @@
 #$https://raw.githubusercontent.com/carrardt/TiPiDuino/refs/heads/main/esp32/micropython/main.py
 #<main.py
 
-print("-= Relay controller web interface =-")
-
-#led=machine.Pin(2,machine.Pin.OUT)
-#for i in range(5):
-#  machine.sleep(500)
-#  led.value(1)
-#  machine.sleep(500)
-#  led.value(0)
-
-#import json
-#home=json.load(open('home.json'))
-# print( json.dumps(home) )
-#home.heatzone[0].state="E"
-#f=open('home.json','w')
-#json.dump(home,f)
-#f.close()
-
 import socket
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 s.bind(('', 80))
 s.listen(5)
-
-#gpio_state="OFF"
 
 def http_file_read(conn,fname,parameters):
   try:

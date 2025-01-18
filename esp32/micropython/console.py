@@ -9,7 +9,6 @@ lcd.contrast(0x3f, pcd8544.BIAS_1_48, pcd8544.TEMP_COEFF_0)
 lcd.clear()
 
 def dmesg(s,mend="\n"):
-  print(s,end=mend)
   lcd.println(s)
 
 def clear():

@@ -11,10 +11,8 @@ clear()
 import gc
 gc.enable()
 gc.collect()
-dmesg('* %d/%d' % ( gc.mem_alloc()/1024 , gc.mem_free()/1024 ) )
-
 wlan = wifi_connect()
 
 gc.collect()
-dmesg('* %d/%d' % (gc.mem_alloc()/1024,gc.mem_free()/1024) )
+dmesg('mem: %d/%d' % (gc.mem_alloc()/1024,gc.mem_free()/1024) )
 

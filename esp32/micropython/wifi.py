@@ -10,32 +10,31 @@ def wifi_connect():
   except:
     wificonf = None
   if wificonf:
-    dmesg('Wifi STA')
+    dmesg('Wifi ...')
     WIFICON = [ s.strip() for s in open('config/wifi.txt').readlines() ]
     (ssid,password,hname) = WIFICON
-    dmesg("hname=%s"%name)
     network.hostname(hname)
     wlan = network.WLAN(network.STA_IF)
     wlan.active(True)
     for wap in [ap[0].decode('utf8') for ap in wlan.scan()[:3]]:
       dmesg(wap)
-    dmesg("%s,p=%s"%(ssid,password))
     wlan.connect(ssid,password)
     retry=5    
     while not wlan.isconnected() and retry>0:
-      dmesg("Wait con. %ds"%(retry*5))
+      dmesg("wait %ds"%(retry*5))
       time.sleep(5)
       retry = retry - 1
   else:
-    dmesg('Wifi AP')
+    dmesg('Connect to')
     wlan = network.WLAN(network.AP_IF)
     ap_id = 0
     for b in wlan.config('mac'):
       ap_id = (ap_id*7) ^ int(b)
     ap_password="%08X"%ap_id
     ap_ssid="TH%s"%ap_password
-    dmesg("%s"%ap_ssid)
-    dmesg("%s"%ap_password)
+    dmesg(ap_ssid)
+    dmesg("password is")
+    dmesg(ap_password)
     wlan.config(ssid=ap_ssid,password=ap_password)
     wlan.active(True)
   dmesg(wlan.ifconfig()[0])
