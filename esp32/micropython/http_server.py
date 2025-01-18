@@ -36,7 +36,7 @@ http_sock.listen(5)
 def mini_http_server():
   while True:
     conn, addr = http_sock.accept()
-    print('CLI %s' % str(addr[0]))
+    print('<%s' % str(addr[0]))
     request = conn.recv(4096).decode('utf8').split('\n')[0].split(' ')
     print(request)
     if request[0]=="GET":
@@ -50,8 +50,6 @@ def mini_http_server():
           (k,v) = kv.split("=")
           parameters[k] = v
       if fname=="": fname="index.html"
-      print("file=%s" % fname)
-      print(parameters)
       mimetype="text"
       server_func = http_file_read
       fext=fname.split(".")[-1]

@@ -1,7 +1,7 @@
 import requests
 
-# Check / update wan IP address
 def setup_wanip():
+  dmesg("wan init...")
   try:
     WANIP = [ s.strip() for s in open('config/wanip.txt').readlines() ]
     curwanip=requests.get("https://api.ipify.org").content.decode("utf8")
