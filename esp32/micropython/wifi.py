@@ -6,8 +6,15 @@ def wifi_sta(ssid,password,hname):
   network.hostname(hname)
   wlan = network.WLAN(network.STA_IF)
   wlan.active(True)
+  apreach=False
   for wap in [ap[0].decode('utf8') for ap in wlan.scan()[:3]]:
-    dmesg(wap)
+    if wap==ssid:
+      dmesg("%s*"%wap)
+      apreach=True
+    else:
+      dmesg(wap)
+  if not apreach:
+    dmesg("%s!"%ssid)
   wlan.connect(ssid,password)
   retry=5    
   while not wlan.isconnected() and retry>0:
