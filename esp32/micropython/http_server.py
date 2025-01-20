@@ -59,7 +59,8 @@ def http_server(http_sock):
       if len(freq)>1:
         for kv in freq[1].split("&"):
           kvl=kv.split("=")
-          parameters[kvl[0]] = kvl[1:]
+          if len(kvl)==1: parameters[kvl[0]] = ''
+          elif len(kvl)>=2: parameters[kvl[0]] = '='.join(kvl[1:])
       if fname=="": fname="index.html"
       mimetype="text"
       server_func = http_file_read
