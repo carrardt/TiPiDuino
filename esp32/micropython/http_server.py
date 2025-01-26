@@ -64,7 +64,7 @@ def jsdb_set_value(k,v):
 def db_query(conn,fname,mimetype,params):
   fmt=params.pop('output')
   if fmt=='js':
-    http_reply_header(conn,"application/json")
+    http_reply_header(conn,"application/json",False)
   else:
     dmesg('EFMT:%s'%fmt)
     return False
@@ -72,7 +72,7 @@ def db_query(conn,fname,mimetype,params):
     if v=='=':
       conn.sendall('let %s = %s ;\n'%(k,jsdb_get_value(k)))
     else:
-      
+      jsdb_set_value(k,v)
   return True
 
 def http_server(http_sock):
