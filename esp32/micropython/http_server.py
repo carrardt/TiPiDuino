@@ -44,37 +44,6 @@ def setup_wifi_config(conn,fname,mimetype,params):
   dmesg("Wifi setup")
   return True
 
-
-def jsdb_init():
-  if not 'jsdb' in globals():
-    globals()['jsdb'] = {}
-
-def jsdb_get_value(k):
-  jsdb_init()
-  if not k in globals()['jsdb']
-    globals()['jsdb'][k] = open('web/%s.json'%k).read()
-  return globals()['jsdb'][k]
-
-def jsdb_set_value(k,v):
-  jsdb_init()
-  jsdb_get_value(k)
-  globals()['jsdb'][k] = v
-  return True
-
-def db_query(conn,fname,mimetype,params):
-  fmt=params.pop('output')
-  if fmt=='js':
-    http_reply_header(conn,"application/json",False)
-  else:
-    dmesg('EFMT:%s'%fmt)
-    return False
-  for (k,v) in params.items():
-    if v=='=':
-      conn.sendall('let %s = %s ;\n'%(k,jsdb_get_value(k)))
-    else:
-      jsdb_set_value(k,v)
-  return True
-
 def http_server(http_sock):
   while True:
     conn, addr = http_sock.accept()
