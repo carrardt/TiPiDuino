@@ -22,6 +22,6 @@ def download_web(webfile):
   f.write(requests.get("https://raw.githubusercontent.com/carrardt/TiPiDuino/refs/heads/main/esp32/web/%s"%webfile).content.decode('utf8'))
   f.close()
 
-for webfile in ['index.html','setup-wifi.html','setup-wan.html','TiHomeManager.html','TiHomeManager.js','home.js']:
+for webfile in ['index.html','setup-wifi.html','setup-wan.html','TiHomeManager.html','TiHomeManager.js','home.js','home.json','wifi.json']:
   download_web(webfile)
 
