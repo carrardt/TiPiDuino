@@ -13,7 +13,7 @@ def download_py(fname):
   f.write(requests.get("https://raw.githubusercontent.com/carrardt/TiPiDuino/refs/heads/main/esp32/micropython/%s"%fname).content.decode('utf8'))
   f.close()
 
-for fname in ['boot.py','console.py','http_server.py','main.py','tools.py','wanip.py','wifi.py','pcd8544/pcd8544.py']:
+for fname in ['boot.py','console.py','http_server.py','main.py','tools.py','wanip.py','wifi.py','jsdb.py','pcd8544/pcd8544.py']:
   download_py(fname)
 
 def download_web(webfile):

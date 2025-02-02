@@ -8,7 +8,7 @@ def jsdb_parse_key(k):
   if not 'jsdb' in globals():
     globals()['jsdb'] = {}
   if not objroot in globals()['jsdb']:
-    exec( ("jsdb['%s']="%k) + open('web/%s.json'%k).read() + '\n' , globals() )
+    exec( ("jsdb['%s']="%objroot) + open('web/%s.json'%objroot).read() + '\n' , globals() )
   return (objroot,objacc)
 
 def jsdb_get_value(k):
@@ -17,14 +17,25 @@ def jsdb_get_value(k):
   exec('R=jsdb'+objacc,globals(),L)
   return L['R']
 
-def jsdb_set_value(k,v):
+def jsdb_set_value(k,v,sync=False):
   (objroot,objacc) = jsdb_parse_key(k)
-  L={'V':v}
+  L={'V':None}
+  exec('V=%s'%v,globals(),L)
   exec('jsdb'+objacc+'=V',globals(),L)
+  if sync:
+    f=open('web/%s.json'%objroot,'w')
+    f.write( str(globals()['jsdb'][objroot])+'\n')
+    f.close()
   return True
 
-def db_query(conn,fname,mimetype,params):
-  fmt=params.pop('output')
+def http_jsdb_query(conn,fname,mimetype,params):
+  fmt='js'
+  if 'out' in params:
+    fmt=params.pop('out')
+  sync=False
+  if 'sync' in params:
+    sync=(params.pop('sync')=='True')
+  dmesg('fmt=%s'%fmt)
   if fmt=='js':
     http_reply_header(conn,"application/json",False)
   else:
@@ -35,7 +46,7 @@ def db_query(conn,fname,mimetype,params):
     if v=='=':
       conn.sendall('let %s = %s ;\n'%(k,jsdb_get_value(k)))
     else:
-      jsdb_set_value(k,v)
+      jsdb_set_value(k,v,sync)
   conn.sendall('let jsdb_errcode = 0;\n')
   return True
 

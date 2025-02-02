@@ -24,26 +24,6 @@ def http_file_read(conn,fname,mimetype,parameters):
   except:
     conn.sendall("<html><head><title>page not found</title></head><body>page '%s' not found</body></html>" % fname)  
 
-def setup_wifi_config(conn,fname,mimetype,params):
-  http_reply_header(conn,mimetype)
-  if not 'ssid' in params.keys():
-    dmesg('missing ssid')
-    conn.sendall("<html><head><title>Wifi setup failed</title></head><body>WIFI setup failed</body></html>")
-    return False
-  ssid=params['ssid']
-  seckey=''
-  if 'key' in params.keys():
-    seckey=params['key']
-  host='TiHome'
-  if 'host' in params.keys():
-    host=params['host']
-  f=open('config/wifi.txt','w')
-  f.write("%s\n%s\n%s\n"%(ssid,seckey,host))
-  f.close()
-  conn.sendall("<html><head><title>Wifi setup success</title></head><body>WIFI setup complete<br>SSID=%s<br>key=%s<br>host=%s</body></html>"%(ssid,seckey,host) )
-  dmesg("Wifi setup")
-  return True
-
 def http_server(http_sock):
   while True:
     conn, addr = http_sock.accept()

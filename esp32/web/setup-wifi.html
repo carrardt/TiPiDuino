@@ -2,15 +2,25 @@
 <html>
 <body>
 <h2>Wifi configuration</h2>
-<form action="/setup_wifi_config.py">
+
+<script src="/http_jsdb_query.py?out=js&sync=False&wifi==">
+</script>
+
+<form action="/http_jsdb_query.py">
   <label for="ssid">Wifi SSID:</label><br>
   <input type="text" id="ssid" name="ssid" value="<wifi SSID>"><br>
   <label for="key">Password:</label><br>
   <input type="text" id="key" name="key" value="<wifi password>"><br>
   <label for="host">Host name:</label><br>
-  <input type="text" id="host" name="host" value="TiHomeManager"><br><br>
+  <input type="text" id="host" name="host" value="<hostname>"><br><br>
   <input type="submit" value="Submit">
-</form> 
+</form>
+
+<script>
+document.getElementById("ssid").value = wifi.ssid;
+document.appendChild( document.createTextNode("jsdb_errcode = " + jsdb_errcode) );
+</script>
+
 </body>
 </html>
 
