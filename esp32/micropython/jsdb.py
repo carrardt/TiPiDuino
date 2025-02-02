@@ -35,18 +35,25 @@ def http_jsdb_query(conn,fname,mimetype,params):
   sync=False
   if 'sync' in params:
     sync=(params.pop('sync')=='True')
-  dmesg('fmt=%s'%fmt)
+  repfmt=""
   if fmt=='js':
+    http_reply_header(conn,"text/javascript",False)
+    repfmt="let %s=%s;\n"
+  elif fmt=='json':
     http_reply_header(conn,"application/json",False)
+    repfmt="{'%s':%s}\n"
   else:
     dmesg('EFMT:%s'%fmt)
-    conn.sendall('EFMT:%s\n'%fmt)
     return False
+  jsdb_retcode=0
   for (k,v) in params.items():
     if v=='=':
-      conn.sendall('let %s = %s ;\n'%(k,jsdb_get_value(k)))
+      conn.sendall(repfmt%(k,jsdb_get_value(k)))
+      jsdb_retcode+=100
     else:
       jsdb_set_value(k,v,sync)
-  conn.sendall('let jsdb_errcode = 0;\n')
+      jsdb_retcode+=1
+  if fmt=='js':
+    conn.sendall('let jsdb_retcode=%d;\n'%jsdb_retcode)
   return True
 

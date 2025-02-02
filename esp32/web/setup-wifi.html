@@ -2,26 +2,27 @@
 <html>
 <body>
 <h2>Wifi configuration</h2>
-
 <script src="/http_jsdb_query.py?out=js&sync=False&wifi==">
 </script>
-
-<form action="/http_jsdb_query.py">
-  <label for="ssid">Wifi SSID:</label><br>
-  <input type="text" id="ssid" name="ssid" value="<wifi SSID>"><br>
-  <label for="key">Password:</label><br>
-  <input type="text" id="key" name="key" value="<wifi password>"><br>
-  <label for="host">Host name:</label><br>
-  <input type="text" id="host" name="host" value="<hostname>"><br><br>
-  <input type="submit" value="Submit">
+<p id="jsdbret">JSDB Return code</p>
+<script>
+function onSubmitClick()
+{
+  document.getElementById("jsdbret").innerHTML = "Submit clicked";
+}
+</script>
+<form>
+  <label>Wifi SSID : </label> <input type="text" id="ssid" name="ssid" value="<SSID>"><br>
+  <label>Password  : </label> <input type="text" id="key"  name="key"  value="<password>"><br>
+  <label>Host name : </label> <input type="text" id="host" name="host" value="<hostname>"><br>
+  <input type="button" value="Update" onclick="onSubmitClick()"> 
 </form>
-
 <script>
 document.getElementById("ssid").value = wifi.ssid;
-document.appendChild( document.createTextNode("jsdb_errcode = " + jsdb_errcode) );
+document.getElementById("key").value = wifi.key;
+document.getElementById("host").value = wifi.host;
+document.getElementById("jsdbret").innerHTML = "Return code = " + jsdb_retcode;
 </script>
-
 </body>
 </html>
-
 
