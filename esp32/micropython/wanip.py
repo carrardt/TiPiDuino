@@ -2,16 +2,13 @@ import requests
 
 def setup_wanip():
   dmesg("wan init...")
-  try:
-    WANIP = [ s.strip() for s in open('config/wanip.txt').readlines() ]
+  WANIP = jsdb_get_value('wanip')
+  if WANIP['url'] != '':
     curwanip=requests.get("https://api.ipify.org").content.decode("utf8")
-    if WANIP[1]!=curwanip:
-      WANIP[1]=curwanip
-      requests.get(WANIP[2]).content.decode('utf8')
-      f=open('config/wanip.txt','w')
-      f.write('\n'.join(WANIP))
-      f.close()
+    if WANIP['ip']!=curwanip:
+      WANIP['ip']=curwanip
+      requests.get(WANIP['url']).content.decode('utf8')
+      jsdb_set_value('wanip',WANIP,True)
     dmesg(curwanip)
-  except OSError as e:
-    dmesg("WAN failed")
-
+  else:
+    dmesg('no wan')

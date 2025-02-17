@@ -41,11 +41,11 @@ def wifi_connect():
   wlan = None
   WIFICON = None
   try:
-    WIFICON = [ s.strip() for s in open('config/wifi.txt').readlines() ]
+    WIFICON = jsdb_get_value('wifi')
   except:
-    WIFICON = None
-  if WIFICON:
-    wlan = wifi_sta(*WIFICON)
+    WIFICON = { 'ssid':'' , 'password':'' , 'hostname':'' }
+  if WIFICON['ssid'] != '' :
+    wlan = wifi_sta(WIFICON['ssid'],WIFICON['password'],WIFICON['hostname'])
   else:
     wlan = wifi_ap()
   dmesg(wlan.ifconfig()[0])

@@ -14,11 +14,13 @@ import gc
 gc.enable()
 gc.collect()
 
+include('jsdb.py')
+
 include('wifi.py')
 wlan = wifi_connect()
-wifi_sta=None
-wifi_ap=None
-wifi_connect=None
+wifi_sta = None
+wifi_ap = None
+wifi_connect = None
 
 include('wanip.py')
 if wlan.isconnected():
