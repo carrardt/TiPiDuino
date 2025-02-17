@@ -8,7 +8,7 @@ def jsdb_parse_key(k):
   if not 'jsdb' in globals():
     globals()['jsdb'] = {}
   if not objroot in globals()['jsdb']:
-    exec( ("jsdb['%s']="%objroot) + open('web/%s.json'%objroot).read() + '\n' , globals() )
+    exec( ("jsdb['%s']="%objroot) + open('db/%s.json'%objroot).read() + '\n' , globals() )
   return (objroot,objacc)
 
 def jsdb_get_value(k):
@@ -23,7 +23,7 @@ def jsdb_set_value(k,v,sync=False):
   exec('V=%s'%v,globals(),L)
   exec('jsdb'+objacc+'=V',globals(),L)
   if sync:
-    f=open('web/%s.json'%objroot,'w')
+    f=open('db/%s.json'%objroot,'w')
     f.write( str(globals()['jsdb'][objroot])+'\n')
     f.close()
   return True
