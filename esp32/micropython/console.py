@@ -16,4 +16,24 @@ def dmesg(s,mend="\n"):
 def clear():
   lcd.clear()
 
+import qrcodegen
+
+def show_qr_code(txt):
+  SCALE = 1
+  qr = qrcodegen.QRCode()
+  qr.fromText(txt)
+  sz = qr.size()
+  if sz <= 24:
+    SCALE = 2
+  sz = sz * SCALE
+  lcd.clear()
+  for col in range((sz+7)//8):
+      lcd.position(0,col)
+      for i in range(sz):
+          c=0
+          for b in range(8):
+              c = c*2 + int( qr.module( i//SCALE , (col*8+7-b)//SCALE ) )
+          lcd.data( bytearray([c]) )
+  qr = None
+  gc.collect()
 

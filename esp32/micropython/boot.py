@@ -17,7 +17,7 @@ gc.collect()
 include('jsdb.py')
 
 include('wifi.py')
-wlan = wifi_connect()
+(wlan,wifiqrtxt) = wifi_connect()
 wifi_sta = None
 wifi_ap = None
 wifi_connect = None
@@ -29,4 +29,5 @@ setup_wanip=None
 
 gc.collect()
 dmesg('mem: %d/%d' % (gc.mem_alloc()/1024,gc.mem_free()/1024) )
+
 

@@ -30,24 +30,22 @@ def wifi_ap():
   for b in wlan.config('mac'): ap_id = (ap_id*7) ^ int(b)
   ap_password="%08X"%ap_id
   ap_ssid="TH%s"%ap_password
-  dmesg(ap_ssid)
-  dmesg("password is")
-  dmesg(ap_password)
   wlan.config(ssid=ap_ssid,password=ap_password,security=network.WLAN.SEC_WPA,max_clients=3)
   wlan.active(True)
-  return wlan
+  return (wlan,"WIFI:T:WPA2;S:%s;P:%s;"%(ap_ssid,ap_password))
 
 def wifi_connect():
   wlan = None
   WIFICON = None
+  WIFIQRTXT = None
   try:
     WIFICON = jsdb_get_value('wifi')
   except:
-    WIFICON = { 'ssid':'' , 'password':'' , 'hostname':'' }
+    WIFICON = { 'ssid':'' , 'key':'' , 'host':'' }
   if WIFICON['ssid'] != '' :
-    wlan = wifi_sta(WIFICON['ssid'],WIFICON['password'],WIFICON['hostname'])
+    wlan = wifi_sta(WIFICON['ssid'],WIFICON['key'],WIFICON['host'])
   else:
-    wlan = wifi_ap()
+    (wlan,WIFIQRTXT) = wifi_ap()
   dmesg(wlan.ifconfig()[0])
-  return wlan
+  return (wlan,WIFIQRTXT)
 
