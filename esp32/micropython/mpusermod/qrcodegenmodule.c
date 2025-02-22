@@ -109,14 +109,35 @@ static mp_obj_t qrcodegen_QRCode_fromText(mp_obj_t self_in, mp_obj_t text_obj)
 }
 static MP_DEFINE_CONST_FUN_OBJ_2(qrcodegen_QRCode_fromText_obj, qrcodegen_QRCode_fromText);
 
+// This is the QRCode.ecc(x) method. After creating a QRCode object, this
+// can be called to set the error check and correction level.
+// Valid values are QRCode.Ecc_LOW, QRCode.Ecc_MEDIUM, QRCode.Ecc_QUARTILE and QRCode.Ecc_HIGH
+static mp_obj_t qrcodegen_QRCode_setEcc(mp_obj_t self_in, mp_obj_t ecc_obj)
+{
+    qrcodegen_QRCode_obj_t *self = MP_OBJ_TO_PTR(self_in);
+    mp_int_t ecc = mp_obj_get_int( ecc_obj );
+    if( ecc!=qrcodegen_Ecc_LOW && ecc!=qrcodegen_Ecc_MEDIUM && ecc!=qrcodegen_Ecc_QUARTILE && ecc!=qrcodegen_Ecc_HIGH )
+    {
+      mp_raise_ValueError(MP_ERROR_TEXT("invalid QRCode Ecc level, must be one of Ecc_LOW, Ecc_MEDIUM, Ecc_QUARTILE or Ecc_HIGH"));
+    }
+    self->m_errCorLvl = ecc;
+    return mp_const_none;
+}
+static MP_DEFINE_CONST_FUN_OBJ_2(qrcodegen_QRCode_setEcc_obj, qrcodegen_QRCode_setEcc);
 
 // This collects all methods and other static class attributes of the QRCode.
 // The table structure is similar to the module table, as detailed below.
 static const mp_rom_map_elem_t qrcodegen_QRCode_locals_dict_table[] = {
-    { MP_ROM_QSTR(MP_QSTR_size), MP_ROM_PTR(&qrcodegen_QRCode_size_obj) },
-    { MP_ROM_QSTR(MP_QSTR_resize), MP_ROM_PTR(&qrcodegen_QRCode_resize_obj) },
-    { MP_ROM_QSTR(MP_QSTR_module), MP_ROM_PTR(&qrcodegen_QRCode_module_obj) },
+    { MP_ROM_QSTR(MP_QSTR_size)    , MP_ROM_PTR(&qrcodegen_QRCode_size_obj) },
+    { MP_ROM_QSTR(MP_QSTR_resize)  , MP_ROM_PTR(&qrcodegen_QRCode_resize_obj) },
+    { MP_ROM_QSTR(MP_QSTR_module)  , MP_ROM_PTR(&qrcodegen_QRCode_module_obj) },
     { MP_ROM_QSTR(MP_QSTR_fromText), MP_ROM_PTR(&qrcodegen_QRCode_fromText_obj) },
+    { MP_ROM_QSTR(MP_QSTR_setEcc)  , MP_ROM_PTR(&qrcodegen_QRCode_setEcc_obj) },
+    // constants
+    { MP_ROM_QSTR(MP_QSTR_Ecc_LOW)     , MP_ROM_INT(qrcodegen_Ecc_LOW) },
+    { MP_ROM_QSTR(MP_QSTR_Ecc_MEDIUM)  , MP_ROM_INT(qrcodegen_Ecc_MEDIUM) },
+    { MP_ROM_QSTR(MP_QSTR_Ecc_QUARTILE), MP_ROM_INT(qrcodegen_Ecc_QUARTILE) },
+    { MP_ROM_QSTR(MP_QSTR_Ecc_HIGH)    , MP_ROM_INT(qrcodegen_Ecc_HIGH) },
 };
 static MP_DEFINE_CONST_DICT(qrcodegen_QRCode_locals_dict, qrcodegen_QRCode_locals_dict_table);
 
@@ -143,7 +164,7 @@ static void qrcodegen_QRCode_print(const mp_print_t *print, mp_obj_t self_in, mp
 
   if (kind != PRINT_STR)
   {
-    mp_printf(print, "<%q>", MP_QSTR_QRCode);
+    mp_printf(print, "<%q@%p>", MP_QSTR_QRCode, self);
   }
 }
 

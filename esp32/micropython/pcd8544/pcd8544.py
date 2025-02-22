@@ -27,7 +27,7 @@ SOFTWARE.
 from micropython import const
 from ustruct import pack
 from utime import sleep_us
-import framebuf
+import bitmaps
 
 # Function set 0010 0xxx
 FUNCTION_SET     = const(0x20)
@@ -163,21 +163,15 @@ class PCD8544:
 		self.spi.write(pack('B'*len(data), *data))
 		self.cs(1)
 
-
 class PCD8544_BM8x5(PCD8544):
   def __init__(self, spi, cs, dc, rst=None):
     super().__init__(spi, cs, dc, rst)
-    self.font8x5 = open('font8x5.bin','rb').read()
     self.screen = []
 
   def text(self, col, row, s):
     self.position(col,row)
     for c in s:
-      ci = (ord(c)-ord(' '))*5
-      if (ci+5)>len(self.font8x5): ci = 0
-      cbm=bytearray(self.font8x5[ci:ci+5])
-      cbm.append(0x00)
-      self.data(cbm)
+      self.data( bytearray( bitmaps.font_8x6_char(ord(c)) ) )
 
   def println(self,s):
     if len(self.screen)>=6:
