@@ -17,15 +17,21 @@ gc.collect()
 include('jsdb.py')
 
 include('wifi.py')
-(wlan,wifiqrtxt) = wifi_connect()
-wifi_sta = None
-wifi_ap = None
-wifi_connect = None
+(wlan,contxt) = wifi_connect()
+if contxt!="":
+  show_qr_code(contxt)
+  print("wait for connection")
+  while not wlan.isconnected():
+    time.sleep(1)
 
-include('wanip.py')
-if wlan.isconnected():
-  setup_wanip()
-setup_wanip=None
+#wifi_sta = None
+#wifi_ap = None
+#wifi_connect = None
+
+#include('wanip.py')
+#if wlan.isconnected():
+#  setup_wanip()
+#setup_wanip=None
 
 gc.collect()
 dmesg('mem: %d/%d' % (gc.mem_alloc()/1024,gc.mem_free()/1024) )

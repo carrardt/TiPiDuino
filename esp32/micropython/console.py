@@ -18,17 +18,20 @@ def clear():
 
 import qrcodegen
 
-def show_qr_code(txt):
+def show_qr_code(txt,EccLvl=qrcodegen.QRCode.Ecc_LOW):
   SCALE = 1
   qr = qrcodegen.QRCode()
+  qr.setEcc(EccLvl)
   qr.fromText(txt)
   sz = qr.size()
   if sz <= 24:
     SCALE = 2
   sz = sz * SCALE
+  startx=(84-sz)//2
+  startcol=0
   lcd.clear()
   for col in range((sz+7)//8):
-      lcd.position(0,col)
+      lcd.position(startx,startcol+col)
       for i in range(sz):
           c=0
           for b in range(8):

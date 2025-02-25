@@ -28,9 +28,9 @@ def wifi_ap():
   wlan = network.WLAN(network.AP_IF)
   ap_id = 0
   for b in wlan.config('mac'): ap_id = (ap_id*7) ^ int(b)
-  ap_password="%08X"%ap_id
-  ap_ssid="TH%s"%ap_password
-  wlan.config(ssid=ap_ssid,password=ap_password,security=network.WLAN.SEC_WPA,max_clients=3)
+  ap_password="PW%08X"%ap_id
+  ap_ssid="AP%s"%ap_id
+  wlan.config(ssid=ap_ssid,password=ap_password,security=wlan.SEC_WPA2,max_clients=3)
   wlan.active(True)
   return (wlan,"WIFI:T:WPA2;S:%s;P:%s;"%(ap_ssid,ap_password))
 

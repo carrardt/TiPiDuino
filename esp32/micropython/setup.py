@@ -3,7 +3,6 @@
 import os
 import requests
 
-
 def download_py(fname):
   bname=fname.split('/')[-1]
   print("Download %s ..."%bname)
