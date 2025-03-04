@@ -24,7 +24,6 @@ def wifi_sta(ssid,password,hname):
   return wlan
 
 def wifi_ap():
-  dmesg('Connect to')
   wlan = network.WLAN(network.AP_IF)
   ap_id = 0
   for b in wlan.config('mac'): ap_id = (ap_id*7) ^ int(b)
@@ -46,6 +45,5 @@ def wifi_connect():
     wlan = wifi_sta(WIFICON['ssid'],WIFICON['key'],WIFICON['host'])
   else:
     (wlan,WIFIQRTXT) = wifi_ap()
-  dmesg(wlan.ifconfig()[0])
   return (wlan,WIFIQRTXT)
 

@@ -12,3 +12,4 @@ def setup_wanip():
     dmesg(curwanip)
   else:
     dmesg('no wan')
+
