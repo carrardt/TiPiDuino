@@ -18,7 +18,7 @@ include('jsdb.py')
 
 include('wifi.py')
 (wlan,wifi_qrtxt) = wifi_connect()
-if wifi_qrtxt!="":
+if wifi_qrtxt!=None:
   show_qr_code(wifi_qrtxt)
   i=0
   while not wlan.isconnected():
